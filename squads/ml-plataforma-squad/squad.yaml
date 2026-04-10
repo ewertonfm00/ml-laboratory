@@ -1,0 +1,57 @@
+name: ml-plataforma-squad
+version: 0.1.0
+description: Gerencia toda a infraestrutura do laboratório ML — Railway, Postgres, Redis, monitoramento e deploys isolados
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-plataforma
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 2-building
+  project: machine-learning
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_platform
+  redis_prefix: "ml:platform:"
+  n8n_tag: "[ML-PLATFORM]"
+  railway_service: ml-platform
+
+components:
+  agents:
+    - agents/infra-manager.md
+    - agents/monitor-agent.md
+    - agents/deploy-coordinator.md
+  tasks:
+    - tasks/setup-infrastructure.md
+    - tasks/monitor-health.md
+    - tasks/deploy-update.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads: []
+  services:
+    - Railway
+    - Postgres
+    - Redis
+    - n8n
+
+isolation_strategy: |
+  Todos os recursos deste projeto usam prefixo ml- ou namespace ml_*
+  para total isolamento de outros projetos na mesma infraestrutura.
+  - Postgres: schemas separados por area (ml_captura, ml_data_eng, etc.)
+  - Redis: prefixo ml: em todas as chaves
+  - n8n: tags [ML-*] em todos os workflows
+  - Railway: services nomeados ml-*
+  - Evolution API: webhook endpoints /ml/* separados
+
+keywords:
+  - ml
+  - plataforma
+  - infraestrutura
+  - railway
+  - devops
+  - monitoramento

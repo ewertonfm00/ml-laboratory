@@ -1,0 +1,225 @@
+{
+  "name": "[ML-OPERACIONAL] Detector de Falhas",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id AS processo_id, area, processo_nome, gargalos, criticidade, sessao_id, created_at FROM ml_operacional.processos WHERE gargalos IS NOT NULL AND gargalos::text != '[]' AND gargalos::text != 'null' AND created_at >= NOW() - INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 30",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "Buscar Processos com Gargalos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.processo_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-dados",
+      "name": "Tem Processos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst gargalos = typeof item.gargalos === 'string' ? JSON.parse(item.gargalos) : (item.gargalos || []);\nconst gargalosTexto = Array.isArray(gargalos) ? gargalos.join('\\n- ') : JSON.stringify(gargalos);\n\nconst prompt = `Você é um especialista em análise de falhas operacionais. Analise os gargalos identificados no processo abaixo e classifique cada falha.\n\nProcesso: ${item.processo_nome}\nÁrea: ${item.area}\nCriticidade do processo: ${item.criticidade}\n\nGargalos identificados:\n- ${gargalosTexto}\n\nPara cada gargalo, retorne um JSON array com objetos no seguinte formato:\n[\n  {\n    \"tipo_falha\": \"categoria da falha (ex: gargalo_fluxo, falha_comunicacao, recurso_insuficiente, processo_incompleto, tecnologia_inadequada)\",\n    \"descricao\": \"descrição detalhada da falha\",\n    \"frequencia\": 1,\n    \"condicoes\": {\"contexto\": \"quando ocorre\", \"triggers\": []},\n    \"impacto_estimado\": \"impacto estimado em termos de produtividade ou custo\",\n    \"status\": \"ativo\"\n  }\n]\n\nRetorne APENAS o JSON array válido, sem markdown.`;\n\nreturn [{\n  json: {\n    ...item,\n    prompt\n  }\n}];"
+      },
+      "id": "preparar-prompt",
+      "name": "Preparar Prompt Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ML_ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{role: 'user', content: $json.prompt}]}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "Claude Detector de Falhas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content?.[0]?.text || '[]';\nlet parsed;\ntry { parsed = JSON.parse(content); } catch(e) { parsed = {erro: 'parse_failed', raw: content}; }\n\n// Se parsed não é array, encapsula\nconst falhas = Array.isArray(parsed) ? parsed : (parsed.erro ? [] : [parsed]);\n\n// Retorna um item por falha detectada para processar individualmente\nif (falhas.length === 0) {\n  return [{json: {...$input.first().json, resultado: null, skip: true}}];\n}\n\nreturn falhas.map(falha => ({\n  json: {\n    ...$input.first().json,\n    resultado: falha,\n    skip: false\n  }\n}));"
+      },
+      "id": "parsear-resposta",
+      "name": "Parsear Resposta Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH existing AS (\n  SELECT id, frequencia FROM ml_operacional.falhas\n  WHERE area = '{{ $json.area }}'\n  AND tipo_falha = '{{ $json.resultado.tipo_falha }}'\n  AND status != 'resolvido'\n  LIMIT 1\n)\nINSERT INTO ml_operacional.falhas (area, tipo_falha, descricao, frequencia, condicoes, impacto_estimado, primeira_ocorrencia, ultima_ocorrencia, status)\nSELECT\n  '{{ $json.area }}',\n  '{{ $json.resultado.tipo_falha || \"falha_generica\" }}',\n  '{{ $json.resultado.descricao || \"\" }}',\n  1,\n  '{{ JSON.stringify($json.resultado.condicoes || {}) }}'::jsonb,\n  '{{ $json.resultado.impacto_estimado || \"\" }}',\n  NOW(),\n  NOW(),\n  '{{ [\"ativo\",\"resolvido\",\"monitorando\"].includes($json.resultado.status) ? $json.resultado.status : \"ativo\" }}'\nWHERE NOT EXISTS (SELECT 1 FROM existing)\nON CONFLICT DO NOTHING;\n\nUPDATE ml_operacional.falhas\nSET\n  frequencia = frequencia + 1,\n  ultima_ocorrencia = NOW(),\n  descricao = '{{ $json.resultado.descricao || \"\" }}'\nWHERE area = '{{ $json.area }}'\nAND tipo_falha = '{{ $json.resultado.tipo_falha }}'\nAND status != 'resolvido'\nAND EXISTS (SELECT 1 FROM existing)",
+        "options": {}
+      },
+      "id": "salvar-resultado",
+      "name": "Upsert Falha",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "buscar-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar-dados": {
+      "main": [
+        [
+          {
+            "node": "tem-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem-dados": {
+      "main": [
+        [
+          {
+            "node": "preparar-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "preparar-prompt": {
+      "main": [
+        [
+          {
+            "node": "claude-analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-analise": {
+      "main": [
+        [
+          {
+            "node": "parsear-resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsear-resposta": {
+      "main": [
+        [
+          {
+            "node": "salvar-resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-10T00:00:00.000Z",
+  "versionId": ""
+}

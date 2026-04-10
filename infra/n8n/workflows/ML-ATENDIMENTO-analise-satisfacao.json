@@ -1,0 +1,225 @@
+{
+  "name": "[ML-ATENDIMENTO] Análise de Satisfação",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 20
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "schedule-trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS conversa_id, c.remote_jid AS cliente_id, c.canal, c.mensagens, c.created_at FROM ml_comercial.conversas c WHERE c.created_at >= NOW() - INTERVAL '2 hours' AND NOT EXISTS ( SELECT 1 FROM ml_atendimento.analises_satisfacao a WHERE a.conversa_id = c.id ) LIMIT 50",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "buscar-dados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-rows",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-dados",
+      "name": "tem-dados",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const conversa = item.json;\n  const mensagens = conversa.mensagens || [];\n  const textoConversa = Array.isArray(mensagens)\n    ? mensagens.map(m => `${m.role || 'user'}: ${m.content || m.texto || ''}`).join('\\n')\n    : JSON.stringify(mensagens).substring(0, 2000);\n  const prompt = `Analise a seguinte conversa de atendimento ao cliente e retorne um JSON com os campos:\\n- tom_emocional: (satisfeito|neutro|frustrado|furioso)\\n- causas_insatisfacao: array de strings com causas identificadas (vazio se satisfeito)\\n- risco_churn: (baixo|medio|alto)\\n- nps_comportamental: número inteiro entre -100 e 100\\n- momento_critico: boolean indicando se houve momento crítico na conversa\\n\\nConversa:\\n${textoConversa}\\n\\nRetorne APENAS o JSON, sem explicações.`;\n  results.push({\n    json: {\n      ...conversa,\n      prompt\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "preparar-prompt",
+      "name": "preparar-prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ML_ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{role: 'user', content: $json.prompt}]}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "claude-analise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content?.[0]?.text || '{}';\nlet parsed;\ntry { parsed = JSON.parse(content); } catch(e) { parsed = {erro: 'parse_failed', raw: content.substring(0,200)}; }\nreturn [{json: {...$input.first().json, resultado: parsed}}];"
+      },
+      "id": "parsear-resposta",
+      "name": "parsear-resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_atendimento.analises_satisfacao (conversa_id, cliente_id, canal, tom_emocional, causas_insatisfacao, risco_churn, nps_comportamental, momento_critico) VALUES ('{{ $json.conversa_id }}', '{{ $json.cliente_id }}', '{{ $json.canal }}', '{{ $json.resultado.tom_emocional || 'neutro' }}', '{{ JSON.stringify($json.resultado.causas_insatisfacao || []) }}'::jsonb, '{{ $json.resultado.risco_churn || 'baixo' }}', {{ $json.resultado.nps_comportamental || 0 }}, {{ $json.resultado.momento_critico || false }}) ON CONFLICT (conversa_id) DO NOTHING",
+        "options": {}
+      },
+      "id": "salvar-resultado",
+      "name": "salvar-resultado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "buscar-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar-dados": {
+      "main": [
+        [
+          {
+            "node": "tem-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem-dados": {
+      "main": [
+        [
+          {
+            "node": "preparar-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "preparar-prompt": {
+      "main": [
+        [
+          {
+            "node": "claude-analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-analise": {
+      "main": [
+        [
+          {
+            "node": "parsear-resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsear-resposta": {
+      "main": [
+        [
+          {
+            "node": "salvar-resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-10T00:00:00.000Z",
+  "versionId": ""
+}

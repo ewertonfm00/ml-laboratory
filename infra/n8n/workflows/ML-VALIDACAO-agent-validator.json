@@ -1,0 +1,218 @@
+{
+  "name": "[ML-VALIDACAO] Agent Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 2 }] }
+      },
+      "id": "schedule-trigger",
+      "name": "A cada 2 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "[ML-VALIDACAO] Processa itens pendente_agente na fila de validação"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  f.id               AS fila_id,\n  f.projeto_id,\n  f.numero_id,\n  f.resposta_texto,\n  f.contexto_conversa,\n  f.produto_servico_detectado,\n  f.tentativas_agente,\n  f.max_tentativas_agente,\n  -- Busca documento mais relevante para este produto/projeto\n  d.id               AS documento_id,\n  d.produto_servico_nome,\n  d.conteudo_texto,\n  d.tipo_fonte\nFROM _validacao.fila_validacao f\nLEFT JOIN LATERAL (\n  SELECT id, produto_servico_nome, conteudo_texto, tipo_fonte\n  FROM _validacao.documentos_produto d\n  WHERE d.projeto_id = f.projeto_id\n    AND d.ativo = true\n    AND d.conteudo_texto IS NOT NULL\n    AND (\n      d.numero_id = f.numero_id OR d.numero_id IS NULL\n    )\n    AND (\n      f.produto_servico_detectado IS NULL\n      OR lower(d.produto_servico_nome) LIKE '%' || lower(f.produto_servico_detectado) || '%'\n      OR to_tsvector('portuguese', d.conteudo_texto) @@ plainto_tsquery('portuguese', coalesce(f.produto_servico_detectado, ''))\n    )\n  ORDER BY\n    (d.numero_id IS NOT NULL) DESC,\n    ts_rank(to_tsvector('portuguese', d.conteudo_texto),\n            plainto_tsquery('portuguese', coalesce(f.produto_servico_detectado, ''))) DESC\n  LIMIT 1\n) d ON true\nWHERE f.status = 'pendente_agente'\n  AND f.tentativas_agente < f.max_tentativas_agente\nORDER BY f.created_at ASC\nLIMIT 5;"
+      },
+      "id": "buscar-fila-agente",
+      "name": "Buscar itens para o agente validar",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.fila_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "tem-itens",
+      "name": "Tem itens na fila?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// Sem documento → direto para fila humana\nif (!item.conteudo_texto) {\n  return [{ json: { ...item, skip_agent: true, motivo: 'sem_documento' } }];\n}\n\n// Prepara prompt para o agente validador\nconst conteudo_truncado = item.conteudo_texto.substring(0, 4000);\n\nconst prompt = `Você é um agente especialista em validação de informações sobre produtos e serviços.\n\nDocumentação disponível para \"${item.produto_servico_nome || item.produto_servico_detectado || 'produto não identificado'}\":\n---\n${conteudo_truncado}\n---\n\nResposta do atendente que precisa ser validada:\n\"${item.resposta_texto}\"\n\n${item.contexto_conversa ? `Contexto da conversa:\\n${item.contexto_conversa}` : ''}\n\nTarefa: Verifique se a resposta do atendente está CORRETA com base na documentação.\n\nRetorne APENAS um JSON válido (sem markdown):\n{\n  \"resultado\": \"correta\" | \"incorreta\" | \"sem_informacao\",\n  \"confianca\": 0.0 a 1.0,\n  \"trecho_base\": \"trecho exato da documentação que embasou esta validação (null se sem_informacao)\",\n  \"observacao\": \"explicação concisa do resultado\",\n  \"sugestao_correcao\": \"resposta correta que deveria ter sido dada (apenas se resultado=incorreta, null caso contrário)\"\n}\n\nSe não encontrar informação suficiente na documentação para validar, use resultado=\"sem_informacao\".`;\n\nreturn [{ json: { ...item, skip_agent: false, prompt } }];"
+      },
+      "id": "preparar-prompt-validacao",
+      "name": "Preparar Prompt de Validação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skip_agent }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "skip-agente",
+      "name": "Pular agente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",        "value": "={{ $env.ML_ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type",      "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({\n  model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001',\n  max_tokens: 800,\n  messages: [{ role: 'user', content: $json.prompt }]\n}) }}"
+            }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "claude-valida",
+      "name": "Claude Haiku — Valida Resposta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 180],
+      "notes": "[ML-VALIDACAO] Agente validador — Claude Haiku compara resposta com documentação"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('preparar-prompt-validacao').first().json;\nconst claudeResponse = $input.first().json;\n\nlet validacao;\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  validacao = JSON.parse(content);\n} catch(e) {\n  validacao = { resultado: 'sem_informacao', confianca: 0, observacao: 'Erro ao processar resposta do agente' };\n}\n\nreturn [{ json: { ...ctx, validacao } }];"
+      },
+      "id": "extrair-resultado-validacao",
+      "name": "Extrair Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [{ "leftValue": "={{ $json.validacao.resultado }}", "rightValue": "sem_informacao", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "sem_info"
+            },
+            {
+              "conditions": {
+                "conditions": [{ "leftValue": "={{ $json.validacao.resultado }}", "rightValue": "incorreta", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "incorreta"
+            },
+            {
+              "conditions": {
+                "conditions": [{ "leftValue": "={{ $json.validacao.resultado }}", "rightValue": "correta", "operator": { "type": "string", "operation": "equals" } }]
+              },
+              "renameOutput": true, "outputKey": "correta"
+            }
+          ]
+        }
+      },
+      "id": "switch-resultado",
+      "name": "Resultado da Validação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1780, 180]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Mover para fila humana\nUPDATE _validacao.fila_validacao\nSET\n  status = 'pendente_humano',\n  tentativas_agente = tentativas_agente + 1,\n  documento_usado_id = $2::uuid,\n  updated_at = NOW()\nWHERE id = $1::uuid;\n\n-- Registrar tentativa do agente\nINSERT INTO _validacao.validacoes\n  (fila_id, projeto_id, tipo_validador, modelo_ia, resultado, confianca_agente, observacao)\nVALUES\n  ($1::uuid, $3::uuid, 'agente', $4, 'sem_informacao', $5, $6);",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.fila_id,\n  $json.documento_id,\n  $json.projeto_id,\n  $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001',\n  $json.validacao?.confianca || 0,\n  $json.validacao?.observacao || $json.motivo || 'Sem informação suficiente na documentação'\n] }}"
+        }
+      },
+      "id": "mover-para-humano",
+      "name": "→ Fila Humana (sem_informacao)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 100],
+      "credentials": { "postgres": { "name": "ML Postgres" } },
+      "notes": "Agente não encontrou base para validar → humano revisa"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Marcar como incorreta e registrar erro\nUPDATE _validacao.fila_validacao\nSET status = 'pendente_humano', tentativas_agente = tentativas_agente + 1,\n    documento_usado_id = $2::uuid, updated_at = NOW()\nWHERE id = $1::uuid;\n\nINSERT INTO _validacao.validacoes\n  (fila_id, projeto_id, tipo_validador, modelo_ia, resultado, confianca_agente, trecho_base, observacao, sugestao_correcao)\nVALUES\n  ($1::uuid, $3::uuid, 'agente', $4, 'incorreta', $5, $6, $7, $8);\n\n-- Incrementar/criar erro no rastreador\nINSERT INTO _validacao.erros_produto\n  (projeto_id, numero_id, produto_servico_nome, tipo_erro, descricao_erro,\n   resposta_incorreta_exemplo, resposta_correta_esperada, fila_ids)\nVALUES\n  ($3::uuid, $9::uuid, $10, 'info_incorreta', $7, $11, $8, ARRAY[$1::uuid])\nON CONFLICT DO NOTHING;\n\nUPDATE _validacao.erros_produto\nSET frequencia = frequencia + 1,\n    ultima_ocorrencia = NOW(),\n    fila_ids = array_append(fila_ids, $1::uuid),\n    updated_at = NOW()\nWHERE projeto_id = $3::uuid\n  AND produto_servico_nome = $10\n  AND status = 'ativo';",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.fila_id,\n  $json.documento_id,\n  $json.projeto_id,\n  $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001',\n  $json.validacao.confianca,\n  $json.validacao.trecho_base,\n  $json.validacao.observacao,\n  $json.validacao.sugestao_correcao,\n  $json.numero_id,\n  $json.produto_servico_detectado,\n  $json.resposta_texto\n] }}"
+        }
+      },
+      "id": "registrar-incorreta",
+      "name": "→ Registrar Incorreta + Erro",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } },
+      "notes": "Agente detectou erro → registra na fila humana + incrementa rastreador de erros"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Marcar como aprovada\nUPDATE _validacao.fila_validacao\nSET status = 'aprovada', tentativas_agente = tentativas_agente + 1,\n    documento_usado_id = $2::uuid, updated_at = NOW()\nWHERE id = $1::uuid;\n\nINSERT INTO _validacao.validacoes\n  (fila_id, projeto_id, tipo_validador, modelo_ia, resultado, confianca_agente, trecho_base, observacao)\nVALUES\n  ($1::uuid, $3::uuid, 'agente', $4, 'correta', $5, $6, $7);",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.fila_id,\n  $json.documento_id,\n  $json.projeto_id,\n  $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001',\n  $json.validacao.confianca,\n  $json.validacao.trecho_base,\n  $json.validacao.observacao\n] }}"
+        }
+      },
+      "id": "registrar-correta",
+      "name": "→ Aprovada pelo Agente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2000, 500],
+      "credentials": { "postgres": { "name": "ML Postgres" } }
+    }
+  ],
+  "connections": {
+    "A cada 2 minutos": { "main": [[{ "node": "Buscar itens para o agente validar", "type": "main", "index": 0 }]] },
+    "Buscar itens para o agente validar": { "main": [[{ "node": "Tem itens na fila?", "type": "main", "index": 0 }]] },
+    "Tem itens na fila?": { "main": [[{ "node": "Preparar Prompt de Validação", "type": "main", "index": 0 }], []] },
+    "Preparar Prompt de Validação": { "main": [[{ "node": "Pular agente?", "type": "main", "index": 0 }]] },
+    "Pular agente?": {
+      "main": [
+        [{ "node": "→ Fila Humana (sem_informacao)", "type": "main", "index": 0 }],
+        [{ "node": "Claude Haiku — Valida Resposta", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude Haiku — Valida Resposta": { "main": [[{ "node": "Extrair Resultado", "type": "main", "index": 0 }]] },
+    "Extrair Resultado": { "main": [[{ "node": "Resultado da Validação", "type": "main", "index": 0 }]] },
+    "Resultado da Validação": {
+      "main": [
+        [{ "node": "→ Fila Humana (sem_informacao)", "type": "main", "index": 0 }],
+        [{ "node": "→ Registrar Incorreta + Erro", "type": "main", "index": 0 }],
+        [{ "node": "→ Aprovada pelo Agente", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": ["ML-VALIDACAO", "agent-validator", "machine-learning"],
+  "meta": {
+    "project": "machine-learning",
+    "description": "Valida respostas de produto automaticamente via Claude Haiku — sem info suficiente vai para humano"
+  }
+}

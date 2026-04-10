@@ -1,0 +1,219 @@
+squad_design:
+  project: machine-learning
+  name: ML Laboratory — Blueprint Master
+  version: 1.0.0
+  created_at: "2026-04-09"
+  description: >
+    Laboratório de Inteligência Aplicada a Negócios.
+    Captura dados reais de múltiplas áreas, refina padrões
+    e transforma em skills de agentes com alto nível de especialização.
+
+analysis:
+  domain: Laboratório de Inteligência Aplicada a Negócios
+  client_pilot: Omega Laser (Ribeirão Preto, SP)
+  entities:
+    - Vendedor
+    - Conversa
+    - Produto
+    - Objeção
+    - Treinamento
+    - Performance
+    - Lead
+    - Processo
+    - Fluxo Financeiro
+    - Campanha
+    - Colaborador
+  workflows:
+    - coleta-e-transcricao-whatsapp
+    - classificacao-de-conversas
+    - perfil-comportamental-vendedor
+    - abordagem-por-produto
+    - catalogo-de-objecoes
+    - geracao-de-treinamento
+    - relatorio-de-performance
+  integrations:
+    - Evolution API (webhook WhatsApp)
+    - n8n Railway (orquestração)
+    - Postgres (armazenamento)
+    - Redis (cache e sessões)
+    - Groq Whisper (transcrição de áudio)
+    - Claude Haiku (classificação)
+    - Claude Sonnet (análise e geração)
+    - AIOX (agentes)
+
+isolation_strategy:
+  rationale: >
+    Projeto usa as mesmas ferramentas de infraestrutura de outros projetos
+    mas com isolamento total por namespace para evitar qualquer interferência.
+  rules:
+    postgres: "Schemas separados — prefixo ml_* (ex: ml_comercial, ml_captura)"
+    redis: "Prefixo ml: em todas as chaves (ex: ml:comercial:analise:uuid)"
+    n8n: "Tag [ML-*] em todos os workflows (ex: [ML-COMERCIAL])"
+    railway: "Services nomeados ml-* (ex: ml-captura, ml-plataforma)"
+    evolution_api: "Webhook endpoints /ml/* separados"
+    postgres_user: "Usuário ml_app com acesso apenas aos schemas ml_*"
+
+architecture:
+  layers:
+    - id: camada-1
+      name: Coleta
+      description: Captura dados brutos de todas as fontes disponíveis por área
+      squad: ml-captura-squad
+      status: active
+    - id: camada-2
+      name: Estruturação
+      description: Organiza, classifica e rotula os dados coletados
+      squad: ml-data-eng-squad
+      status: active
+    - id: camada-3
+      name: Refinamento
+      description: Identifica padrões, extrai insights e valida comportamentos
+      squad: ml-ia-padroes-squad
+      status: active
+    - id: camada-4
+      name: Inteligência
+      description: Transforma padrões refinados em skills de agentes
+      squad: ml-skills-squad
+      status: active
+
+squads:
+  # NÍVEL 2 — Squads de Construção (constroem a ferramenta)
+  building:
+    - id: ml-captura-squad
+      level: 2-building
+      priority: 1
+      status: active
+      description: Captura dados brutos (WhatsApp, áudio, eventos)
+      agents: [webhook-manager, audio-transcriber, message-collector]
+      depends_on: []
+
+    - id: ml-data-eng-squad
+      level: 2-building
+      priority: 2
+      status: active
+      description: ETL, schema design, classificação com IA
+      agents: [schema-designer, etl-engineer, data-classifier]
+      depends_on: [ml-captura-squad]
+
+    - id: ml-ia-padroes-squad
+      level: 2-building
+      priority: 3
+      status: active
+      description: Extração de padrões, análise comportamental, benchmarks
+      agents: [pattern-extractor, behavior-analyst, benchmark-generator]
+      depends_on: [ml-captura-squad, ml-data-eng-squad]
+
+    - id: ml-skills-squad
+      level: 2-building
+      priority: 4
+      status: active
+      description: Geração e validação de skills de agentes
+      agents: [skill-generator, skill-validator, agent-trainer]
+      depends_on: [ml-ia-padroes-squad, ml-data-eng-squad]
+
+    - id: ml-plataforma-squad
+      level: 2-building
+      priority: 0
+      status: active
+      description: Infraestrutura, deploy e monitoramento
+      agents: [infra-manager, monitor-agent, deploy-coordinator]
+      depends_on: []
+
+  # NÍVEL 1 — Squads Operacionais (rodam o laboratório por área)
+  operational:
+    - id: ml-comercial-squad
+      level: 1-operational
+      priority: 1
+      status: active
+      description: Comercial — análise de conversas, perfis, abordagem, objeções, performance
+      agents:
+        - conversation-analyst
+        - behavioral-profiler
+        - product-approach
+        - objection-handler
+        - training-generator
+        - performance-reporter
+      data_source: WhatsApp + Evolution API + Redrive
+      postgres_schema: ml_comercial
+      depends_on: [ml-captura-squad, ml-data-eng-squad, ml-ia-padroes-squad, ml-skills-squad]
+
+    - id: ml-operacional-squad
+      level: 1-operational
+      priority: 2
+      status: planned
+      description: Operações — gargalos, falhas, otimização de processos
+      agents: [process-analyst, bottleneck-detector, optimization-advisor]
+      data_source: Processos internos, SLA, registros de entrega
+      postgres_schema: ml_operacional
+      depends_on: [ml-captura-squad, ml-data-eng-squad, ml-ia-padroes-squad]
+
+    - id: ml-financeiro-squad
+      level: 1-operational
+      priority: 3
+      status: planned
+      description: Financeiro — risco, previsibilidade, alertas de inadimplência
+      agents: [cashflow-analyst, risk-detector, forecast-generator]
+      data_source: Fluxo de caixa, inadimplência, margens
+      postgres_schema: ml_financeiro
+      depends_on: [ml-captura-squad, ml-data-eng-squad, ml-ia-padroes-squad]
+
+    - id: ml-atendimento-squad
+      level: 1-operational
+      priority: 4
+      status: planned
+      description: Atendimento — satisfação, NPS, churn, retenção
+      agents: [satisfaction-analyst, churn-detector, retention-advisor]
+      data_source: WhatsApp pós-venda, tickets, reclamações
+      postgres_schema: ml_atendimento
+      depends_on: [ml-captura-squad, ml-data-eng-squad, ml-ia-padroes-squad]
+
+    - id: ml-marketing-squad
+      level: 1-operational
+      priority: 5
+      status: planned
+      description: Marketing — mensagens, segmentação, timing de campanhas
+      agents: [campaign-analyst, message-optimizer, segmentation-advisor]
+      data_source: Campanhas, engajamento, conversão
+      postgres_schema: ml_marketing
+      depends_on: [ml-captura-squad, ml-data-eng-squad, ml-ia-padroes-squad]
+
+    - id: ml-pessoas-squad
+      level: 1-operational
+      priority: 6
+      status: planned
+      description: Pessoas — perfil ideal por função, engajamento, onboarding
+      agents: [talent-profiler, engagement-analyst, onboarding-advisor]
+      data_source: Performance, onboarding, turnover
+      postgres_schema: ml_pessoas
+      depends_on: [ml-captura-squad, ml-data-eng-squad, ml-ia-padroes-squad]
+
+execution_order:
+  phase_1_prove_model:
+    description: Provar o modelo com dados comerciais reais da Omega Laser
+    squads:
+      - ml-plataforma-squad (infraestrutura)
+      - ml-captura-squad (webhook + coleta)
+      - ml-data-eng-squad (schema ml_comercial + ETL)
+      - ml-ia-padroes-squad (padrões comerciais)
+      - ml-skills-squad (skills dos agentes comerciais)
+      - ml-comercial-squad (operação)
+
+  phase_2_expand_areas:
+    description: Expandir coleta para outras áreas (dados entram passivamente)
+    squads:
+      - ml-operacional-squad
+      - ml-financeiro-squad
+      - ml-atendimento-squad
+      - ml-marketing-squad
+      - ml-pessoas-squad
+
+  phase_3_product:
+    description: Vender inteligência treinada para outras empresas
+    action: Empacotar skills validadas como produto de mercado
+
+metadata:
+  overall_confidence: 0.95
+  source_docs:
+    - "C:\\Users\\Ewerton\\Downloads\\Contexto-Projeto-Machine-Learning.docx"
+  user_adjustments: 0
+  generated_by: "@squad-creator (Craft)"

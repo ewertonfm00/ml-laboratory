@@ -1,0 +1,146 @@
+{
+  "name": "[ML-COMERCIAL] Behavioral Profiler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 24 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Diário às 02h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "[ML-COMERCIAL] behavioral-profiler — roda 1x por dia, atualiza perfis de todos os vendedores"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Vendedores com conversas suficientes para gerar/atualizar perfil\nSELECT\n  v.id                   AS vendedor_id,\n  v.nome                 AS vendedor_nome,\n  count(c.id)            AS total_conversas,\n  round(avg(c.score_qualidade)::numeric, 2) AS score_medio,\n  round(\n    100.0 * count(c.id) FILTER (WHERE c.resultado = 'converteu') / count(c.id),\n  2) AS taxa_conversao,\n  mode() WITHIN GROUP (ORDER BY c.tipo_venda)  AS tipo_venda_predominante,\n  mode() WITHIN GROUP (ORDER BY c.tom_predominante) AS tom_predominante,\n  json_agg(\n    json_build_object(\n      'id',         c.id,\n      'resultado',  c.resultado,\n      'score',      c.score_qualidade,\n      'tipo_venda', c.tipo_venda,\n      'tom',        c.tom_predominante,\n      'argumentos', c.argumentos,\n      'objecoes',   c.objecoes_dados,\n      'flags',      c.flags,\n      'padrao',     c.padrao_detectado\n    ) ORDER BY c.created_at DESC\n  ) FILTER (WHERE c.id IS NOT NULL) AS conversas_json\nFROM ml_comercial.vendedores v\nJOIN ml_comercial.conversas c ON c.vendedor_id = v.id\nWHERE\n  v.ativo = true\n  AND c.created_at > NOW() - INTERVAL '90 days'\nGROUP BY v.id, v.nome\nHAVING count(c.id) >= 5\nORDER BY count(c.id) DESC;"
+      },
+      "id": "buscar-vendedores",
+      "name": "Buscar vendedores com dados suficientes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } },
+      "notes": "Mínimo 5 conversas nos últimos 90 dias para gerar perfil confiável"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.vendedor_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "tem-vendedores",
+      "name": "Tem vendedores?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $input.first().json;\nconst conversas = v.conversas_json || [];\n\n// Sumariza dados para o prompt (evita token explosion)\nconst amostra = conversas.slice(0, 20); // top 20 mais recentes\n\nconst resumo_conversas = amostra.map((c, i) => {\n  const args = (c.argumentos || []).filter(a => a.efetivo).map(a => a.texto).slice(0,3);\n  const obs = (c.objecoes || []).map(o => `${o.tipo}(${o.contornada ? 'contornou' : 'perdeu'})`).slice(0,3);\n  const flags = (c.flags || []).slice(0,2);\n  return `[${i+1}] ${c.tipo_venda || '?'} | resultado:${c.resultado} | score:${c.score} | tom:${c.tom} | args:[${args.join('; ')}] | objeções:[${obs.join(', ')}]${flags.length ? ' | flags:['+flags.join(',')+']' : ''} | padrão:${c.padrao || '?'}`;\n}).join('\\n');\n\nconst prompt = `Você é um especialista em análise comportamental de vendedores.\n\nAnalise o histórico de conversas do vendedor \"${v.vendedor_nome}\" e gere um perfil comportamental detalhado.\n\nDados agregados:\n- Total de conversas analisadas: ${v.total_conversas}\n- Score médio de qualidade: ${v.score_medio}/10\n- Taxa de conversão: ${v.taxa_conversao}%\n- Tipo de venda predominante: ${v.tipo_venda_predominante || 'variado'}\n- Tom predominante: ${v.tom_predominante || 'variado'}\n\nAmostra das conversas recentes (${amostra.length} mais recentes):\n${resumo_conversas}\n\nRetorne APENAS um JSON válido (sem markdown) com esta estrutura:\n{\n  \"estilo_persuasao\": \"descrição concisa do estilo único deste vendedor\",\n  \"tipo_venda_afinidade\": \"varejo\" | \"consultiva\" | \"despertar_desejo\",\n  \"tom_predominante\": \"tecnico\" | \"emocional\" | \"relacional\" | \"direto\" | \"misto\",\n  \"pontos_fortes\": [\n    \"ponto forte 1 específico com exemplo\",\n    \"ponto forte 2\",\n    \"ponto forte 3\"\n  ],\n  \"gaps\": [\n    \"gap 1 específico com impacto na conversão\",\n    \"gap 2\"\n  ],\n  \"recomendacoes\": [\n    {\"acao\": \"ação específica de melhoria\", \"impacto\": \"alto|medio|baixo\", \"prazo\": \"imediato|semana|mes\"}\n  ],\n  \"padrao_dominante\": \"padrão comportamental mais característico deste vendedor\"\n}`;\n\nreturn [{\n  json: {\n    vendedor_id:    v.vendedor_id,\n    vendedor_nome:  v.vendedor_nome,\n    total_conversas: v.total_conversas,\n    score_medio:    v.score_medio,\n    taxa_conversao: v.taxa_conversao,\n    tipo_venda_predominante: v.tipo_venda_predominante,\n    tom_predominante: v.tom_predominante,\n    prompt\n  }\n}];"
+      },
+      "id": "preparar-prompt-perfil",
+      "name": "Preparar Prompt de Perfil",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",        "value": "={{ $env.ML_ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type",      "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({\n  model: $env.ML_CLAUDE_ANALYST_MODEL || 'claude-sonnet-4-6',\n  max_tokens: 2048,\n  messages: [{ role: 'user', content: $json.prompt }]\n}) }}"
+            }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "id": "claude-sonnet-perfil",
+      "name": "Claude Sonnet — Gerar Perfil",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "notes": "[ML-COMERCIAL] behavioral-profiler — Claude Sonnet para análise profunda"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('preparar-prompt-perfil').first().json;\nconst claudeResponse = $input.first().json;\n\nlet perfil;\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  perfil = JSON.parse(content);\n} catch(e) {\n  perfil = { estilo_persuasao: 'Erro ao gerar perfil', pontos_fortes: [], gaps: [], recomendacoes: [] };\n}\n\nconst valido_ate = new Date();\nvalido_ate.setDate(valido_ate.getDate() + 30); // perfil válido por 30 dias\n\nreturn [{\n  json: {\n    vendedor_id:           ctx.vendedor_id,\n    tipo_venda_afinidade:  perfil.tipo_venda_afinidade  || ctx.tipo_venda_predominante,\n    tom_predominante:      perfil.tom_predominante      || ctx.tom_predominante,\n    estilo_persuasao:      perfil.estilo_persuasao      || '',\n    pontos_fortes:         perfil.pontos_fortes         || [],\n    gaps:                  perfil.gaps                  || [],\n    recomendacoes:         perfil.recomendacoes         || [],\n    taxa_conversao_media:  ctx.taxa_conversao,\n    score_medio:           ctx.score_medio,\n    total_conversas:       ctx.total_conversas,\n    valido_ate:            valido_ate.toISOString()\n  }\n}];"
+      },
+      "id": "extrair-perfil",
+      "name": "Extrair Perfil Estruturado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_comercial.perfis_vendedor (\n  vendedor_id,\n  tipo_venda_afinidade,\n  tom_predominante,\n  estilo_persuasao,\n  pontos_fortes,\n  gaps,\n  recomendacoes,\n  taxa_conversao_media,\n  score_medio,\n  total_conversas,\n  valido_ate\n) VALUES (\n  $1::uuid,\n  $2::ml_comercial.tipo_venda,\n  $3::ml_comercial.tom_comunicacao,\n  $4,\n  $5::jsonb,\n  $6::jsonb,\n  $7::jsonb,\n  $8,\n  $9,\n  $10,\n  $11::timestamptz\n)\nON CONFLICT (vendedor_id) DO UPDATE SET\n  tipo_venda_afinidade  = EXCLUDED.tipo_venda_afinidade,\n  tom_predominante      = EXCLUDED.tom_predominante,\n  estilo_persuasao      = EXCLUDED.estilo_persuasao,\n  pontos_fortes         = EXCLUDED.pontos_fortes,\n  gaps                  = EXCLUDED.gaps,\n  recomendacoes         = EXCLUDED.recomendacoes,\n  taxa_conversao_media  = EXCLUDED.taxa_conversao_media,\n  score_medio           = EXCLUDED.score_medio,\n  total_conversas       = EXCLUDED.total_conversas,\n  valido_ate            = EXCLUDED.valido_ate,\n  versao                = ml_comercial.perfis_vendedor.versao + 1,\n  updated_at            = NOW()\nRETURNING id, versao;",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.vendedor_id,\n  $json.tipo_venda_afinidade,\n  $json.tom_predominante,\n  $json.estilo_persuasao,\n  JSON.stringify($json.pontos_fortes),\n  JSON.stringify($json.gaps),\n  JSON.stringify($json.recomendacoes),\n  $json.taxa_conversao_media,\n  $json.score_medio,\n  $json.total_conversas,\n  $json.valido_ate\n] }}"
+        }
+      },
+      "id": "upsert-perfil",
+      "name": "Upsert ml_comercial.perfis_vendedor",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } },
+      "notes": "UPSERT — cria ou atualiza, incrementa versão automaticamente"
+    }
+  ],
+  "connections": {
+    "Diário às 02h": {
+      "main": [[{ "node": "Buscar vendedores com dados suficientes", "type": "main", "index": 0 }]]
+    },
+    "Buscar vendedores com dados suficientes": {
+      "main": [[{ "node": "Tem vendedores?", "type": "main", "index": 0 }]]
+    },
+    "Tem vendedores?": {
+      "main": [
+        [{ "node": "Preparar Prompt de Perfil", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Preparar Prompt de Perfil": {
+      "main": [[{ "node": "Claude Sonnet — Gerar Perfil", "type": "main", "index": 0 }]]
+    },
+    "Claude Sonnet — Gerar Perfil": {
+      "main": [[{ "node": "Extrair Perfil Estruturado", "type": "main", "index": 0 }]]
+    },
+    "Extrair Perfil Estruturado": {
+      "main": [[{ "node": "Upsert ml_comercial.perfis_vendedor", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": ["ML-COMERCIAL", "behavioral-profiler", "machine-learning"],
+  "meta": {
+    "project": "machine-learning",
+    "squad": "ml-comercial-squad",
+    "agent": "behavioral-profiler",
+    "version": "1.0.0",
+    "description": "Gera/atualiza perfis comportamentais de vendedores via Claude Sonnet — roda diariamente"
+  }
+}

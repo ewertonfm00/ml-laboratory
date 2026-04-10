@@ -1,0 +1,225 @@
+{
+  "name": "[ML-ATENDIMENTO] Avaliação de Qualidade",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "schedule-trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id AS conversa_id, c.atendente_id, c.remote_jid AS cliente_id, c.canal, c.mensagens, c.score_qualidade, c.sla_cumprido FROM ml_comercial.conversas c WHERE c.score_qualidade < 7.0 AND NOT EXISTS ( SELECT 1 FROM ml_atendimento.avaliacoes_qualidade a WHERE a.conversa_id = c.id ) AND c.created_at >= NOW() - INTERVAL '24 hours' LIMIT 30",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "buscar-dados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-rows",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-dados",
+      "name": "tem-dados",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const conversa = item.json;\n  const mensagens = conversa.mensagens || [];\n  const textoConversa = Array.isArray(mensagens)\n    ? mensagens.map(m => `${m.role || 'user'}: ${m.content || m.texto || ''}`).join('\\n')\n    : JSON.stringify(mensagens).substring(0, 2000);\n  const prompt = `Avalie a qualidade do atendimento na seguinte conversa e retorne um JSON com:\\n- score_qualidade: número de 0 a 10\\n- criterios: objeto com scores por critério {cordialidade, clareza, resolucao, tempo_resposta, follow_up} cada um de 0 a 10\\n- boas_praticas: array de strings com boas práticas identificadas\\n- pontos_melhoria: array de strings com pontos de melhoria\\n- sla_cumprido: boolean\\n\\nConversa (score atual: ${conversa.score_qualidade || 'N/A'}):\\n${textoConversa}\\n\\nRetorne APENAS o JSON, sem explicações.`;\n  results.push({\n    json: {\n      ...conversa,\n      prompt\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "preparar-prompt",
+      "name": "preparar-prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ML_ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{role: 'user', content: $json.prompt}]}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "claude-analise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content?.[0]?.text || '{}';\nlet parsed;\ntry { parsed = JSON.parse(content); } catch(e) { parsed = {erro: 'parse_failed', raw: content.substring(0,200)}; }\nreturn [{json: {...$input.first().json, resultado: parsed}}];"
+      },
+      "id": "parsear-resposta",
+      "name": "parsear-resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_atendimento.avaliacoes_qualidade (conversa_id, atendente_id, score_qualidade, criterios, boas_praticas, pontos_melhoria, sla_cumprido) VALUES ('{{ $json.conversa_id }}', '{{ $json.atendente_id }}', {{ $json.resultado.score_qualidade || 0 }}, '{{ JSON.stringify($json.resultado.criterios || {}) }}'::jsonb, '{{ JSON.stringify($json.resultado.boas_praticas || []) }}'::jsonb, '{{ JSON.stringify($json.resultado.pontos_melhoria || []) }}'::jsonb, {{ $json.resultado.sla_cumprido || $json.sla_cumprido || false }}) ON CONFLICT (conversa_id) DO NOTHING",
+        "options": {}
+      },
+      "id": "salvar-resultado",
+      "name": "salvar-resultado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "buscar-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar-dados": {
+      "main": [
+        [
+          {
+            "node": "tem-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem-dados": {
+      "main": [
+        [
+          {
+            "node": "preparar-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "preparar-prompt": {
+      "main": [
+        [
+          {
+            "node": "claude-analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-analise": {
+      "main": [
+        [
+          {
+            "node": "parsear-resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsear-resposta": {
+      "main": [
+        [
+          {
+            "node": "salvar-resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-10T00:00:00.000Z",
+  "versionId": ""
+}

@@ -1,0 +1,63 @@
+name: ml-atendimento-squad
+version: 0.1.0
+description: Squad operacional de atendimento — satisfação, retenção, churn e NPS comportamental a partir de dados reais de interação
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-atendimento
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 1-operational
+  project: machine-learning
+  status: planned
+  priority: 4
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_atendimento
+  redis_prefix: "ml:atendimento:"
+  n8n_tag: "[ML-ATENDIMENTO]"
+  railway_service: ml-atendimento
+
+data_sources:
+  - WhatsApp (pós-venda)
+  - Tickets de suporte
+  - Histórico de reclamações e elogios
+
+intelligence_generated:
+  - Satisfação e NPS comportamental
+  - Padrões de retenção vs churn
+  - Gatilhos de recorrência
+  - Melhores práticas de atendimento
+
+components:
+  agents:
+    - agents/satisfaction-analyst.md
+    - agents/churn-detector.md
+    - agents/retention-advisor.md
+  tasks:
+    - tasks/analyze-satisfaction.md
+    - tasks/detect-churn-signals.md
+    - tasks/generate-retention-strategy.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-captura-squad
+    - ml-data-eng-squad
+    - ml-ia-padroes-squad
+  services:
+    - Postgres (schema: ml_atendimento)
+    - Redis
+
+keywords:
+  - ml
+  - atendimento
+  - satisfacao
+  - nps
+  - churn
+  - retencao
+  - pos-venda

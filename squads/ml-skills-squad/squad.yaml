@@ -1,0 +1,50 @@
+name: ml-skills-squad
+version: 0.1.0
+description: Transforma padrões refinados em skills de agentes de IA com alta precisão e contexto real
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-skills
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 2-building
+  project: machine-learning
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_skills
+  redis_prefix: "ml:skills:"
+  n8n_tag: "[ML-SKILLS]"
+  railway_service: ml-skills
+
+components:
+  agents:
+    - agents/skill-generator.md
+    - agents/skill-validator.md
+    - agents/agent-trainer.md
+  tasks:
+    - tasks/generate-skill.md
+    - tasks/validate-skill.md
+    - tasks/train-agent.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-ia-padroes-squad
+    - ml-data-eng-squad
+  services:
+    - Postgres (schema: ml_skills)
+    - Claude Sonnet
+    - AIOX Agent Framework
+    - Redis
+
+keywords:
+  - ml
+  - skills
+  - agentes
+  - treinamento
+  - inteligencia
+  - aiox

@@ -1,0 +1,88 @@
+name: ml-comercial-squad
+version: 0.1.0
+description: Squad operacional da área comercial — analisa conversas, perfis de vendedor, abordagens por produto, objeções e performance
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-comercial
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 1-operational
+  project: machine-learning
+  status: active
+  priority: 1
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_comercial
+  redis_prefix: "ml:comercial:"
+  n8n_tag: "[ML-COMERCIAL]"
+  railway_service: ml-comercial
+
+data_sources:
+  - WhatsApp (via Evolution API)
+  - Redrive
+  - n8n pipelines
+
+intelligence_generated:
+  - Perfil comportamental do vendedor
+  - Abordagem validada por produto
+  - Padrões de conversão vs perda
+  - Catálogo de objeções com respostas
+  - Conteúdo de treinamento personalizado
+  - Relatórios de performance por vendedor/produto
+
+sale_types:
+  varejo:
+    produto: Venda direta de equipamentos
+    perfil_vendedor: Direto, objetivo, agressivo
+    decisao_cliente: Rápida, emocional
+  consultiva:
+    produto: Locação de equipamentos
+    perfil_vendedor: Técnico, consultivo, paciente
+    decisao_cliente: Lenta, racional
+  despertar_desejo:
+    produto: Dermocosméticos
+    perfil_vendedor: Relacional, emocional, storyteller
+    decisao_cliente: Média, emocional
+
+components:
+  agents:
+    - agents/conversation-analyst.md
+    - agents/behavioral-profiler.md
+    - agents/product-approach.md
+    - agents/objection-handler.md
+    - agents/training-generator.md
+    - agents/performance-reporter.md
+  tasks:
+    - tasks/analyze-conversation.md
+    - tasks/build-behavioral-profile.md
+    - tasks/map-product-approach.md
+    - tasks/catalog-objections.md
+    - tasks/generate-training-content.md
+    - tasks/generate-performance-report.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-captura-squad
+    - ml-data-eng-squad
+    - ml-ia-padroes-squad
+    - ml-skills-squad
+  services:
+    - Postgres (schema: ml_comercial)
+    - Redis
+    - Claude Sonnet
+
+keywords:
+  - ml
+  - comercial
+  - vendas
+  - conversas
+  - whatsapp
+  - objecoes
+  - treinamento
+  - performance

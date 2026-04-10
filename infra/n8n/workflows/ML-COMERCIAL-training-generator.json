@@ -1,0 +1,145 @@
+{
+  "name": "[ML-COMERCIAL] Training Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 3 * * 3" }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Quarta-feira 03h (semanal)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "[ML-COMERCIAL] training-generator — gera conteúdo de treinamento baseado em gaps reais"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Vendedores com gaps e conversas suficientes, sem treinamento recente\nSELECT\n  v.id           AS vendedor_id,\n  v.nome         AS vendedor_nome,\n  p.gaps,\n  p.pontos_fortes,\n  p.tipo_venda_afinidade,\n  p.taxa_conversao_media,\n  -- Objeções mais frequentes sem boa resposta\n  (\n    SELECT json_agg(o)\n    FROM (\n      SELECT tipo_objecao::text, texto_objecao, frequencia, sem_resposta_boa\n      FROM ml_comercial.objecoes\n      WHERE frequencia >= 3\n      ORDER BY sem_resposta_boa DESC, frequencia DESC\n      LIMIT 5\n    ) o\n  ) AS top_objecoes_sem_resposta,\n  -- Conversas de alta conversão como exemplos\n  (\n    SELECT json_agg(c ORDER BY c.score_qualidade DESC)\n    FROM (\n      SELECT id, score_qualidade, tipo_venda, argumentos, padrao_detectado\n      FROM ml_comercial.conversas\n      WHERE vendedor_id = v.id\n        AND resultado = 'converteu'\n        AND score_qualidade >= 7\n      ORDER BY score_qualidade DESC\n      LIMIT 3\n    ) c\n  ) AS conversas_referencia\nFROM ml_comercial.vendedores v\nJOIN ml_comercial.perfis_vendedor p ON p.vendedor_id = v.id\nWHERE\n  v.ativo = true\n  AND jsonb_array_length(p.gaps) > 0\n  AND NOT EXISTS (\n    SELECT 1 FROM ml_comercial.treinamentos t\n    WHERE t.vendedor_id = v.id\n      AND t.created_at > NOW() - INTERVAL '14 days'\n  )\nLIMIT 5;"
+      },
+      "id": "buscar-gaps",
+      "name": "Buscar vendedores com gaps",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } },
+      "notes": "Vendedores com gaps identificados e sem treinamento nos últimos 14 dias"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.vendedor_id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "tem-gaps",
+      "name": "Tem gaps para treinar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $input.first().json;\nconst gaps = v.gaps || [];\nconst conversas_ref = v.conversas_referencia || [];\n\nconst exemplos_txt = conversas_ref.map((c, i) =>\n  `Exemplo ${i+1} (score ${c.score_qualidade}/10, ${c.tipo_venda}):\\n  Argumentos eficazes: ${JSON.stringify(c.argumentos?.filter(a=>a.efetivo).map(a=>a.texto).slice(0,2))}\\n  Padrão: ${c.padrao_detectado}`\n).join('\\n');\n\nconst objecoes_txt = (v.top_objecoes_sem_resposta || []).map(o =>\n  `• ${o.tipo_objecao}: \"${o.texto_objecao}\" (${o.frequencia}x${o.sem_resposta_boa ? ' — SEM RESPOSTA BOA' : ''})`\n).join('\\n');\n\nconst prompt = `Você é um especialista em treinamento de equipes comerciais.\n\nCrie um material de treinamento personalizado para o vendedor \"${v.vendedor_nome}\".\n\nContexto do vendedor:\n- Tipo de venda com maior afinidade: ${v.tipo_venda_afinidade || 'não definido'}\n- Taxa de conversão atual: ${v.taxa_conversao_media}%\n- Gaps identificados:\n${gaps.map(g => `  • ${g}`).join('\\n')}\n\nObjeções mais frequentes no período:\n${objecoes_txt || 'Sem dados ainda'}\n\nExemplos de conversas de sucesso deste vendedor:\n${exemplos_txt || 'Ainda sem exemplos suficientes'}\n\nGere um treinamento prático com esta estrutura JSON (sem markdown):\n{\n  \"titulo\": \"Título específico e motivador do treinamento\",\n  \"tipo_conteudo\": \"guia\",\n  \"gap_principal_abordado\": \"gap que este treinamento resolve\",\n  \"conteudo\": {\n    \"objetivo\": \"O que o vendedor vai conseguir fazer após este treinamento\",\n    \"fundamento\": \"Por que este gap impacta as vendas (dados específicos)\",\n    \"tecnica\": {\n      \"nome\": \"Nome da técnica recomendada\",\n      \"passo_a_passo\": [\n        \"Passo 1 específico\",\n        \"Passo 2 específico\",\n        \"Passo 3 específico\"\n      ]\n    },\n    \"exemplos_campo\": [\n      {\n        \"situacao\": \"Situação real comum\",\n        \"abordagem_recomendada\": \"O que dizer/fazer\",\n        \"por_que_funciona\": \"Explicação\"\n      }\n    ],\n    \"respostas_objecoes\": [\n      {\n        \"objecao\": \"Texto da objeção\",\n        \"resposta_validada\": \"Resposta que já funcionou em campo\"\n      }\n    ],\n    \"checklist_campo\": [\n      \"Item para verificar antes de cada conversa\",\n      \"Item durante\",\n      \"Item após\"\n    ]\n  }\n}`;\n\nreturn [{\n  json: {\n    vendedor_id:   v.vendedor_id,\n    vendedor_nome: v.vendedor_nome,\n    tipo_venda:    v.tipo_venda_afinidade,\n    gaps:          v.gaps,\n    conversas_referencia: (v.conversas_referencia || []).map(c => c.id),\n    prompt\n  }\n}];"
+      },
+      "id": "preparar-prompt-treino",
+      "name": "Preparar Prompt de Treinamento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",        "value": "={{ $env.ML_ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type",      "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({\n  model: $env.ML_CLAUDE_ANALYST_MODEL || 'claude-sonnet-4-6',\n  max_tokens: 3000,\n  messages: [{ role: 'user', content: $json.prompt }]\n}) }}"
+            }
+          ]
+        },
+        "options": { "timeout": 90000 }
+      },
+      "id": "claude-training",
+      "name": "Claude Sonnet — Gerar Treinamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "notes": "[ML-COMERCIAL] training-generator — Claude Sonnet gera conteúdo baseado em dados reais"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('preparar-prompt-treino').first().json;\nconst claudeResponse = $input.first().json;\n\nlet treinamento;\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  treinamento = JSON.parse(content);\n} catch(e) {\n  treinamento = { titulo: 'Treinamento (erro ao gerar)', tipo_conteudo: 'guia', conteudo: {} };\n}\n\nreturn [{\n  json: {\n    vendedor_id:           ctx.vendedor_id,\n    produto_nome:          null,\n    tipo_venda:            ctx.tipo_venda,\n    tipo_conteudo:         treinamento.tipo_conteudo || 'guia',\n    titulo:                treinamento.titulo,\n    conteudo:              treinamento.conteudo || {},\n    baseado_em_gaps:       ctx.gaps,\n    conversas_referencia:  ctx.conversas_referencia\n  }\n}];"
+      },
+      "id": "extrair-treinamento",
+      "name": "Extrair Treinamento Estruturado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_comercial.treinamentos (\n  vendedor_id,\n  produto_nome,\n  tipo_venda,\n  tipo_conteudo,\n  titulo,\n  conteudo,\n  baseado_em_gaps,\n  conversas_referencia\n) VALUES (\n  $1::uuid,\n  $2,\n  $3::ml_comercial.tipo_venda,\n  $4,\n  $5,\n  $6::jsonb,\n  $7::jsonb,\n  $8::uuid[]\n)\nRETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.vendedor_id,\n  $json.produto_nome,\n  $json.tipo_venda,\n  $json.tipo_conteudo,\n  $json.titulo,\n  JSON.stringify($json.conteudo),\n  JSON.stringify($json.baseado_em_gaps),\n  $json.conversas_referencia\n] }}"
+        }
+      },
+      "id": "salvar-treinamento",
+      "name": "Salvar ml_comercial.treinamentos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } }
+    }
+  ],
+  "connections": {
+    "Quarta-feira 03h (semanal)": {
+      "main": [[{ "node": "Buscar vendedores com gaps", "type": "main", "index": 0 }]]
+    },
+    "Buscar vendedores com gaps": {
+      "main": [[{ "node": "Tem gaps para treinar?", "type": "main", "index": 0 }]]
+    },
+    "Tem gaps para treinar?": {
+      "main": [
+        [{ "node": "Preparar Prompt de Treinamento", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Preparar Prompt de Treinamento": {
+      "main": [[{ "node": "Claude Sonnet — Gerar Treinamento", "type": "main", "index": 0 }]]
+    },
+    "Claude Sonnet — Gerar Treinamento": {
+      "main": [[{ "node": "Extrair Treinamento Estruturado", "type": "main", "index": 0 }]]
+    },
+    "Extrair Treinamento Estruturado": {
+      "main": [[{ "node": "Salvar ml_comercial.treinamentos", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": ["ML-COMERCIAL", "training-generator", "machine-learning"],
+  "meta": {
+    "project": "machine-learning",
+    "squad": "ml-comercial-squad",
+    "agent": "training-generator",
+    "version": "1.0.0",
+    "description": "Gera treinamento personalizado por vendedor baseado em gaps reais — toda quarta-feira"
+  }
+}

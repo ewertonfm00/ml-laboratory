@@ -1,0 +1,228 @@
+{
+  "name": "[ML-FINANCEIRO] Previsão de Caixa",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        },
+        "options": {
+          "startTime": "06:00"
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DATE(created_at) AS data_conversa, COUNT(*) AS total_conversas, COUNT(CASE WHEN resultado = 'converteu' THEN 1 END) AS total_convertidas, COALESCE(SUM(CASE WHEN resultado = 'converteu' THEN (dados_conversa->>'valor_servico')::numeric END), 0) AS valor_total_dia FROM ml_comercial.conversas WHERE resultado = 'converteu' AND created_at >= NOW() - INTERVAL '30 days' GROUP BY DATE(created_at) ORDER BY data_conversa DESC LIMIT 30",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "Buscar Conversas Convertidas 30d",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-data",
+              "leftValue": "={{ $json.data_conversa }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-dados",
+      "name": "Tem Dados Históricos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Agrupa todos os dados históricos\nconst historico = items.map(i => ({\n  data: i.json.data_conversa,\n  total_conversas: parseInt(i.json.total_conversas) || 0,\n  total_convertidas: parseInt(i.json.total_convertidas) || 0,\n  valor_total: parseFloat(i.json.valor_total_dia) || 0\n}));\n\nconst totalDias = historico.length;\nconst somaValores = historico.reduce((acc, d) => acc + d.valor_total, 0);\nconst mediadiaria = totalDias > 0 ? somaValores / totalDias : 0;\nconst maxDia = Math.max(...historico.map(d => d.valor_total));\nconst minDia = Math.min(...historico.map(d => d.valor_total));\nconst taxaConversao = historico.reduce((acc, d) => acc + (d.total_convertidas / Math.max(d.total_conversas, 1)), 0) / Math.max(totalDias, 1);\n\n// Data de início da previsão (amanhã)\nconst hoje = new Date();\nconst amanha = new Date(hoje);\namanha.setDate(amanha.getDate() + 1);\nconst emSeteDias = new Date(hoje);\nemSeteDias.setDate(emSeteDias.getDate() + 7);\n\nconst prompt = `Você é um especialista em previsão financeira e fluxo de caixa. Com base nos dados históricos dos últimos ${totalDias} dias, gere uma previsão de caixa para os próximos 7 dias.\n\nDados históricos resumidos:\n- Média diária de receita: R$ ${mediadiaria.toFixed(2)}\n- Máximo diário: R$ ${maxDia.toFixed(2)}\n- Mínimo diário: R$ ${minDia.toFixed(2)}\n- Taxa de conversão média: ${(taxaConversao * 100).toFixed(1)}%\n- Total de dias analisados: ${totalDias}\n\nHistórico detalhado (últimos ${Math.min(totalDias, 10)} dias):\n${JSON.stringify(historico.slice(0, 10), null, 2)}\n\nGere previsões para 3 cenários. Retorne APENAS um JSON válido com esta estrutura:\n{\n  \"otimista\": {\n    \"confianca_modelo\": 0.75,\n    \"previsao_diaria\": [\n      {\"data\": \"YYYY-MM-DD\", \"valor_previsto\": 1500.00, \"conversoes_previstas\": 5}\n    ],\n    \"gaps_detectados\": [\n      {\"tipo\": \"gap identificado\", \"data\": \"YYYY-MM-DD\", \"impacto\": \"descrição\"}\n    ]\n  },\n  \"realista\": {\n    \"confianca_modelo\": 0.85,\n    \"previsao_diaria\": [\n      {\"data\": \"YYYY-MM-DD\", \"valor_previsto\": 1000.00, \"conversoes_previstas\": 3}\n    ],\n    \"gaps_detectados\": []\n  },\n  \"pessimista\": {\n    \"confianca_modelo\": 0.70,\n    \"previsao_diaria\": [\n      {\"data\": \"YYYY-MM-DD\", \"valor_previsto\": 600.00, \"conversoes_previstas\": 2}\n    ],\n    \"gaps_detectados\": [\n      {\"tipo\": \"risco identificado\", \"data\": \"YYYY-MM-DD\", \"impacto\": \"descrição\"}\n    ]\n  }\n}\n\nAs datas devem ser os próximos 7 dias a partir de ${amanha.toISOString().split('T')[0]}. Não inclua markdown, apenas o JSON puro.`;\n\n// Retorna um único item com todos os dados consolidados\nreturn [{\n  json: {\n    historico,\n    totalDias,\n    mediadiaria,\n    periodo_inicio: amanha.toISOString().split('T')[0],\n    periodo_fim: emSeteDias.toISOString().split('T')[0],\n    prompt\n  }\n}];"
+      },
+      "id": "preparar-prompt",
+      "name": "Preparar Prompt Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ML_ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 2048, messages: [{role: 'user', content: $json.prompt}]}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "Claude Previsão de Caixa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content?.[0]?.text || '{}';\nlet parsed;\ntry { parsed = JSON.parse(content); } catch(e) { parsed = {erro: 'parse_failed', raw: content}; }\n\nconst baseData = $input.first().json;\nconst cenarios = ['otimista', 'realista', 'pessimista'];\n\n// Se houve erro no parse, retorna um item com erro\nif (parsed.erro) {\n  return [{json: {...baseData, resultado: parsed, cenario: null}}];\n}\n\n// Retorna 3 itens, um por cenário\nreturn cenarios.map(cenario => ({\n  json: {\n    ...baseData,\n    resultado: parsed,\n    cenario,\n    dados_cenario: parsed[cenario] || {}\n  }\n}));"
+      },
+      "id": "parsear-resposta",
+      "name": "Parsear Resposta Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_financeiro.previsoes_caixa (periodo_inicio, periodo_fim, cenario, previsao_diaria, gaps_detectados, confianca_modelo) VALUES ( '{{ $json.periodo_inicio }}'::date, '{{ $json.periodo_fim }}'::date, '{{ $json.cenario }}', '{{ JSON.stringify($json.dados_cenario.previsao_diaria || []) }}'::jsonb, '{{ JSON.stringify($json.dados_cenario.gaps_detectados || []) }}'::jsonb, {{ parseFloat($json.dados_cenario.confianca_modelo) || 0.75 }} ) ON CONFLICT DO NOTHING",
+        "options": {}
+      },
+      "id": "salvar-resultado",
+      "name": "Salvar Previsão de Caixa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "buscar-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar-dados": {
+      "main": [
+        [
+          {
+            "node": "tem-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem-dados": {
+      "main": [
+        [
+          {
+            "node": "preparar-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "preparar-prompt": {
+      "main": [
+        [
+          {
+            "node": "claude-analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-analise": {
+      "main": [
+        [
+          {
+            "node": "parsear-resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsear-resposta": {
+      "main": [
+        [
+          {
+            "node": "salvar-resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-10T00:00:00.000Z",
+  "versionId": ""
+}

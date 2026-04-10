@@ -1,0 +1,63 @@
+name: ml-marketing-squad
+version: 0.1.0
+description: Squad operacional de marketing — mensagens que convertem, segmentação inteligente e timing ideal de campanhas
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-marketing
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 1-operational
+  project: machine-learning
+  status: planned
+  priority: 5
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_marketing
+  redis_prefix: "ml:marketing:"
+  n8n_tag: "[ML-MARKETING]"
+  railway_service: ml-marketing
+
+data_sources:
+  - Campanhas (disparo e resultado)
+  - Engajamento por canal
+  - Dados de conversão por mensagem
+
+intelligence_generated:
+  - Mensagens com maior taxa de conversão
+  - Segmentação ideal por perfil de cliente
+  - Timing ideal de envio por produto/perfil
+  - Padrões de campanha de alto desempenho
+
+components:
+  agents:
+    - agents/campaign-analyst.md
+    - agents/message-optimizer.md
+    - agents/segmentation-advisor.md
+  tasks:
+    - tasks/analyze-campaign.md
+    - tasks/optimize-message.md
+    - tasks/generate-segmentation.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-captura-squad
+    - ml-data-eng-squad
+    - ml-ia-padroes-squad
+  services:
+    - Postgres (schema: ml_marketing)
+    - Redis
+
+keywords:
+  - ml
+  - marketing
+  - campanhas
+  - segmentacao
+  - conversao
+  - timing
+  - mensagens

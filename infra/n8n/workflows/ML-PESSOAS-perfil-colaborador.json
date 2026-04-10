@@ -1,0 +1,225 @@
+{
+  "name": "[ML-PESSOAS] Perfil de Colaborador",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 1 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "schedule-trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT v.id AS vendedor_id, v.nome AS vendedor_nome, v.funcao, COUNT(c.id) AS total_conversas, ROUND(AVG(c.score_qualidade), 2) AS score_medio, COUNT(CASE WHEN c.resultado = 'convertido' THEN 1 END) AS total_convertidos, ROUND(COUNT(CASE WHEN c.resultado = 'convertido' THEN 1 END)::numeric / NULLIF(COUNT(c.id), 0) * 100, 2) AS taxa_conversao, array_agg(json_build_object('id', c.id, 'canal', c.canal, 'resultado', c.resultado, 'score_qualidade', c.score_qualidade, 'tipo_venda', c.tipo_venda, 'created_at', c.created_at) ORDER BY c.created_at DESC) AS conversas_resumo FROM ml_comercial.vendedores v INNER JOIN ml_comercial.conversas c ON c.atendente_id = v.id WHERE c.created_at >= NOW() - INTERVAL '60 days' AND NOT EXISTS ( SELECT 1 FROM ml_pessoas.perfis_colaborador p WHERE p.colaborador_id = v.id::varchar AND p.created_at >= NOW() - INTERVAL '7 days' ) GROUP BY v.id, v.nome, v.funcao HAVING COUNT(c.id) >= 3 ORDER BY total_conversas DESC LIMIT 20",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "buscar-dados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-rows",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-dados",
+      "name": "tem-dados",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const vendedor = item.json;\n  const conversasResumo = Array.isArray(vendedor.conversas_resumo)\n    ? vendedor.conversas_resumo.slice(0, 20)\n    : [];\n  const prompt = `Avalie o perfil profissional do colaborador com base nas suas conversas de atendimento e retorne um JSON com:\\n- dimensoes: objeto com scores de 0 a 100 para cada dimensão {comunicacao, execucao, iniciativa, qualidade, relacionamento}\\n- score_aderencia: número de 0 a 100 representando aderência geral ao perfil ideal\\n- pontos_fortes: array de strings com os 3-5 principais pontos fortes identificados\\n- gaps_identificados: array de strings com os 2-4 principais gaps ou áreas de desenvolvimento\\n\\nDados do colaborador:\\n- Nome: ${vendedor.vendedor_nome}\\n- Função: ${vendedor.funcao}\\n- Total de conversas nos últimos 60 dias: ${vendedor.total_conversas}\\n- Score médio de qualidade: ${vendedor.score_medio}\\n- Total convertidos: ${vendedor.total_convertidos}\\n- Taxa de conversão: ${vendedor.taxa_conversao}%\\n- Amostra de conversas recentes: ${JSON.stringify(conversasResumo)}\\n\\nRetorne APENAS o JSON, sem explicações.`;\n  results.push({\n    json: {\n      vendedor_id: String(vendedor.vendedor_id),\n      vendedor_nome: vendedor.vendedor_nome,\n      funcao: vendedor.funcao,\n      total_conversas: vendedor.total_conversas,\n      score_medio: vendedor.score_medio,\n      taxa_conversao: vendedor.taxa_conversao,\n      prompt\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "preparar-prompt",
+      "name": "preparar-prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ML_ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{role: 'user', content: $json.prompt}]}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "claude-analise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content?.[0]?.text || '{}';\nlet parsed;\ntry { parsed = JSON.parse(content); } catch(e) { parsed = {erro: 'parse_failed', raw: content.substring(0,200)}; }\nreturn [{json: {...$input.first().json, resultado: parsed}}];"
+      },
+      "id": "parsear-resposta",
+      "name": "parsear-resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_pessoas.perfis_colaborador (colaborador_id, funcao, dimensoes, score_aderencia, pontos_fortes, gaps_identificados) VALUES ('{{ $json.vendedor_id }}', '{{ $json.funcao }}', '{{ JSON.stringify($json.resultado.dimensoes || {comunicacao:0,execucao:0,iniciativa:0,qualidade:0,relacionamento:0}) }}'::jsonb, {{ $json.resultado.score_aderencia || 0 }}, '{{ JSON.stringify($json.resultado.pontos_fortes || []) }}'::jsonb, '{{ JSON.stringify($json.resultado.gaps_identificados || []) }}'::jsonb)",
+        "options": {}
+      },
+      "id": "salvar-resultado",
+      "name": "salvar-resultado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "buscar-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar-dados": {
+      "main": [
+        [
+          {
+            "node": "tem-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem-dados": {
+      "main": [
+        [
+          {
+            "node": "preparar-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "preparar-prompt": {
+      "main": [
+        [
+          {
+            "node": "claude-analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-analise": {
+      "main": [
+        [
+          {
+            "node": "parsear-resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsear-resposta": {
+      "main": [
+        [
+          {
+            "node": "salvar-resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-10T00:00:00.000Z",
+  "versionId": ""
+}

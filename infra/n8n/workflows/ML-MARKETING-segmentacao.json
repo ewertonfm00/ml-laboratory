@@ -1,0 +1,225 @@
+{
+  "name": "[ML-MARKETING] Segmentação de Clientes",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "schedule-trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.remote_jid AS cliente_id, COUNT(*) AS total_conversas, ROUND(AVG(c.score_qualidade), 2) AS score_medio, array_agg(DISTINCT c.tipo_venda) FILTER (WHERE c.tipo_venda IS NOT NULL) AS tipos_venda, array_agg(DISTINCT c.resultado) FILTER (WHERE c.resultado IS NOT NULL) AS resultados, MAX(c.created_at) AS ultima_conversa, MIN(c.created_at) AS primeira_conversa, COUNT(CASE WHEN c.resultado = 'convertido' THEN 1 END) AS total_convertidos, COUNT(CASE WHEN c.resultado = 'perdido' THEN 1 END) AS total_perdidos FROM ml_comercial.conversas c WHERE c.created_at >= NOW() - INTERVAL '30 days' GROUP BY c.remote_jid HAVING COUNT(*) >= 1 ORDER BY total_conversas DESC LIMIT 200",
+        "options": {}
+      },
+      "id": "buscar-dados",
+      "name": "buscar-dados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-rows",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-dados",
+      "name": "tem-dados",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst clientes = items.map(i => ({\n  cliente_id: i.json.cliente_id,\n  total_conversas: i.json.total_conversas,\n  score_medio: i.json.score_medio,\n  tipos_venda: i.json.tipos_venda,\n  resultados: i.json.resultados,\n  total_convertidos: i.json.total_convertidos,\n  total_perdidos: i.json.total_perdidos,\n  dias_desde_ultima: Math.floor((Date.now() - new Date(i.json.ultima_conversa).getTime()) / (1000 * 60 * 60 * 24))\n}));\nconst prompt = `Analise os dados de ${clientes.length} clientes dos últimos 30 dias e identifique de 3 a 5 segmentos comportamentais distintos. Para cada segmento, retorne um JSON array onde cada item tem:\\n- nome: nome descritivo do segmento\\n- descricao: descrição em até 200 caracteres\\n- criterios: objeto com critérios de classificação {score_minimo, score_maximo, frequencia_minima, taxa_conversao_estimada}\\n- tamanho_estimado: número estimado de clientes neste segmento\\n- perfil_comportamental: objeto com características {recencia, frequencia, valor, engajamento}\\n- recomendacao_abordagem: texto com recomendação de abordagem de marketing para este segmento\\n\\nDados dos clientes:\\n${JSON.stringify(clientes.slice(0, 50))}\\n\\nRetorne APENAS o JSON array de segmentos, sem explicações.`;\nreturn [{\n  json: {\n    total_clientes: clientes.length,\n    prompt\n  }\n}];"
+      },
+      "id": "preparar-prompt",
+      "name": "preparar-prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ML_ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({model: $env.ML_CLAUDE_CLASSIFIER_MODEL || 'claude-haiku-4-5-20251001', max_tokens: 2048, messages: [{role: 'user', content: $json.prompt}]}) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "claude-analise",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content?.[0]?.text || '[]';\nlet parsed;\ntry {\n  parsed = JSON.parse(content);\n  if (!Array.isArray(parsed)) parsed = [parsed];\n} catch(e) {\n  parsed = [{erro: 'parse_failed', raw: content.substring(0,200)}];\n}\nconst results = parsed.map(segmento => ({\n  json: {\n    ...segmento,\n    _raw_response: response\n  }\n}));\nreturn results.length > 0 ? results : [{json: {erro: 'sem_segmentos'}}];"
+      },
+      "id": "parsear-resposta",
+      "name": "parsear-resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_marketing.segmentos (nome, descricao, criterios, tamanho_estimado, perfil_comportamental, recomendacao_abordagem, ativo, versao) SELECT '{{ $json.nome }}', '{{ $json.descricao }}', '{{ JSON.stringify($json.criterios || {}) }}'::jsonb, {{ $json.tamanho_estimado || 0 }}, '{{ JSON.stringify($json.perfil_comportamental || {}) }}'::jsonb, '{{ $json.recomendacao_abordagem || '' }}', true, COALESCE((SELECT MAX(versao) + 1 FROM ml_marketing.segmentos WHERE nome = '{{ $json.nome }}'), 1) WHERE '{{ $json.erro || '' }}' = ''",
+        "options": {}
+      },
+      "id": "salvar-resultado",
+      "name": "salvar-resultado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "schedule-trigger": {
+      "main": [
+        [
+          {
+            "node": "buscar-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar-dados": {
+      "main": [
+        [
+          {
+            "node": "tem-dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tem-dados": {
+      "main": [
+        [
+          {
+            "node": "preparar-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "preparar-prompt": {
+      "main": [
+        [
+          {
+            "node": "claude-analise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-analise": {
+      "main": [
+        [
+          {
+            "node": "parsear-resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parsear-resposta": {
+      "main": [
+        [
+          {
+            "node": "salvar-resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-04-10T00:00:00.000Z",
+  "versionId": ""
+}

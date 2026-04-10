@@ -1,0 +1,20 @@
+# Arquivos ignorados pelo Claude Code
+
+# Logs de sessão (contexto de trabalho, não código)
+/logs-sessao/
+
+# Knowledge base (dados já extraídos para contexto)
+/knowledge-base/
+
+# Documentos brutos (PDFs, planilhas, docs originais)
+/documentos-comerciais/
+
+# Handoffs de agentes (runtime, temporários)
+/.aiox/handoffs/
+
+# Outputs de tasks e relatórios gerados
+/outputs/
+
+# Relatórios de testes
+/playwright-report/
+/test-results/

@@ -1,0 +1,62 @@
+name: ml-financeiro-squad
+version: 0.1.0
+description: Squad operacional financeiro — padrões de risco, previsibilidade de fluxo de caixa e alertas antecipados de inadimplência
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-financeiro
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 1-operational
+  project: machine-learning
+  status: planned
+  priority: 3
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_financeiro
+  redis_prefix: "ml:financeiro:"
+  n8n_tag: "[ML-FINANCEIRO]"
+  railway_service: ml-financeiro
+
+data_sources:
+  - Fluxo de caixa
+  - Registros de inadimplência
+  - Margens por produto/área
+
+intelligence_generated:
+  - Padrões de risco financeiro
+  - Previsibilidade de receita
+  - Alertas antecipados de inadimplência
+  - Análise de margens por produto
+
+components:
+  agents:
+    - agents/cashflow-analyst.md
+    - agents/risk-detector.md
+    - agents/forecast-generator.md
+  tasks:
+    - tasks/analyze-cashflow.md
+    - tasks/detect-financial-risk.md
+    - tasks/generate-forecast.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-captura-squad
+    - ml-data-eng-squad
+    - ml-ia-padroes-squad
+  services:
+    - Postgres (schema: ml_financeiro)
+    - Redis
+
+keywords:
+  - ml
+  - financeiro
+  - risco
+  - previsibilidade
+  - inadimplencia
+  - fluxo-de-caixa

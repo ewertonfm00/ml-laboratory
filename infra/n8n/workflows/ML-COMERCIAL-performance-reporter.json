@@ -1,0 +1,120 @@
+{
+  "name": "[ML-COMERCIAL] Performance Reporter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 6 * * 1" }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Segunda-feira 06h (semanal)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "[ML-COMERCIAL] performance-reporter — relatório semanal toda segunda"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Métricas completas por vendedor na última semana\nSELECT\n  v.id                    AS vendedor_id,\n  v.nome                  AS vendedor_nome,\n  count(c.id)             AS total_conversas,\n  count(c.id) FILTER (WHERE c.resultado = 'converteu')  AS conversoes,\n  count(c.id) FILTER (WHERE c.resultado = 'perdeu')     AS perdas,\n  count(c.id) FILTER (WHERE c.resultado = 'pendente')   AS pendentes,\n  round(avg(c.score_qualidade)::numeric, 2)             AS score_medio,\n  round(\n    100.0 * count(c.id) FILTER (WHERE c.resultado = 'converteu')\n    / NULLIF(count(c.id), 0), 2\n  )                       AS taxa_conversao,\n  -- Comparativo semana anterior\n  (\n    SELECT round(100.0 * count(*) FILTER (WHERE resultado = 'converteu') / NULLIF(count(*),0), 2)\n    FROM ml_comercial.conversas\n    WHERE vendedor_id = v.id\n      AND created_at BETWEEN NOW() - INTERVAL '14 days' AND NOW() - INTERVAL '7 days'\n  )                       AS taxa_conversao_semana_anterior,\n  p.pontos_fortes         AS perfil_pontos_fortes,\n  p.gaps                  AS perfil_gaps,\n  p.recomendacoes         AS perfil_recomendacoes,\n  -- Top objeções da semana por vendedor\n  (\n    SELECT json_agg(o ORDER BY freq DESC) FROM (\n      SELECT\n        ob.tipo_objecao::text,\n        ob.texto_objecao,\n        count(*) AS freq,\n        ob.respostas_validadas\n      FROM ml_comercial.objecoes ob\n      WHERE c2.id = ANY(ob.conversas_origem)\n      GROUP BY ob.tipo_objecao, ob.texto_objecao, ob.respostas_validadas\n      LIMIT 3\n    ) o\n    FROM ml_comercial.conversas c2\n    WHERE c2.vendedor_id = v.id\n      AND c2.created_at >= NOW() - INTERVAL '7 days'\n  )                       AS top_objecoes\nFROM ml_comercial.vendedores v\nJOIN ml_comercial.conversas c\n  ON c.vendedor_id = v.id\n  AND c.created_at >= NOW() - INTERVAL '7 days'\nLEFT JOIN ml_comercial.perfis_vendedor p ON p.vendedor_id = v.id\nWHERE v.ativo = true\nGROUP BY v.id, v.nome, p.pontos_fortes, p.gaps, p.recomendacoes\nORDER BY taxa_conversao DESC NULLS LAST;"
+      },
+      "id": "metricas-semana",
+      "name": "Métricas da semana por vendedor",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const vendedores = $input.all().map(item => item.json);\n\nif (!vendedores.length) {\n  return [{ json: { skip: true, reason: 'Sem dados na semana' } }];\n}\n\n// Calcula tendências\nconst relatorios = vendedores.map(v => {\n  const delta = v.taxa_conversao - (v.taxa_conversao_semana_anterior || v.taxa_conversao);\n  const tendencia = delta > 5 ? 'crescendo' : delta < -5 ? 'caindo' : 'estavel';\n\n  return {\n    ...v,\n    tendencia,\n    delta_conversao: parseFloat(delta.toFixed(2))\n  };\n});\n\n// Time completo\nconst total_conversas  = relatorios.reduce((s, v) => s + v.total_conversas, 0);\nconst total_conversoes = relatorios.reduce((s, v) => s + v.conversoes, 0);\nconst taxa_time        = total_conversas > 0\n  ? parseFloat((100 * total_conversoes / total_conversas).toFixed(2))\n  : 0;\nconst score_time       = parseFloat(\n  (relatorios.reduce((s, v) => s + parseFloat(v.score_medio || 0), 0) / relatorios.length).toFixed(2)\n);\n\nconst periodo_inicio = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\nconst periodo_fim    = new Date().toISOString().split('T')[0];\n\nconst prompt = `Você é um gerente comercial analisando a performance semanal do time de vendas.\n\nDados do time — semana de ${periodo_inicio} a ${periodo_fim}:\n- Total de conversas: ${total_conversas}\n- Taxa de conversão do time: ${taxa_time}%\n- Score médio de qualidade: ${score_time}/10\n\nPor vendedor:\n${relatorios.map(v =>\n  `• ${v.vendedor_nome}: ${v.total_conversas} conversas | ${v.taxa_conversao}% conversão | score ${v.score_medio} | tendência: ${v.tendencia} (${v.delta_conversao > 0 ? '+' : ''}${v.delta_conversao}pp)`\n).join('\\n')}\n\nPerfis e gaps conhecidos:\n${relatorios.filter(v => v.perfil_gaps).map(v =>\n  `• ${v.vendedor_nome} — gaps: ${JSON.stringify(v.perfil_gaps).substring(0,150)}`\n).join('\\n')}\n\nRetorne APENAS um JSON válido (sem markdown):\n{\n  \"score_time\": ${score_time},\n  \"taxa_conversao_time\": ${taxa_time},\n  \"tendencia_time\": \"crescendo|estavel|caindo\",\n  \"top_insights\": [\n    \"insight acionável 1 (específico, baseado nos dados)\",\n    \"insight acionável 2\",\n    \"insight acionável 3\"\n  ],\n  \"alertas\": [\n    {\"vendedor\": \"nome\", \"problema\": \"descrição\", \"urgencia\": \"alta|media\"}\n  ],\n  \"recomendacoes_time\": [\n    {\"acao\": \"ação específica\", \"impacto_esperado\": \"resultado esperado\", \"prioridade\": \"1|2|3\"}\n  ],\n  \"destaque_positivo\": \"nome do vendedor com melhor performance e por quê\"\n}`;\n\nreturn [{\n  json: {\n    relatorios,\n    total_conversas,\n    total_conversoes,\n    taxa_time,\n    score_time,\n    periodo_inicio,\n    periodo_fim,\n    prompt\n  }\n}];"
+      },
+      "id": "calcular-metricas",
+      "name": "Calcular Métricas e Tendências",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key",        "value": "={{ $env.ML_ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type",      "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify({\n  model: $env.ML_CLAUDE_ANALYST_MODEL || 'claude-sonnet-4-6',\n  max_tokens: 1500,\n  messages: [{ role: 'user', content: $json.prompt }]\n}) }}"
+            }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "id": "claude-insights",
+      "name": "Claude Sonnet — Gerar Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "notes": "[ML-COMERCIAL] performance-reporter — insights gerenciais via Claude Sonnet"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('calcular-metricas').first().json;\nconst claudeResponse = $input.first().json;\n\nlet insights;\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  insights = JSON.parse(content);\n} catch(e) {\n  insights = { top_insights: [], alertas: [], recomendacoes_time: [] };\n}\n\n// Salva relatório por vendedor + relatório do time\nconst relatorios_para_salvar = [\n  // Relatório do time (vendedor_id = null)\n  {\n    vendedor_id:    null,\n    periodo_inicio: ctx.periodo_inicio,\n    periodo_fim:    ctx.periodo_fim,\n    tipo_relatorio: 'weekly',\n    score_geral:    ctx.score_time,\n    taxa_conversao: ctx.taxa_time,\n    tendencia:      insights.tendencia_time || 'estavel',\n    top_insights:   insights.top_insights || [],\n    recomendacoes:  insights.recomendacoes_time || [],\n    alertas:        insights.alertas || [],\n    metricas_detalhe: {\n      total_conversas:  ctx.total_conversas,\n      total_conversoes: ctx.total_conversoes,\n      destaque_positivo: insights.destaque_positivo,\n      por_vendedor: ctx.relatorios.map(v => ({\n        vendedor_id:   v.vendedor_id,\n        nome:          v.vendedor_nome,\n        conversas:     v.total_conversas,\n        conversoes:    v.conversoes,\n        taxa:          v.taxa_conversao,\n        score:         v.score_medio,\n        tendencia:     v.tendencia,\n        delta:         v.delta_conversao\n      }))\n    }\n  },\n  // Relatório individual por vendedor\n  ...ctx.relatorios.map(v => ({\n    vendedor_id:    v.vendedor_id,\n    periodo_inicio: ctx.periodo_inicio,\n    periodo_fim:    ctx.periodo_fim,\n    tipo_relatorio: 'weekly',\n    score_geral:    v.score_medio,\n    taxa_conversao: v.taxa_conversao,\n    tendencia:      v.tendencia,\n    top_insights:   [],\n    recomendacoes:  v.perfil_recomendacoes || [],\n    alertas:        (insights.alertas || []).filter(a => a.vendedor === v.vendedor_nome),\n    metricas_detalhe: {\n      conversas:  v.total_conversas,\n      conversoes: v.conversoes,\n      perdas:     v.perdas,\n      pendentes:  v.pendentes,\n      top_objecoes: v.top_objecoes || []\n    }\n  }))\n];\n\nreturn relatorios_para_salvar.map(r => ({ json: r }));"
+      },
+      "id": "montar-relatorios",
+      "name": "Montar Relatórios para Salvar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_comercial.relatorios_performance (\n  vendedor_id,\n  periodo_inicio,\n  periodo_fim,\n  tipo_relatorio,\n  score_geral,\n  taxa_conversao,\n  tendencia,\n  top_insights,\n  recomendacoes,\n  alertas,\n  metricas_detalhe\n) VALUES (\n  $1::uuid,\n  $2::date,\n  $3::date,\n  $4,\n  $5,\n  $6,\n  $7,\n  $8::jsonb,\n  $9::jsonb,\n  $10::jsonb,\n  $11::jsonb\n)\nRETURNING id;",
+        "additionalFields": {
+          "queryParams": "={{ [\n  $json.vendedor_id,\n  $json.periodo_inicio,\n  $json.periodo_fim,\n  $json.tipo_relatorio,\n  $json.score_geral,\n  $json.taxa_conversao,\n  $json.tendencia,\n  JSON.stringify($json.top_insights),\n  JSON.stringify($json.recomendacoes),\n  JSON.stringify($json.alertas),\n  JSON.stringify($json.metricas_detalhe)\n] }}"
+        }
+      },
+      "id": "salvar-relatorio",
+      "name": "Salvar ml_comercial.relatorios_performance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 300],
+      "credentials": { "postgres": { "name": "ML Postgres" } }
+    }
+  ],
+  "connections": {
+    "Segunda-feira 06h (semanal)": {
+      "main": [[{ "node": "Métricas da semana por vendedor", "type": "main", "index": 0 }]]
+    },
+    "Métricas da semana por vendedor": {
+      "main": [[{ "node": "Calcular Métricas e Tendências", "type": "main", "index": 0 }]]
+    },
+    "Calcular Métricas e Tendências": {
+      "main": [[{ "node": "Claude Sonnet — Gerar Insights", "type": "main", "index": 0 }]]
+    },
+    "Claude Sonnet — Gerar Insights": {
+      "main": [[{ "node": "Montar Relatórios para Salvar", "type": "main", "index": 0 }]]
+    },
+    "Montar Relatórios para Salvar": {
+      "main": [[{ "node": "Salvar ml_comercial.relatorios_performance", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Sao_Paulo" },
+  "tags": ["ML-COMERCIAL", "performance-reporter", "machine-learning"],
+  "meta": {
+    "project": "machine-learning",
+    "squad": "ml-comercial-squad",
+    "agent": "performance-reporter",
+    "version": "1.0.0",
+    "description": "Relatório semanal de performance — insights gerenciais via Claude Sonnet, toda segunda-feira"
+  }
+}

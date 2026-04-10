@@ -1,0 +1,50 @@
+name: ml-captura-squad
+version: 0.1.0
+description: Captura dados brutos de WhatsApp, áudio e eventos de todas as fontes do laboratório ML
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-captura
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 2-building
+  project: machine-learning
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_captura
+  redis_prefix: "ml:captura:"
+  n8n_tag: "[ML-CAPTURA]"
+  railway_service: ml-captura
+
+components:
+  agents:
+    - agents/webhook-manager.md
+    - agents/audio-transcriber.md
+    - agents/message-collector.md
+  tasks:
+    - tasks/configure-webhook.md
+    - tasks/transcribe-audio.md
+    - tasks/collect-messages.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads: []
+  services:
+    - Evolution API
+    - n8n (Railway)
+    - Groq Whisper
+    - Postgres (schema: ml_captura)
+    - Redis
+
+keywords:
+  - ml
+  - captura
+  - whatsapp
+  - evolution-api
+  - n8n
+  - webhook
+  - groq-whisper

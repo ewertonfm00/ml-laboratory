@@ -1,0 +1,49 @@
+name: ml-data-eng-squad
+version: 0.1.0
+description: Estrutura, classifica e rotula os dados capturados — transforma dados brutos em dados limpos e prontos para análise
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-data-eng
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 2-building
+  project: machine-learning
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_data_eng
+  redis_prefix: "ml:data:"
+  n8n_tag: "[ML-DATA]"
+  railway_service: ml-data-eng
+
+components:
+  agents:
+    - agents/schema-designer.md
+    - agents/etl-engineer.md
+    - agents/data-classifier.md
+  tasks:
+    - tasks/design-schema.md
+    - tasks/build-etl-pipeline.md
+    - tasks/classify-data.md
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-captura-squad
+  services:
+    - Postgres (schema: ml_data_eng)
+    - n8n (Railway)
+    - Claude Haiku
+    - Redis
+
+keywords:
+  - ml
+  - data-engineering
+  - etl
+  - postgres
+  - classificacao
+  - estruturacao
