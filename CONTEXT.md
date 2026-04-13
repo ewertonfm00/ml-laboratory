@@ -1,39 +1,48 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-10 (YOLO #2 — área dinâmica + seeds + scripts)
+**Última sessão:** 2026-04-13 (análise completa do projeto + orientação de ativação)
 
 ---
 
 ## Próximo passo imediato
 
-Reimportar `ML-CAPTURA-whatsapp-pipeline.json` no n8n (v1.1.0 — área dinâmica só ativa após reimport).
+Verificar se psql está instalado localmente:
+```
+! psql --version
+```
+Se sim → rodar migrations direto. Se não → usar Railway Shell ou instalar psql.
 
 ---
 
 ## Pendências
 
-### IMEDIATO — n8n
-- [ ] Reimportar `ML-CAPTURA-whatsapp-pipeline.json` em `https://n8n-production-47d0.up.railway.app`
-- [ ] Importar os 10 workflows de squads (Operacional, Financeiro, Atendimento, Marketing, Pessoas)
-- [ ] Ativar cada workflow após importação
+### BLOQUEIO #1 — Acesso n8n
+- [ ] Recuperar senha do n8n (`https://n8n-production-47d0.up.railway.app`)
+  - **Opção A:** Testar senhas já usadas em outros projetos
+  - **Opção B:** Railway Shell → `cd /home/node/.n8n && ls` → reset via SQLite ou Postgres
+  - **Opção C:** Deletar volume do n8n → força re-setup (eu reimporto os 16 workflows)
 
-### IMEDIATO — Seed MASTER
-- [ ] Gerar bcrypt: `node -e "require('bcrypt').hash('SuaSenha',10).then(console.log)"`
-- [ ] Substituir `<EMAIL_MASTER>` e `<BCRYPT_HASH>` em `database/seeds/001_master_seed.sql`
+### BLOQUEIO #2 — Migrations (usuário executa)
+- [ ] Rodar 001→010 no Postgres Railway (psql ou Railway Dashboard → Query)
+- [ ] Verificar schemas criados: `\dn` após execução
+
+### BLOQUEIO #3 — Seed MASTER (aguardando e-mail + senha do usuário)
+- [ ] Usuário passa e-mail + senha desejada → eu gero o SQL final
 - [ ] Executar seed no Railway Postgres
 
-### IMEDIATO — Teste de pipeline
-- [ ] Popular `_plataforma.numeros_projeto` com JIDs (formato: `5516...@s.whatsapp.net`) e `setor` correto
-- [ ] Executar `bash scripts/test-webhook-text.sh`
-- [ ] Executar `bash scripts/test-webhook-audio.sh` com URL de áudio .ogg real
+### BLOQUEIO #4 — JIDs WhatsApp (aguardando dados do usuário)
+- [ ] Usuário passa números no formato `5516XXXXXXXX@s.whatsapp.net` + setor
+- [ ] Eu gero SQL de inserção em `_plataforma.numeros_projeto`
+
+### BLOQUEIO #5 — Evolution API (aguardando credenciais)
+- [ ] Usuário passa URL + API Key → eu gero comandos curl para criar instância `ml-omega-laser`
 
 ### MÉDIO PRAZO
-- [ ] Criar instância `ml-omega-laser` na Evolution API
 - [ ] Conectar WhatsApp + executar teste de identificação Redrive
+- [ ] Ativar os 16 workflows n8n após acesso
 
 ### LONGO PRAZO
-- [ ] Deploy Metabase no Railway + conectar Postgres + configurar dashboards
-- [ ] Deploy Appsmith no Railway + datasource `portal_app` + CSS tokens
+- [ ] Deploy Metabase + Appsmith no Railway
 - [ ] Configurar domínios: `portal.dominio.com` / `analytics.dominio.com`
 
 ---
@@ -46,3 +55,4 @@ Reimportar `ML-CAPTURA-whatsapp-pipeline.json` no n8n (v1.1.0 — área dinâmic
 - Credencial n8n: `ML Postgres` (id: `FO9GgjXtERNuCglX`)
 - Área dinâmica: lookup em `_plataforma.numeros_projeto.jid` → `setor` (fallback: 'comercial')
 - Setup completo: `portal/SETUP-RAILWAY.md`
+- 16 workflows n8n prontos em `infra/n8n/workflows/`
