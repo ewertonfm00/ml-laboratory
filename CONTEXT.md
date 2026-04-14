@@ -1,66 +1,60 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-13 (infraestrutura Railway parcialmente ativada)
+**Última sessão:** 2026-04-14 (pipeline de captura ativado e testado)
 
 ---
 
 ## Próximo passo imediato
 
-Rodar as migrations 001→010 no Postgres Railway:
-```bash
-psql "postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway" -f database/migrations/001_ml_schemas_init.sql
-# repetir para 002→010
-```
+Verificar com Redrive se há forma de identificar o agente no payload do webhook.
+Enquanto isso, o @dev deve fazer varredura completa de inconsistências no projeto.
 
 ---
 
 ## Pendências
 
-### BLOQUEIO #1 — Acesso n8n
-- [ ] Recuperar senha do n8n (`https://n8n-production-47d0.up.railway.app`)
-  - **Opção A:** Testar senhas já usadas em outros projetos
-  - **Opção B:** Railway Shell → `cd /home/node/.n8n && ls` → reset via SQLite ou Postgres
-  - **Opção C:** Deletar volume do n8n → re-setup (eu reimporto os 16 workflows)
+### CRÍTICO — Lookup Setor ainda pode falhar
+- [ ] O nó "Lookup Setor" no n8n busca setor por `session_id` via JOIN com `instancias_evolution`
+- [ ] Se o `instance_name` não bater exatamente, retorna vazio e para a execução
+- [ ] Validar que `instance_name = 'omega-laser-locacoes'` está correto no banco
+- [ ] Verificar se há inconsistências entre o JSON do workflow e o schema do banco
 
-### BLOQUEIO #2 — Migrations (usuário executa)
-- [ ] Rodar 001→010 no Postgres Railway (psql ou Railway Dashboard → Query)
+### IDENTIFICAÇÃO DE AGENTE
+- [ ] Redrive não envia agente no payload do webhook (payload idêntico à Evolution API)
+- [ ] Amanhã verificar no Redrive se há configuração de "operador/agente" no webhook
+- [ ] Alternativa: usar `/v1/crm/getbyphone` da API Redrive para buscar agente por número
 
-### BLOQUEIO #3 — Seed MASTER
-- [ ] Usuário passa e-mail + senha desejada → eu gero o SQL final
-- [ ] Executar seed no Railway Postgres
-
-### BLOQUEIO #4 — JIDs WhatsApp
-- [ ] Usuário passa números reais no formato `5516XXXXXXXX@s.whatsapp.net` + setor
-- [ ] Eu gero SQL de inserção em `_plataforma.numeros_projeto`
-
-### BLOQUEIO #5 — Conectar WhatsApp na instância oficial-locacao
-- [ ] Escanear QR Code via `GET /instance/connect/oficial-locacao` (apikey: ml-evo-key-2026)
-- [ ] Validar identificação de agente Redrive
+### SEED MASTER
+- [ ] Usuário passa e-mail + senha desejada → gerar SQL → executar no Railway
 
 ### MÉDIO PRAZO
-- [ ] Ativar os 16 workflows n8n após acesso ao n8n
-- [ ] Configurar webhook da instância oficial-locacao → n8n ML-CAPTURA
-
-### LONGO PRAZO
+- [ ] Remover workflows duplicados do n8n (foram importados 2x por erro de importação anterior)
 - [ ] Deploy Metabase + Appsmith no Railway
-- [ ] Configurar domínios: `portal.dominio.com` / `analytics.dominio.com`
+- [ ] Configurar domínios
 
 ---
 
 ## Infraestrutura Railway — Estado Atual
 
-| Serviço | Status | URL / Detalhe |
-|---------|--------|---------------|
-| Postgres | ✅ Ativo | `postgres.railway.internal:5432` |
-| n8n | ⚠️ Sem acesso | `https://n8n-production-47d0.up.railway.app` |
-| evolution-api-ml | ✅ Ativo | `https://evolution-api-ml-production.up.railway.app` |
-| redis-evolution-ml | ✅ Criado | `redis://redis-evolution-ml.railway.internal:6379` |
-| Instância WhatsApp | 🟡 Criada | `oficial-locacao` — aguardando QR Code |
+| Serviço | Status | Detalhe |
+|---------|--------|---------|
+| Postgres | ✅ Ativo | Migrations 001→010 executadas |
+| n8n | ✅ Ativo | 16 workflows importados, ML-CAPTURA ativo (ID: y6kmL9RZupuZuWig) |
+| Evolution API | ✅ Ativo | Webhook desativado (usa Redrive) |
+| Redis | ✅ Criado | — |
+| Redrive | ✅ Webhook configurado | Envia para n8n ML-CAPTURA |
+
+## Fluxo ativo
+
+```
+Redrive → n8n ML-CAPTURA (y6kmL9RZupuZuWig) → Postgres ml_captura.mensagens_raw
+```
 
 ## Contexto técnico
 
-- Webhook ML-CAPTURA: `/webhook/ml/webhook/whatsapp`
-- Evolution API Key: `ml-evo-key-2026`
+- Webhook ML-CAPTURA: `https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp`
+- Evolution API Key: `omega-laser-evo-key-2026`
+- Instância WhatsApp: `omega-laser-locacoes` (551632363666)
 - Postgres público: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
-- DATABASE_CONNECTION_URI Evolution: `...@postgres.railway.internal:5432/railway?schema=evolution`
-- 16 workflows n8n prontos em `infra/n8n/workflows/`
+- Projeto no banco: `omega-laser-locacoes` (id: 7bd3cbf2-cb83-42fa-a6bf-f52a57d99ea5)
+- Agentes cadastrados: Tabata, Rodrigo, Larissa, Ewerton
