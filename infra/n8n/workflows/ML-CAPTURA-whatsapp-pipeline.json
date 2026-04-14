@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Valida o webhook secret da Evolution API\n// Secret validation: se header presente, valida; se ausente, permite (Evolution API não envia)\nconst secret = $input.first().json.headers?.['x-webhook-secret'] || $input.first().json.headers?.['X-Webhook-Secret'];\nconst expected = $env.ML_EVOLUTION_WEBHOOK_SECRET;\n\nif (secret && expected && secret !== expected) {\n  throw new Error('[ML-CAPTURA] Webhook secret inválido — requisição rejeitada');\n}\n\nconst body = $input.first().json.body || $input.first().json;\nconst event = body.event || body.type;\n\n// Filtra apenas eventos de mensagem — retorna [] para encerrar execução sem erro\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) {\n  return [];\n}\n\nconst message = body.data?.message || body.message || {};\nconst key = body.data?.key || body.key || {};\n\n// Ignora mensagens próprias (fromMe) — retorna [] para encerrar execução\nif (key.fromMe) {\n  return [];\n}\n\nconst tipo = message.audioMessage ? 'audio'\n           : message.imageMessage ? 'image'\n           : message.documentMessage ? 'document'\n           : 'text';\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    message_id:   key.id,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = body.event || body.type;\n\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\n\nconst message = body.data?.message || body.message || {};\nconst key = body.data?.key || body.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? 'audio'\n           : message.imageMessage ? 'image'\n           : message.documentMessage ? 'document'\n           : 'text';\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me: key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    message_id:   key.id,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
       },
       "id": "normalize-payload",
       "name": "Normalizar Payload",
@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Enriquece payload com setor dinâmico do banco\n// Fallback: 'comercial' se número não cadastrado\nconst payload = $('normalize-payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\n\nreturn [{ json: { ...payload, area } }];"
+        "jsCode": "// Enriquece payload com setor dinâmico do banco\n// Fallback: 'comercial' se número não cadastrado\nconst payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\n\nreturn [{ json: { ...payload, area } }];"
       },
       "id": "enrich-setor",
       "name": "Enriquecer com Setor",
@@ -169,10 +169,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_captura.mensagens_raw (\n  area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio,\n  status, metadados\n) VALUES (\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  $1, $2, $3,\n  '{{ $json.mensagem.status }}',\n  $4::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
-        "additionalFields": {
-          "queryParams": "={{ [\n  $json.mensagem.conteudo_raw,\n  $json.mensagem.audio_url,\n  $json.mensagem.duracao_audio,\n  JSON.stringify($json.mensagem.metadados)\n] }}"
-        }
+        "query": "INSERT INTO ml_captura.mensagens_raw (\n  area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio,\n  status, metadados\n) VALUES (\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : \"NULL\" }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : \"NULL\" }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
+        "additionalFields": {}
       },
       "id": "insert-mensagem-raw",
       "name": "Inserir ml_captura.mensagens_raw",
@@ -251,8 +249,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Filtro: passa apenas mensagens de áudio\nif ($json.tipo !== 'audio') return [];\nreturn [{ json: $json }];",
-        "mode": "runOnceForEachItem"
+        "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'audio');"
       },
       "id": "filter-audio",
       "name": "Filtro Áudio",
@@ -265,8 +262,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Filtro: passa apenas mensagens de texto\nif ($json.tipo !== 'text') return [];\nreturn [{ json: $json }];",
-        "mode": "runOnceForEachItem"
+        "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'text');"
       },
       "id": "filter-text",
       "name": "Filtro Texto",
