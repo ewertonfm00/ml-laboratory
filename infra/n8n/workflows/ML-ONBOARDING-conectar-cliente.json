@@ -40,7 +40,7 @@
             }
           ]
         },
-        "responseMode": "responseNode",
+        "responseMode": "formPage",
         "options": {}
       },
       "id": "form-trigger",
@@ -64,11 +64,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL }}/instance/create",
+        "url": "https://evolution-api-ml-production.up.railway.app/instance/create",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey",       "value": "={{ $env.EVOLUTION_API_KEY }}" },
+            { "name": "apikey",       "value": "ml-evo-key-2026" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
@@ -93,7 +93,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO _plataforma.projetos (nome, slug, descricao, schema_prefix)\nVALUES (\n  '{{ $('Preparar Dados').first().json.nome_empresa }}',\n  '{{ $('Preparar Dados').first().json.slug }}',\n  'Projeto conectado via formulário de onboarding em {{ new Date().toISOString().split(''T'')[0] }}',\n  'ml'\n)\nON CONFLICT (slug) DO UPDATE SET updated_at = NOW()\nRETURNING id, nome, slug",
+        "query": "INSERT INTO _plataforma.projetos (nome, slug, descricao, schema_prefix)\nVALUES (\n  '{{ $('Preparar Dados').first().json.nome_empresa }}',\n  '{{ $('Preparar Dados').first().json.slug }}',\n  'Projeto conectado via formulário de onboarding em {{ new Date().toISOString().substring(0, 10) }}',\n  'ml'\n)\nON CONFLICT (slug) DO UPDATE SET updated_at = NOW()\nRETURNING id, nome, slug",
         "additionalFields": {}
       },
       "id": "inserir-projeto",
@@ -112,7 +112,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO _plataforma.instancias_evolution\n  (projeto_id, instance_name, api_url, api_key_ref, webhook_path)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $('Preparar Dados').first().json.instance_name }}',\n  '{{ $env.EVOLUTION_API_URL }}',\n  'EVOLUTION_API_KEY',\n  '{{ $('Preparar Dados').first().json.webhook_path }}'\n)\nON CONFLICT (instance_name) DO UPDATE SET\n  updated_at = NOW()\nRETURNING id",
+        "query": "INSERT INTO _plataforma.instancias_evolution\n  (projeto_id, instance_name, api_url, api_key_ref, webhook_path)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $('Preparar Dados').first().json.instance_name }}',\n  'https://evolution-api-ml-production.up.railway.app',\n  'EVOLUTION_API_KEY',\n  '{{ $('Preparar Dados').first().json.webhook_path }}'\n)\nON CONFLICT (instance_name) DO UPDATE SET\n  updated_at = NOW()\nRETURNING id",
         "additionalFields": {}
       },
       "id": "inserir-instancia",
@@ -150,17 +150,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_URL }}/webhook/set/{{ $('Preparar Dados').first().json.instance_name }}",
+        "url": "=https://evolution-api-ml-production.up.railway.app/webhook/set/{{ $('Preparar Dados').first().json.instance_name }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey",       "value": "={{ $env.EVOLUTION_API_KEY }}" },
+            { "name": "apikey",       "value": "ml-evo-key-2026" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"url\": \"{{ $env.N8N_WEBHOOK_URL }}/ml/webhook/whatsapp\",\n  \"webhook_by_events\": false,\n  \"webhook_base64\": false,\n  \"events\": [\"MESSAGES_UPSERT\", \"MESSAGES_UPDATE\", \"CONNECTION_UPDATE\"]\n}",
+        "jsonBody": "={\n  \"url\": \"https://n8n-production-47d0.up.railway.app/ml/webhook/whatsapp\",\n  \"webhook_by_events\": false,\n  \"webhook_base64\": false,\n  \"events\": [\"MESSAGES_UPSERT\", \"MESSAGES_UPDATE\", \"CONNECTION_UPDATE\"]\n}",
         "options": {
           "response": {
             "response": {
@@ -189,22 +189,16 @@
     },
     {
       "parameters": {
-        "respondWith": "text",
-        "responseBody": "={{ $json.html }}",
-        "options": {
-          "responseHeaders": {
-            "entries": [
-              { "name": "Content-Type", "value": "text/html; charset=utf-8" }
-            ]
-          }
-        }
+        "operation": "completionPage",
+        "completionTitle": "={{ 'Conectar WhatsApp — ' + $('Preparar Dados').first().json.nome_empresa }}",
+        "completionMessage": "={{ (() => { const evo = $('Criar Instância Evolution').first().json; const prep = $('Preparar Dados').first().json; const qrB64 = evo && evo.qrcode ? evo.qrcode.base64 : null; if (qrB64) { return '<div style=\"text-align:center\"><p>Aponte a câmera do WhatsApp da empresa para o QR Code:</p><img src=\"' + qrB64 + '\" style=\"width:220px;height:220px\" /><br/><small>Instância: ' + prep.instance_name + '</small><br/><small style=\"color:#888\">⚠️ QR Code expira em 60 segundos.</small></div>'; } else { return '<p>✅ Instância <strong>' + prep.instance_name + '</strong> criada com sucesso!</p><p>O QR Code será gerado em instantes. Acesse o painel do ML Laboratory para finalizar a conexão.</p>'; } })() }}"
       },
       "id": "mostrar-qr",
       "name": "Mostrar QR Code",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 3.0,
       "position": [2000, 300],
-      "notes": "Retorna a página HTML com QR Code para o cliente escanear. Content-Type: text/html."
+      "notes": "Página de conclusão do formulário. Mostra QR Code base64 inline se disponível, ou mensagem de fallback."
     }
   ],
   "connections": {
