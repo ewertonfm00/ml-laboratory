@@ -35,7 +35,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COALESCE(np.setor::text, 'comercial') AS area, np.id AS numero_id FROM _plataforma.numeros_projeto np JOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id WHERE ie.instance_name = '{{ $json.session_id }}' AND np.ativo = true LIMIT 1",
+        "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
         "additionalFields": {}
       },
       "id": "lookup-setor",
@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Enriquece payload com setor dinâmico do banco\n// Fallback: 'comercial' se número não cadastrado\nconst payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\n\nreturn [{ json: { ...payload, area } }];"
+        "jsCode": "const payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id } }];"
       },
       "id": "enrich-setor",
       "name": "Enriquecer com Setor",
@@ -155,7 +155,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'text',\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
+        "jsCode": "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'text',\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
       },
       "id": "prepare-text-data",
       "name": "Preparar Dados Texto",
@@ -169,7 +169,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_captura.mensagens_raw (\n  area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio,\n  status, metadados\n) VALUES (\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : \"NULL\" }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : \"NULL\" }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
+        "query": "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : 'NULL' }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : 'NULL' }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
         "additionalFields": {}
       },
       "id": "insert-mensagem-raw",
@@ -213,7 +213,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_captura.sessoes_conversa (area, remote_jid, status)\nVALUES (\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.remote_jid }}',\n  'ativa'\n)\nON CONFLICT (area, remote_jid) DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET\n  total_mensagens = total_mensagens + 1,\n  updated_at = NOW()\nWHERE\n  remote_jid = '{{ $json.mensagem.remote_jid }}'\n  AND area = '{{ $json.mensagem.area }}'\n  AND status = 'ativa';"
+        "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status)\nVALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.remote_jid }}',\n  'ativa'\n)\nON CONFLICT (projeto_id, area, remote_jid) DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET total_mensagens = total_mensagens + 1, updated_at = NOW()\nWHERE projeto_id = '{{ $json.mensagem.projeto_id }}'::uuid\n  AND remote_jid = '{{ $json.mensagem.remote_jid }}'\n  AND area = '{{ $json.mensagem.area }}'\n  AND status = 'ativa';"
       },
       "id": "upsert-sessao",
       "name": "Upsert ml_captura.sessoes_conversa",
