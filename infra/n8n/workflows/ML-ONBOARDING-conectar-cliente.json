@@ -1,0 +1,260 @@
+{
+  "name": "[ML-ONBOARDING] Conectar Cliente WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Conectar WhatsApp — ML Laboratory",
+        "formDescription": "Preencha os dados abaixo. Ao finalizar, você receberá um QR Code para escanear com o WhatsApp da sua empresa.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nome da empresa",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "Ex: Clínica Beleza Plena"
+            },
+            {
+              "fieldLabel": "WhatsApp (com DDI e DDD, só números)",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "Ex: 5516988230361"
+            },
+            {
+              "fieldLabel": "Nome do responsável",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "Ex: Ana Paula"
+            },
+            {
+              "fieldLabel": "Setor principal",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Comercial / Vendas" },
+                  { "option": "Atendimento / Recepção" },
+                  { "option": "Operacional" },
+                  { "option": "Marketing" }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "form-trigger",
+      "name": "Formulário — Conectar Cliente",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [240, 300],
+      "webhookId": "ml-onboarding-conectar"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Extrair e sanitizar campos\nconst sanitize = (str) => String(str || '').replace(/'/g, \"''\").substring(0, 255);\n\nconst nomeEmpresa  = sanitize(data['Nome da empresa']);\nconst numero       = sanitize(data['WhatsApp (com DDI e DDD, só números)']).replace(/\\D/g, '').substring(0, 20);\nconst responsavel  = sanitize(data['Nome do responsável']);\nconst setorRaw     = data['Setor principal'] || 'Comercial / Vendas';\n\nif (!nomeEmpresa || !numero || !responsavel) {\n  throw new Error('Campos obrigatórios ausentes: nome, WhatsApp ou responsável');\n}\n\nif (!/^\\d{10,15}$/.test(numero)) {\n  throw new Error('Número de WhatsApp inválido. Use apenas dígitos com DDI e DDD. Ex: 5516988230361');\n}\n\n// Mapear setor para enum do banco\nconst setorMap = {\n  'Comercial / Vendas': 'comercial',\n  'Atendimento / Recepção': 'atendimento',\n  'Operacional': 'operacional',\n  'Marketing': 'marketing'\n};\nconst setor = setorMap[setorRaw] || 'comercial';\n\n// Gerar slug e instance_name (URL-safe, sem acentos)\nconst slug = nomeEmpresa\n  .toLowerCase()\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[^a-z0-9]+/g, '-')\n  .replace(/^-+|-+$/g, '')\n  .substring(0, 40);\n\nconst instanceName = 'ml-' + slug;\n\nreturn [{\n  json: {\n    nome_empresa:    nomeEmpresa,\n    slug,\n    instance_name:   instanceName,\n    numero_whatsapp: numero,\n    responsavel,\n    setor,\n    webhook_path:    '/ml/webhook/whatsapp'\n  }\n}];"
+      },
+      "id": "prepare-data",
+      "name": "Preparar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Sanitiza inputs, valida número, gera slug e instance_name. Lança erro se campos inválidos."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/instance/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "={{ $env.EVOLUTION_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"instanceName\": \"{{ $json.instance_name }}\",\n  \"qrcode\": true,\n  \"integration\": \"WHATSAPP-BAILEYS\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "criar-instancia",
+      "name": "Criar Instância Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "notes": "POST /instance/create com qrcode:true. Retorna qrcode.base64 se disponível imediatamente."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO _plataforma.projetos (nome, slug, descricao, schema_prefix)\nVALUES (\n  '{{ $('Preparar Dados').first().json.nome_empresa }}',\n  '{{ $('Preparar Dados').first().json.slug }}',\n  'Projeto conectado via formulário de onboarding em {{ new Date().toISOString().split(''T'')[0] }}',\n  'ml'\n)\nON CONFLICT (slug) DO UPDATE SET updated_at = NOW()\nRETURNING id, nome, slug",
+        "additionalFields": {}
+      },
+      "id": "inserir-projeto",
+      "name": "Inserir Projeto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 300],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Cria ou atualiza o projeto do cliente em _plataforma.projetos. ON CONFLICT idempotente."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO _plataforma.instancias_evolution\n  (projeto_id, instance_name, api_url, api_key_ref, webhook_path)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $('Preparar Dados').first().json.instance_name }}',\n  '{{ $env.EVOLUTION_API_URL }}',\n  'EVOLUTION_API_KEY',\n  '{{ $('Preparar Dados').first().json.webhook_path }}'\n)\nON CONFLICT (instance_name) DO UPDATE SET\n  updated_at = NOW()\nRETURNING id",
+        "additionalFields": {}
+      },
+      "id": "inserir-instancia",
+      "name": "Inserir Instância no Banco",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 300],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Registra a instância Evolution API em _plataforma.instancias_evolution. api_key_ref = nome da env var."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO _plataforma.numeros_projeto\n  (instancia_id, projeto_id, numero_whatsapp, nome_identificador, setor, status)\nSELECT\n  ie.id,\n  ie.projeto_id,\n  '{{ $('Preparar Dados').first().json.numero_whatsapp }}',\n  '{{ $('Preparar Dados').first().json.nome_empresa }}',\n  '{{ $('Preparar Dados').first().json.setor }}'::_plataforma.setor_tipo,\n  'teste'::_plataforma.status_numero\nFROM _plataforma.instancias_evolution ie\nWHERE ie.instance_name = '{{ $('Preparar Dados').first().json.instance_name }}'\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "inserir-numero",
+      "name": "Inserir Número no Banco",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Registra o número WhatsApp em _plataforma.numeros_projeto com status 'teste'. Setor mapeado do formulário."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/webhook/set/{{ $('Preparar Dados').first().json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",       "value": "={{ $env.EVOLUTION_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"url\": \"{{ $env.N8N_WEBHOOK_URL }}/ml/webhook/whatsapp\",\n  \"webhook_by_events\": false,\n  \"webhook_base64\": false,\n  \"events\": [\"MESSAGES_UPSERT\", \"MESSAGES_UPDATE\", \"CONNECTION_UPDATE\"]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "configurar-webhook",
+      "name": "Configurar Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300],
+      "notes": "Aponta o webhook da instância Evolution para o pipeline ML-CAPTURA. URL via env N8N_WEBHOOK_URL."
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $('Preparar Dados').first().json;\nconst evo  = $('Criar Instância Evolution').first().json;\n\nconst qrBase64     = evo?.qrcode?.base64 || null;\nconst instanceName = prep.instance_name;\nconst nomeEmpresa  = prep.nome_empresa;\n\nconst passos = `\n  <div class=\"step\"><div class=\"num\">1</div><div class=\"step-text\">Abra o <strong>WhatsApp</strong> no celular da empresa</div></div>\n  <div class=\"step\"><div class=\"num\">2</div><div class=\"step-text\">Toque em <strong>⋮ Menu → Aparelhos conectados</strong></div></div>\n  <div class=\"step\"><div class=\"num\">3</div><div class=\"step-text\">Toque em <strong>Conectar um aparelho</strong></div></div>\n  <div class=\"step\"><div class=\"num\">4</div><div class=\"step-text\">Aponte a câmera para o <strong>QR Code acima</strong></div></div>\n`;\n\nconst css = `\n  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }\n  .card { background: white; border-radius: 16px; padding: 40px; max-width: 440px; width: 90%; text-align: center; box-shadow: 0 4px 24px rgba(99,102,241,0.12); }\n  .logo { color: #6366f1; font-size: 22px; font-weight: 700; margin-bottom: 4px; }\n  .subtitle { color: #9ca3af; font-size: 13px; margin-bottom: 16px; }\n  h2 { color: #1e1b4b; margin: 0 0 8px; font-size: 20px; }\n  p { color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 16px; }\n  .qr { margin: 20px auto; background: #f9fafb; border-radius: 12px; padding: 16px; display: inline-block; }\n  .qr img { width: 220px; height: 220px; border-radius: 8px; display: block; }\n  .steps { text-align: left; margin-top: 20px; }\n  .step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }\n  .num { background: #6366f1; color: white; border-radius: 50%; width: 26px; height: 26px; min-width: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }\n  .step-text { color: #374151; font-size: 14px; line-height: 1.5; padding-top: 3px; }\n  .alert { margin-top: 20px; background: #fef3c7; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #92400e; }\n  .success { margin-top: 20px; background: #d1fae5; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #065f46; }\n  .spinner { margin: 30px auto; width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }\n  @keyframes spin { to { transform: rotate(360deg); } }\n`;\n\nlet html;\n\nif (qrBase64) {\n  html = `<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Conectar WhatsApp — ${nomeEmpresa}</title>\n  <style>${css}</style>\n</head>\n<body>\n  <div class=\"card\">\n    <div class=\"logo\">⚡ ML Laboratory</div>\n    <div class=\"subtitle\">Onboarding</div>\n    <h2>Escaneie para conectar</h2>\n    <p><strong>${nomeEmpresa}</strong> — use o WhatsApp do celular da empresa para escanear o código abaixo.</p>\n    <div class=\"qr\">\n      <img src=\"${qrBase64}\" alt=\"QR Code WhatsApp\" />\n    </div>\n    <div class=\"steps\">${passos}</div>\n    <div class=\"alert\">⚠️ O QR Code expira em 60 segundos. Se expirar, volte e preencha o formulário novamente.</div>\n    <div class=\"success\" style=\"margin-top:12px\">✅ Instância registrada: <code>${instanceName}</code></div>\n  </div>\n</body>\n</html>`;\n} else {\n  // QR não chegou na resposta — redireciona para a URL de connect da Evolution\n  const connectUrl = (process.env.EVOLUTION_API_URL || '') + '/instance/connect/' + instanceName;\n  html = `<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Gerando QR Code...</title>\n  <style>${css}</style>\n  <script>\n    setTimeout(() => { window.location.href = '${connectUrl}?apikey=' + ''; }, 3000);\n  </script>\n</head>\n<body>\n  <div class=\"card\">\n    <div class=\"logo\">⚡ ML Laboratory</div>\n    <div class=\"subtitle\">Onboarding</div>\n    <h2>Aguarde...</h2>\n    <p>Sua instância está sendo criada. O QR Code aparecerá em instantes.</p>\n    <div class=\"spinner\"></div>\n    <p style=\"font-size:12px;color:#9ca3af\">Instância: <code>${instanceName}</code></p>\n  </div>\n</body>\n</html>`;\n}\n\nreturn [{ json: { html, instance_name: instanceName } }];"
+      },
+      "id": "gerar-html",
+      "name": "Gerar HTML com QR Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300],
+      "notes": "Gera página HTML com QR Code embutido em base64. Se QR não veio na resposta, exibe spinner e redireciona."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" }
+            ]
+          }
+        }
+      },
+      "id": "mostrar-qr",
+      "name": "Mostrar QR Code",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 300],
+      "notes": "Retorna a página HTML com QR Code para o cliente escanear. Content-Type: text/html."
+    }
+  ],
+  "connections": {
+    "Formulário — Conectar Cliente": {
+      "main": [
+        [{ "node": "Preparar Dados", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Dados": {
+      "main": [
+        [{ "node": "Criar Instância Evolution", "type": "main", "index": 0 }]
+      ]
+    },
+    "Criar Instância Evolution": {
+      "main": [
+        [{ "node": "Inserir Projeto", "type": "main", "index": 0 }]
+      ]
+    },
+    "Inserir Projeto": {
+      "main": [
+        [{ "node": "Inserir Instância no Banco", "type": "main", "index": 0 }]
+      ]
+    },
+    "Inserir Instância no Banco": {
+      "main": [
+        [{ "node": "Inserir Número no Banco", "type": "main", "index": 0 }]
+      ]
+    },
+    "Inserir Número no Banco": {
+      "main": [
+        [{ "node": "Configurar Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Configurar Webhook": {
+      "main": [
+        [{ "node": "Gerar HTML com QR Code", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gerar HTML com QR Code": {
+      "main": [
+        [{ "node": "Mostrar QR Code", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
+  }
+}

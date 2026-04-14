@@ -6,6 +6,7 @@ Workflows do projeto Machine Learning — todos tagueados com `[ML-*]` para isol
 
 | Arquivo | Tag | Trigger | Função |
 |---------|-----|---------|--------|
+| `ML-ONBOARDING-conectar-cliente.json` | [ML-ONBOARDING] | Form Trigger (URL pública) | Cadastra cliente + cria instância Evolution + exibe QR Code |
 | `ML-CAPTURA-whatsapp-pipeline.json` | [ML-CAPTURA] | Webhook Evolution API | Captura e transcreve mensagens WhatsApp |
 | `ML-COMERCIAL-analise-conversa.json` | [ML-COMERCIAL] | Schedule 5min | Analisa conversas encerradas via Claude Haiku |
 
@@ -54,4 +55,50 @@ ML_ANTHROPIC_API_KEY        = sua_chave
 ML_CLAUDE_CLASSIFIER_MODEL  = claude-haiku-4-5-20251001
 ML_GROQ_WHISPER_MODEL       = whisper-large-v3
 ML_GROQ_WHISPER_LANGUAGE    = pt
+
+# Necessário para o workflow de onboarding:
+EVOLUTION_API_URL           = https://sua-evolution.railway.app
+EVOLUTION_API_KEY           = sua_api_key_evolution
+N8N_WEBHOOK_URL             = https://seu-n8n.railway.app/webhook
 ```
+
+## Workflow de Onboarding — Como usar
+
+O workflow `ML-ONBOARDING-conectar-cliente.json` permite conectar um novo cliente sem usar o terminal.
+
+### Fluxo para o cliente leigo
+
+```
+Você envia o link → Cliente abre no celular → Preenche 4 campos →
+Clica Enviar → QR Code aparece na tela → Cliente escaneia com WhatsApp → Conectado ✅
+```
+
+### O que o workflow faz automaticamente
+
+1. **Cria a instância** na Evolution API com o nome gerado a partir do nome da empresa
+2. **Registra o projeto** em `_plataforma.projetos`
+3. **Registra a instância** em `_plataforma.instancias_evolution`
+4. **Registra o número** em `_plataforma.numeros_projeto` (status: `teste`)
+5. **Configura o webhook** apontando para o pipeline ML-CAPTURA
+6. **Exibe o QR Code** diretamente na tela para escaneamento
+
+### Como obter o link para enviar ao cliente
+
+Após importar e ativar o workflow no n8n:
+1. Clique no node **"Formulário — Conectar Cliente"**
+2. Copie a **Test URL** ou **Production URL** mostrada
+3. Envie esse link para o cliente via WhatsApp, email ou mensagem
+
+O link terá formato similar a:
+```
+https://seu-n8n.railway.app/form/ml-onboarding-conectar
+```
+
+### Campos do formulário
+
+| Campo | Exemplo |
+|-------|---------|
+| Nome da empresa | Clínica Beleza Plena |
+| WhatsApp (DDI+DDD+número) | 5516988230361 |
+| Nome do responsável | Ana Paula |
+| Setor principal | Comercial / Vendas |
