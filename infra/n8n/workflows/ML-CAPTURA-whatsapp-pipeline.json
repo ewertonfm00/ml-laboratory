@@ -35,7 +35,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COALESCE(np.setor::text, 'comercial') AS area FROM _plataforma.numeros_projeto np WHERE np.jid = '{{ $json.remote_jid }}' AND np.ativo = true LIMIT 1",
+        "query": "SELECT COALESCE(np.setor::text, 'comercial') AS area, np.id AS numero_id FROM _plataforma.numeros_projeto np JOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id WHERE ie.instance_name = '{{ $json.session_id }}' AND np.ativo = true LIMIT 1",
         "additionalFields": {}
       },
       "id": "lookup-setor",
@@ -142,7 +142,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $('enrich-setor').first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'audio',\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || 'pt',\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  'groq-whisper'\n    }\n  }\n}];"
+        "jsCode": "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $('Enriquecer com Setor').first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'audio',\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || 'pt',\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  'groq-whisper'\n    }\n  }\n}];"
       },
       "id": "prepare-audio-data",
       "name": "Preparar Dados Áudio",
@@ -191,10 +191,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_captura.transcricoes_audio (\n  mensagem_id, texto, idioma, confianca, provider\n)\nSELECT\n  '{{ $('insert-mensagem-raw').first().json.id }}',\n  $1, $2, $3, $4\nWHERE '{{ $json.transcricao }}' IS NOT NULL\n  AND '{{ $json.transcricao }}' != 'null';",
-        "additionalFields": {
-          "queryParams": "={{ [\n  $json.transcricao?.texto,\n  $json.transcricao?.idioma || 'pt',\n  $json.transcricao?.confianca,\n  $json.transcricao?.provider || 'groq-whisper'\n] }}"
-        }
+        "query": "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nSELECT\n  '{{ $('Inserir ml_captura.mensagens_raw').first().json.id }}',\n  '{{ $json.transcricao }}',\n  '{{ $json.idioma || 'pt' }}',\n  {{ $json.confianca || 0.9 }},\n  'groq-whisper'\nWHERE '{{ $json.transcricao }}' IS NOT NULL\n  AND '{{ $json.transcricao }}' != 'null';",
+        "additionalFields": {}
       },
       "id": "insert-transcricao",
       "name": "Inserir ml_captura.transcricoes_audio",
@@ -215,7 +213,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_captura.sessoes_conversa (\n  area, remote_jid, status\n) VALUES (\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.remote_jid }}',\n  'ativa'\n)\nON CONFLICT DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET\n  total_mensagens = total_mensagens + 1,\n  updated_at = NOW()\nWHERE\n  remote_jid = '{{ $json.mensagem.remote_jid }}'\n  AND area = '{{ $json.mensagem.area }}'\n  AND status = 'ativa';"
+        "query": "INSERT INTO ml_captura.sessoes_conversa (area, remote_jid, status)\nVALUES (\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.remote_jid }}',\n  'ativa'\n)\nON CONFLICT (area, remote_jid) DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET\n  total_mensagens = total_mensagens + 1,\n  updated_at = NOW()\nWHERE\n  remote_jid = '{{ $json.mensagem.remote_jid }}'\n  AND area = '{{ $json.mensagem.area }}'\n  AND status = 'ativa';"
       },
       "id": "upsert-sessao",
       "name": "Upsert ml_captura.sessoes_conversa",
