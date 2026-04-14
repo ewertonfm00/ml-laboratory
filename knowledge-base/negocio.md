@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-09
+Última atualização: 2026-04-14
 
 ---
 
@@ -41,8 +41,24 @@
 |--------|-------|---------|-------------|------------|
 | 5516-9999-0001 | Comercial | Equipamentos | Sim (João, Maria, Pedro) | Redrive |
 | 5516-9999-0002 | Comercial | Locação (Serviço) | Sim (Ana, Carlos) | Redrive |
+| 551632363666 | Comercial | Locação | Sim (Tabata, Rodrigo, Larissa, Ewerton) | Redrive |
 
-**Observação:** Redrive é a ferramenta de atendimento multi-agente. Identificação do agente humano no payload via `data.agent.name`. Validação pendente após conectar o número.
+**Observação:** Redrive é a ferramenta de atendimento multi-agente. Identificação do agente humano no payload via `data.agent.name`. Validação pendente.
+- Instância ativa no banco: `omega-laser-locacoes`
+- Projeto no banco: id `7bd3cbf2-cb83-42fa-a6bf-f52a57d99ea5`
+
+---
+
+## Onboarding de Novos Clientes
+
+A plataforma suporta múltiplos clientes (projetos). Para conectar um novo cliente sem usar o terminal:
+
+- **Workflow:** `ML-ONBOARDING-conectar-cliente.json` (n8n)
+- **Fluxo:** formulário público → instância Evolution criada automaticamente → banco atualizado → QR Code exibido na tela
+- **Público-alvo:** clientes completamente leigos — precisam apenas de um celular com WhatsApp
+- **Campos do formulário:** nome da empresa, número WhatsApp (com DDI+DDD), responsável, setor
+- **instance_name gerado:** `ml-{slug-da-empresa}` (ex: `ml-clinica-beleza-plena`)
+- **Status inicial do número:** `teste` — passa para `ativo` após validação
 
 ---
 
