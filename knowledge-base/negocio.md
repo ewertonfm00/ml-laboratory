@@ -43,9 +43,14 @@
 | 5516-9999-0002 | Comercial | Locação (Serviço) | Sim (Ana, Carlos) | Redrive |
 | 551632363666 | Comercial | Locação | Sim (Tabata, Rodrigo, Larissa, Ewerton) | Redrive |
 
-**Observação:** Redrive é a ferramenta de atendimento multi-agente. Identificação do agente humano no payload via `data.agent.name`. Validação pendente.
+**Observação:** Redrive é a ferramenta de atendimento multi-agente. Identificação do agente humano no payload — variável a confirmar via tree-builder do chatflow.
 - Instância ativa no banco: `omega-laser-locacoes`
 - Projeto no banco: id `7bd3cbf2-cb83-42fa-a6bf-f52a57d99ea5`
+- Bot UUID 1632363666: `7cdb13fe-44c5-4e8b-b842-44e9c8fddeba`
+- Redrive usa Evolution API internamente — instância `7cdb13fe` NÃO está na nossa Evolution API
+- Webhook global Redrive NÃO dispara para mensagens recebidas (confirmado)
+- Captura funciona via bloco "Requisição" (POST) dentro do chatflow
+- API Redrive (`api.redrive.com.br`): endpoints de auth retornam 404 — autenticação não mapeada ainda
 
 ---
 

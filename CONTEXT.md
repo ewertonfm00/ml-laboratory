@@ -1,42 +1,52 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-14 (workflow de onboarding criado, acesso n8n ainda bloqueado)
+**Última sessão:** 2026-04-15 (pipeline Redrive→n8n em configuração final)
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Recuperar acesso ao n8n e importar `ML-ONBOARDING-conectar-cliente.json`.
+**PRIORIDADE 1:** Abrir chatflow novo no Redrive e enriquecer o body do bloco de integração com variáveis reais do contexto (telefone, mensagem, nome do contato).
 
-Opções para reset de senha (em ordem):
-1. Testar senhas conhecidas de outros projetos
-2. Railway Shell → reset via banco do n8n: `UPDATE "user" SET password = '...' WHERE role = 'owner'`
-3. Último recurso: deletar volume e recriar (verificar backup antes)
+Body alvo no tree-builder:
+```json
+{
+  "source": "redrive",
+  "telefone": "{{contact.phone}}",
+  "nome_contato": "{{contact.name}}",
+  "mensagem": "{{message.text}}",
+  "timestamp": "{{createdate}}",
+  "bot_uuid": "7cdb13fe-44c5-4e8b-b842-44e9c8fddeba"
+}
+```
+
+Após configurar: publicar → enviar mensagem real → capturar payload no n8n → adaptar nó "Normalizar Payload".
 
 ---
 
 ## Pendências
 
-### BLOQUEIO — Acesso ao n8n
-- [ ] Recuperar acesso ao n8n (senha perdida, SMTP não configurado para reset)
-- [ ] Após acesso: importar `infra/n8n/workflows/ML-ONBOARDING-conectar-cliente.json` (workflow novo)
-- [ ] Configurar variáveis no n8n Railway: `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `N8N_WEBHOOK_URL`
-- [ ] Ativar workflow e copiar URL do Form Trigger para enviar ao primeiro cliente
+### PIPELINE DE CAPTURA — configuração final
+- [ ] Adicionar variáveis reais no body do bloco de integração do chatflow Redrive
+- [ ] Publicar chatflow e testar com mensagem real pelo WhatsApp 1632363666
+- [ ] Capturar payload bruto no n8n e adaptar nó "Normalizar Payload" para formato Redrive
+- [ ] Validar inserção em `ml_captura.mensagens_raw`
 
-### IDENTIFICAÇÃO DE AGENTE (Redrive)
-- [ ] Verificar se Redrive envia `data.agent.name` no payload do webhook
-- [ ] Alternativa: usar `/v1/crm/getbyphone` da API Redrive para buscar agente por número
+### IDENTIFICAÇÃO DE AGENTE
+- [ ] Verificar quais variáveis o Redrive expõe no contexto do chatflow (especialmente agente/atendente)
+- [ ] Mapear campo do agente no body e no nó Normalizar Payload
 
 ### LOOKUP SETOR — Validação pendente
 - [ ] Confirmar que `instance_name = 'omega-laser-locacoes'` está correto no banco
 - [ ] Testar que o nó "Lookup Setor" retorna setor correto para mensagens reais
 
+### APPSMITH — validação visual
+- [ ] Acessar portal e validar as 4 páginas visualmente
+- [ ] Ativar queries com `Run on page load` onde necessário
+- [ ] Popular dados de teste — agentes, skills, perfis DISC
+
 ### SEED MASTER
 - [ ] Usuário passa e-mail + senha → gerar SQL → executar no Railway
-
-### MÉDIO PRAZO
-- [ ] Remover workflows duplicados do n8n (importados 2x em sessão anterior)
-- [ ] Deploy Metabase + Appsmith no Railway
 
 ---
 
@@ -44,23 +54,35 @@ Opções para reset de senha (em ordem):
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | Migrations 001→010 executadas |
-| n8n | ⚠️ Acesso bloqueado | 16 workflows importados, senha perdida |
-| Evolution API | ✅ Ativo | Webhook desativado (usa Redrive) |
-| Redis | ✅ Criado | — |
-| Redrive | ✅ Webhook configurado | Envia para n8n ML-CAPTURA |
+| Postgres | ✅ Ativo | 12 migrations executadas (001→012) |
+| n8n | ✅ Ativo | 20 workflows, 17 ativos — ML-CAPTURA publicado |
+| Evolution API | ✅ Ativo | 3 instâncias criadas, nenhuma conectada (número usa Redrive) |
+| Appsmith | ✅ Ativo | 4 páginas + 15 queries criadas |
+| Metabase | ✅ Ativo | — |
+| Redrive | ✅ Webhook disparando | Body chegando incompleto — pendente enriquecimento |
 
-## Fluxo ativo
+## Arquitetura de Captura Atual
 
 ```
-Redrive → n8n ML-CAPTURA (y6kmL9RZupuZuWig) → Postgres ml_captura.mensagens_raw
+WhatsApp 1632363666 → Redrive chatflow
+  → Bloco Requisição POST
+    → n8n ML-CAPTURA (eM0qnKGXShlOuCsV)
+      → Normalizar Payload → Postgres ml_captura.mensagens_raw
 ```
+
+**Importante:**
+- Número 1632363666 exclusivo no Redrive — NÃO conectar na Evolution API própria
+- Webhook global Redrive NÃO dispara para mensagens recebidas — usar bloco Requisição no chatflow
+- Nó Groq Whisper corrigido: authentication=none, usa `$vars.ML_GROQ_API_KEY`
+- API Key n8n: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (gerada 2026-04-15)
 
 ## Contexto técnico
 
 - Webhook ML-CAPTURA: `https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp`
-- Evolution API Key: `omega-laser-evo-key-2026`
-- Instância WhatsApp: `omega-laser-locacoes` (551632363666)
+- n8n: `ewertonfm00@gmail.com` / `Senha1234`
+- Evolution API Key: `ml-evo-key-2026`
+- Instância WhatsApp banco: `omega-laser-locacoes` (551632363666)
 - Postgres público: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
 - Projeto no banco: `omega-laser-locacoes` (id: 7bd3cbf2-cb83-42fa-a6bf-f52a57d99ea5)
 - Agentes cadastrados: Tabata, Rodrigo, Larissa, Ewerton
+- Redrive: `ewerton@omegalaser.com.br` / `Solo@2026` | Bot UUID 1632363666: `7cdb13fe-44c5-4e8b-b842-44e9c8fddeba`

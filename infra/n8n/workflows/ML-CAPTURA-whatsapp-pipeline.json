@@ -92,8 +92,7 @@
     {
       "parameters": {
         "url": "https://api.groq.com/openai/v1/audio/transcriptions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
