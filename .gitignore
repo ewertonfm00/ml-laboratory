@@ -27,3 +27,6 @@ Thumbs.db
 .aiox-core/local/
 .claude/settings.local.json
 .aiox/install-log.txt
+
+# Materiais de referência (documentos, imagens, PDFs — não versionados)
+referencias/

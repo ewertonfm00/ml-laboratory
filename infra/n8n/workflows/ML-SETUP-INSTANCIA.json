@@ -1,0 +1,350 @@
+{
+  "name": "ML-SETUP-INSTANCIA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/setup/instancia",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "ml-setup-instancia"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst numero = body.numero_whatsapp;\nconst projetoId = body.projeto_id;\nconst setor = body.setor;\nconst nomeIdentificador = body.nome_identificador;\nconst tipoFerramenta = body.ferramenta_multiagente || null;\nconst multiAgente = body.multi_agente || false;\n\nif (!numero || !projetoId || !setor || !nomeIdentificador) {\n  throw new Error('Campos obrigat\u00c3\u00b3rios: numero_whatsapp, projeto_id, setor, nome_identificador');\n}\n\n// Gerar nome da inst\u00c3\u00a2ncia: ml-{numero-limpo}\nconst numeroLimpo = numero.replace(/\\D/g, '');\nconst instanceName = `ml-${numeroLimpo}`;\n\nreturn [{\n  json: {\n    numero_whatsapp: numero,\n    projeto_id: projetoId,\n    setor: setor,\n    nome_identificador: nomeIdentificador,\n    multi_agente: multiAgente,\n    ferramenta_multiagente: tipoFerramenta,\n    instance_name: instanceName\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validar Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution-api-ml-production.up.railway.app/instance/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "ml-evo-key-2026"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "instanceName",
+              "value": "={{ $json.instance_name }}"
+            },
+            {
+              "name": "qrcode",
+              "value": "true"
+            },
+            {
+              "name": "integration",
+              "value": "WHATSAPP-BAILEYS"
+            }
+          ]
+        },
+        "options": {},
+        "specifyHeaders": "keypair"
+      },
+      "id": "criar-instancia",
+      "name": "Criar Inst\u00c3\u00a2ncia Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evolution-api-ml-production.up.railway.app/webhook/set/{{ $('Validar Input').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "ml-evo-key-2026"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"webhook\": {\n    \"enabled\": true,\n    \"url\": \"https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp\",\n    \"webhookByEvents\": false,\n    \"webhookBase64\": false,\n    \"events\": [\"MESSAGES_UPSERT\", \"MESSAGES_UPDATE\", \"CONNECTION_UPDATE\", \"QRCODE_UPDATED\", \"SEND_MESSAGE\"]\n  }\n}",
+        "options": {},
+        "specifyHeaders": "keypair"
+      },
+      "id": "configurar-webhook",
+      "name": "Configurar Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://evolution-api-ml-production.up.railway.app/instance/connect/{{ $('Validar Input').item.json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "ml-evo-key-2026"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "specifyHeaders": "keypair"
+      },
+      "id": "get-qrcode",
+      "name": "Obter QR Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO _plataforma.instancias_evolution (projeto_id, instance_name, api_url, api_key_ref, webhook_path, status)\nVALUES (\n  '{{ $('Validar Input').item.json.projeto_id }}',\n  '{{ $('Validar Input').item.json.instance_name }}',\n  'https://evolution-api-ml-production.up.railway.app',\n  'ml-evo-key-2026',\n  '/ml/webhook/whatsapp',\n  'ativo'\n)\nON CONFLICT (instance_name) DO UPDATE SET status = 'ativo', updated_at = NOW()\nRETURNING id;",
+        "options": {}
+      },
+      "id": "salvar-instancia-db",
+      "name": "Salvar Inst\u00c3\u00a2ncia no Banco",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1340,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ml-postgres",
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO _plataforma.numeros_projeto (\n  instancia_id, projeto_id, numero_whatsapp, nome_identificador,\n  setor, multi_agente, ferramenta_multiagente, status\n)\nVALUES (\n  '{{ $('Salvar Inst\u00c3\u00a2ncia no Banco').item.json.id }}',\n  '{{ $('Validar Input').item.json.projeto_id }}',\n  '{{ $('Validar Input').item.json.numero_whatsapp }}',\n  '{{ $('Validar Input').item.json.nome_identificador }}',\n  '{{ $('Validar Input').item.json.setor }}',\n  {{ $('Validar Input').item.json.multi_agente }},\n  {{ $('Validar Input').item.json.ferramenta_multiagente ? `'${$('Validar Input').item.json.ferramenta_multiagente}'` : 'NULL' }},\n  'teste'\n)\nRETURNING id;",
+        "options": {}
+      },
+      "id": "salvar-numero-db",
+      "name": "Salvar N\u00c3\u00bamero no Banco",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1340,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ml-postgres",
+          "name": "ML Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const qr = $('Obter QR Code').item.json;\nconst instancia = $('Criar Inst\u00c3\u00a2ncia Evolution').item.json;\nconst input = $('Validar Input').item.json;\n\nreturn [{\n  json: {\n    success: true,\n    instance_name: input.instance_name,\n    numero_whatsapp: input.numero_whatsapp,\n    instance_id: instancia.instance?.instanceId,\n    qrcode: qr.base64 || qr.qrcode?.base64 || null,\n    status: 'aguardando_qr',\n    message: 'Inst\u00c3\u00a2ncia criada. Escaneie o QR Code para conectar o WhatsApp.'\n  }\n}];"
+      },
+      "id": "montar-resposta",
+      "name": "Montar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Resposta HTTP",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.message }}\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "Resposta Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validar Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Input": {
+      "main": [
+        [
+          {
+            "node": "Criar Inst\u00c3\u00a2ncia Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Resposta Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Inst\u00c3\u00a2ncia Evolution": {
+      "main": [
+        [
+          {
+            "node": "Configurar Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar Webhook": {
+      "main": [
+        [
+          {
+            "node": "Obter QR Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obter QR Code": {
+      "main": [
+        [
+          {
+            "node": "Salvar Inst\u00c3\u00a2ncia no Banco",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Salvar N\u00c3\u00bamero no Banco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Inst\u00c3\u00a2ncia no Banco": {
+      "main": [
+        [
+          {
+            "node": "Montar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar N\u00c3\u00bamero no Banco": {
+      "main": [
+        [
+          {
+            "node": "Montar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Resposta HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    "ml-laboratory",
+    "setup",
+    "evolution"
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-16T00:00:00.000Z",
+  "versionId": "1"
+}
