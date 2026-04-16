@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-14
+Última atualização: 2026-04-16
 
 ---
 
@@ -31,7 +31,7 @@
 - **Claude Haiku** — classificação automática de conversas
 - **Claude Sonnet** — análise profunda, geração de perfis e treinamentos
 - **Metabase** — dashboards analíticos (embed no portal)
-- **Appsmith** — portal interativo de gestão
+- **Portal Next.js** (`portal-next/`) — portal interativo de gestão (substituiu Appsmith em 2026-04-16)
 
 ---
 
