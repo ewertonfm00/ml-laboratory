@@ -1,30 +1,19 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-16 (portal Next.js commitado; aguardando deploy e conexão WhatsApp)
+**Última sessão:** 2026-04-17 (portal Next.js deployado — portal-ml-production.up.railway.app)
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Build e deploy do portal Next.js no Railway.
+**PRIORIDADE 1:** Conectar número WhatsApp via portal.
 
-```powershell
-cd "Z:\My Folders\Projetos - Claude Code\AIOX - Machine Learning\portal-next"
-npm install
-npm run build
-npm run dev   # validar em http://localhost:3000
-```
-
-Após validar local → deploy no Railway (ver `portal-next/DEPLOY.md`).
+Acessar: `https://portal-ml-production.up.railway.app/numeros/conectar`
+Preencher: número (5511…), nome identificador, setor → escanear QR Code.
 
 ---
 
 ## Pendências
-
-### PORTAL NEXT.JS — deploy
-- [ ] Rodar `npm install` e `npm run build` localmente
-- [ ] Testar rotas: `/`, `/numeros/conectar`, `/p/[slug]/numeros`, `/p/[slug]/validacao/fila`
-- [ ] Deploy no Railway com variáveis: DATABASE_URL, N8N_SETUP_URL, EVOLUTION_API_URL, EVOLUTION_API_KEY
 
 ### PIPELINE DE CAPTURA — conexão do número
 - [ ] Acessar portal Next.js → `/numeros/conectar`
@@ -52,7 +41,7 @@ Após validar local → deploy no Railway (ver `portal-next/DEPLOY.md`).
 | Postgres | ✅ Ativo | 12 migrations executadas (001→012) |
 | n8n | ✅ Ativo | 20 workflows, 17 ativos — ML-CAPTURA publicado |
 | Evolution API | ✅ Ativo | Pronta, nenhuma instância conectada |
-| Portal Next.js | ⏳ Pendente deploy | `portal-next/` commitado, Railway ainda não configurado |
+| Portal Next.js | ✅ Deploy OK | `https://portal-ml-production.up.railway.app` |
 | Appsmith | ❌ Abandonado | Substituído pelo portal Next.js |
 | Metabase | ✅ Ativo | — |
 
@@ -72,6 +61,7 @@ WhatsApp → Redrive chatflow
 
 ## Contexto técnico
 
+- Portal: `https://portal-ml-production.up.railway.app` (serviço ID: 616c8604-6a56-441f-a5e4-90d8033adf1d)
 - Webhook ML-CAPTURA: `https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp`
 - n8n: `ewertonfm00@gmail.com` / `Senha1234`
 - Evolution API Key: `ml-evo-key-2026`
