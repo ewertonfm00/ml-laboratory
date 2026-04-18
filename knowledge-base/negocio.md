@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-17
+Última atualização: 2026-04-18
 
 ---
 
@@ -134,6 +134,41 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 
 ---
 
+## Visão Estratégica do Projeto
+
+- **Propósito maior:** Criar um exército de agentes de IA vendedores — os melhores do mundo
+- **Piloto B2C:** Clientes da Omega Laser = clínicas de estética (vendedora → consumidor final)
+- **Piloto B2B:** Vendedoras da Omega Laser → clínicas de estética (empresa → empresa)
+- **Não é nicho exclusivo:** Clínicas de estética são o piloto; o sistema é agnóstico de segmento
+
+### Dois tipos de análise por conversa
+1. **Análise do Vendedor:** perfil de comunicação, comportamental, DISC, estilo de venda, pontos fortes/fracos, nota comercial
+2. **Análise do Produto/Serviço:** assertividade das respostas vs. materiais técnicos, formas de abordar o assunto
+
+### Materiais Técnicos por Número
+- Cada número conectado pode ter materiais técnicos atrelados
+- Análises comparam o que o atendente respondeu vs. o que está nos materiais
+- Mede assertividade e captura variações de abordagem
+
+### Metodologias de Vendas
+- Espaço para alimentar TODAS as metodologias (SPIN, Challenger, MEDDIC, Sandler, SNAP, etc.)
+- Base analítica para mapear comportamentos e criar os melhores agentes
+
+### Painel Individual do Atendente
+- Nota comercial + nota técnica (por conversa e média geral)
+- Perfil do vendedor + análise DISC
+- Evolução ao longo do tempo
+- Perspectiva: potencial em vendas
+- Sinalizações de respostas inadequadas (comercial e/ou técnica)
+
+### Sinalização de Respostas Inadequadas
+- Tipo `comercial`: abordagem errada, técnica inadequada de venda
+- Tipo `tecnica`: informação incorreta sobre produto/serviço vs. material técnico
+- Severidade: `alerta` ou `critico`
+- Alimenta fila de validação e painel do atendente
+
+---
+
 ## Schemas Postgres
 
 | Schema | Área | Migrations |
@@ -147,3 +182,5 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 | ml_pessoas | Perfis e engajamento | 010 |
 | _plataforma | Global: usuários, projetos, permissões | 004 |
 | _validacao | Sistema de validação híbrida | 005 |
+| ml_clinica | Cadastro do negócio, produtos/serviços, materiais, metodologias, knowledge base | 013, 014 |
+| ml_analise | Análise por conversa, sinalizações de respostas inadequadas | 014 |
