@@ -252,9 +252,9 @@ export default function ClinicaPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-white">Dados da Clínica</h1>
+        <h1 className="text-xl font-bold text-white">Cadastro do Negócio</h1>
         <p className="text-slate-400 text-sm mt-0.5">
-          Informações que alimentam o agente de IA
+          Informações operacionais do negócio
         </p>
       </div>
 

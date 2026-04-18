@@ -5,25 +5,68 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-async function getData() {
+interface PainelAgente {
+  agente_nome: string;
+  total_conversas: string;
+  media_comercial: string | null;
+  media_tecnica: string | null;
+  total_sinalizacoes: string;
+  ultima_conversa: string | null;
+}
+
+async function getData(slug: string) {
+  // Buscar projeto_id pelo slug para o painel de performance
+  let projetoId: string | null = null;
   try {
-    const [perfis, performance] = await Promise.all([
-      query<AgentePerfil>(
-        `SELECT id, nome_agente, tipo_disc, perfil_resumo, estilo_comunicacao, updated_at
-         FROM _plataforma.agente_perfis
-         ORDER BY nome_agente`
-      ),
-      query<AgentePerformance>(
-        `SELECT id, agente_id, metrica, valor, periodo
-         FROM _plataforma.agente_performance
-         ORDER BY periodo DESC, metrica`
-      ),
-    ]);
-    return { perfis, performance };
-  } catch (e) {
-    console.error('Erro ao buscar perfis:', e);
-    return { perfis: [], performance: [] };
+    const projRows = await query<{ id: string }>(
+      `SELECT id FROM _plataforma.projetos WHERE slug = $1 LIMIT 1`,
+      [slug]
+    );
+    projetoId = projRows[0]?.id ?? null;
+  } catch {
+    // ignora
   }
+
+  const [perfisResult, performanceResult] = await Promise.allSettled([
+    query<AgentePerfil>(
+      `SELECT id, nome_agente, tipo_disc, perfil_resumo, estilo_comunicacao, updated_at
+       FROM _plataforma.agente_perfis
+       ORDER BY nome_agente`
+    ),
+    query<AgentePerformance>(
+      `SELECT id, agente_id, metrica, valor, periodo
+       FROM _plataforma.agente_performance
+       ORDER BY periodo DESC, metrica`
+    ),
+  ]);
+
+  const perfis = perfisResult.status === 'fulfilled' ? perfisResult.value : [];
+  const performance = performanceResult.status === 'fulfilled' ? performanceResult.value : [];
+
+  // Painel de performance via analise_conversa
+  let painelAgentes: PainelAgente[] = [];
+  if (projetoId) {
+    try {
+      painelAgentes = await query<PainelAgente>(
+        `SELECT
+          agente_nome,
+          COUNT(*) as total_conversas,
+          ROUND(AVG(nota_comercial)::numeric, 1) as media_comercial,
+          ROUND(AVG(nota_tecnica)::numeric, 1) as media_tecnica,
+          SUM(CASE WHEN tem_sinalizacao THEN 1 ELSE 0 END) as total_sinalizacoes,
+          MAX(data_conversa) as ultima_conversa
+        FROM ml_analise.analise_conversa
+        WHERE projeto_id = $1
+        GROUP BY agente_nome
+        ORDER BY agente_nome`,
+        [projetoId]
+      );
+    } catch {
+      painelAgentes = [];
+    }
+  }
+
+  return { perfis, performance, painelAgentes };
 }
 
 const discColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -35,9 +78,24 @@ const discColors: Record<string, { bg: string; text: string; border: string }> =
 
 export const revalidate = 120;
 
+function notaCircle(nota: string | null, label: string) {
+  if (!nota) return null;
+  const n = parseFloat(nota);
+  if (isNaN(n)) return null;
+  const color = n >= 7 ? 'text-green-400 border-green-500/40' : n >= 5 ? 'text-yellow-400 border-yellow-500/40' : 'text-red-400 border-red-500/40';
+  return (
+    <div className="text-center">
+      <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold text-sm ${color}`}>
+        {n.toFixed(1)}
+      </div>
+      <p className="text-slate-500 text-xs mt-1">{label}</p>
+    </div>
+  );
+}
+
 export default async function AgentePage({ params }: Props) {
   const { slug } = await params;
-  const { perfis, performance } = await getData();
+  const { perfis, performance, painelAgentes } = await getData(slug);
 
   // Group performance by agente_id
   const perfMap = performance.reduce<Record<string, AgentePerformance[]>>((acc, p) => {
@@ -127,6 +185,57 @@ export default async function AgentePage({ params }: Props) {
           })}
         </div>
       )}
+
+      {/* Painel de Performance */}
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-white mb-4">Painel de Performance</h2>
+
+        {painelAgentes.length === 0 ? (
+          <div className="bg-[#1A1A2E] rounded-xl border border-[#2A2A3E] p-8 text-center">
+            <p className="text-slate-400 text-sm">
+              Análises disponíveis após as primeiras conversas serem capturadas e processadas.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {painelAgentes.map((ag) => {
+              const sinalizacoes = parseInt(ag.total_sinalizacoes ?? '0', 10);
+              const totalConv = parseInt(ag.total_conversas ?? '0', 10);
+              return (
+                <div key={ag.agente_nome} className="bg-[#1A1A2E] rounded-xl border border-[#2A2A3E] p-5">
+                  <p className="text-white font-semibold mb-4 truncate">{ag.agente_nome}</p>
+
+                  <div className="flex items-center justify-center gap-6 mb-4">
+                    {notaCircle(ag.media_comercial, 'Comercial')}
+                    {notaCircle(ag.media_tecnica, 'Técnica')}
+                  </div>
+
+                  <div className="space-y-1 text-xs text-slate-500">
+                    <div className="flex justify-between">
+                      <span>Total conversas</span>
+                      <span className="text-slate-300">{totalConv}</span>
+                    </div>
+                    {sinalizacoes > 0 && (
+                      <div className="flex justify-between">
+                        <span>Sinalizações pendentes</span>
+                        <span className="text-red-400">{sinalizacoes}</span>
+                      </div>
+                    )}
+                    {ag.ultima_conversa && (
+                      <div className="flex justify-between">
+                        <span>Última conversa</span>
+                        <span className="text-slate-400">
+                          {new Date(ag.ultima_conversa).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

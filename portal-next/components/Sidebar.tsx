@@ -40,13 +40,28 @@ const menuItems = (slug: string) => [
   },
   {
     href: `/p/${slug}/clinica`,
-    label: 'Dados da Clínica',
+    label: 'Cadastro do Negócio',
     icon: '🏥',
   },
   {
     href: `/p/${slug}/procedimentos`,
-    label: 'Procedimentos',
+    label: 'Produtos / Serviços',
     icon: '💆',
+  },
+  {
+    href: `/p/${slug}/materiais`,
+    label: 'Materiais Técnicos',
+    icon: '📚',
+  },
+  {
+    href: `/p/${slug}/metodologias`,
+    label: 'Metodologias',
+    icon: '🎯',
+  },
+  {
+    href: `/p/${slug}/conversas`,
+    label: 'Conversas',
+    icon: '💬',
   },
 ];
 

@@ -77,7 +77,7 @@ function ProcModal({
       <div className="bg-[#1A1A2E] rounded-xl border border-[#2A2A3E] w-full max-w-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#2A2A3E]">
           <h2 className="text-white font-semibold">
-            {proc?.id ? 'Editar Procedimento' : 'Novo Procedimento'}
+            {proc?.id ? 'Editar Produto / Serviço' : 'Novo Produto / Serviço'}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-lg">✕</button>
         </div>
@@ -247,16 +247,16 @@ export default function ProcedimentosPage() {
     <div className="p-6 md:p-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Procedimentos</h1>
+          <h1 className="text-xl font-bold text-white">Produtos / Serviços</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {procedimentos.length} procedimento{procedimentos.length !== 1 ? 's' : ''} cadastrado{procedimentos.length !== 1 ? 's' : ''}
+            {procedimentos.length} produto{procedimentos.length !== 1 ? 's' : ''} / serviço{procedimentos.length !== 1 ? 's' : ''} cadastrado{procedimentos.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button
           onClick={() => setModalProc(null)}
           className="bg-violet-600 hover:bg-violet-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
         >
-          + Novo Procedimento
+          + Novo Produto / Serviço
         </button>
       </div>
 
