@@ -38,6 +38,16 @@ const menuItems = (slug: string) => [
     label: 'Skills',
     icon: '📋',
   },
+  {
+    href: `/p/${slug}/clinica`,
+    label: 'Dados da Clínica',
+    icon: '🏥',
+  },
+  {
+    href: `/p/${slug}/procedimentos`,
+    label: 'Procedimentos',
+    icon: '💆',
+  },
 ];
 
 export default function Sidebar({ slug, projetoNome, pendentesValidacao = 0 }: SidebarProps) {
