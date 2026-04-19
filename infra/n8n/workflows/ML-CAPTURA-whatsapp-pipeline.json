@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = body.event || body.type;\n\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\n\nconst message = body.data?.message || body.message || {};\nconst key = body.data?.key || body.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? 'audio'\n           : message.imageMessage ? 'image'\n           : message.documentMessage ? 'document'\n           : 'text';\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me: key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    message_id:   key.id,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = body.event || body.type;\n\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\n\nconst message = body.data?.message || body.message || {};\nconst key = body.data?.key || body.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? 'audio'\n           : message.imageMessage ? 'image'\n           : message.documentMessage ? 'document'\n           : 'text';\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\n// Extrair identificador_externo do payload (campo padrão do Redrive para multi-agente)\nconst identificador_externo = body.data?.agentId || body.agentId || body.metadados?.agentId || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me: key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    message_id:   key.id,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    identificador_externo,\n    metadados:    body\n  }\n}];"
       },
       "id": "normalize-payload",
       "name": "Normalizar Payload",
@@ -30,12 +30,12 @@
         460,
         300
       ],
-      "notes": "Valida secret, normaliza payload, detecta tipo de mensagem. Área removida — agora resolvida dinamicamente via Lookup Setor"
+      "notes": "Valida secret, normaliza payload, detecta tipo de mensagem. Extrai identificador_externo para resolução de atendente multi-agente."
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
+        "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
         "additionalFields": {}
       },
       "id": "lookup-setor",
@@ -52,11 +52,11 @@
           "name": "ML Postgres"
         }
       },
-      "notes": "Busca o setor do número em _plataforma.numeros_projeto. Fallback: 'comercial'"
+      "notes": "Busca o setor, tipo e agente_default_id do número em _plataforma.numeros_projeto. Fallback: 'comercial'"
     },
     {
       "parameters": {
-        "jsCode": "const payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id } }];"
+        "jsCode": "const payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || 'mono';\nconst agente_default_id = lookup.agente_default_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id } }];"
       },
       "id": "enrich-setor",
       "name": "Enriquecer com Setor",
@@ -66,7 +66,44 @@
         900,
         300
       ],
-      "notes": "Aplica setor dinâmico ao payload. Se número não encontrado, usa 'comercial'"
+      "notes": "Aplica setor dinâmico ao payload. Inclui numero_tipo e agente_default_id para resolução do atendente."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id AS agente_humano_id\nFROM _plataforma.agentes_humanos\nWHERE identificador_externo = '{{ $json.identificador_externo }}'\n  AND numero_id = '{{ $json.numero_id }}'::uuid\n  AND ativo = true\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "lookup-agente-multi",
+      "name": "Lookup Agente Multi",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        300
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Para números multi-agente: busca agente_humano_id via identificador_externo do webhook. continueOnFail=true — não quebra se não encontrar."
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $('Enriquecer com Setor').first().json;\nconst tipo = dados.numero_tipo || 'mono';\n\nlet agente_humano_id = null;\n\nif (tipo === 'mono') {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  // multi: tenta pegar do lookup, se falhou fica null\n  try {\n    const lookupResult = $('Lookup Agente Multi').first().json;\n    agente_humano_id = lookupResult.agente_humano_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\n\nreturn [{ json: { ...dados, agente_humano_id } }];"
+      },
+      "id": "resolver-atendente",
+      "name": "Resolver Atendente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ],
+      "notes": "Resolve agente_humano_id: mono → agente_default_id do número; multi → lookup por identificador_externo. Null se não encontrado."
     },
     {
       "parameters": {
@@ -84,7 +121,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1120,
+        1520,
         180
       ],
       "notes": "Baixa o arquivo de áudio do WhatsApp para transcrição"
@@ -134,34 +171,34 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1340,
+        1740,
         180
       ],
       "notes": "[ML-CAPTURA] Transcreve áudio WhatsApp via Groq Whisper API"
     },
     {
       "parameters": {
-        "jsCode": "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $('Enriquecer com Setor').first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'audio',\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || 'pt',\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  'groq-whisper'\n    }\n  }\n}];"
+        "jsCode": "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $('Resolver Atendente').first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'audio',\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       'processada',\n      agente_humano_id: payload.agente_humano_id || null,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || 'pt',\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  'groq-whisper'\n    }\n  }\n}];"
       },
       "id": "prepare-audio-data",
       "name": "Preparar Dados Áudio",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
+        1960,
         180
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'text',\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
+        "jsCode": "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'text',\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       'processada',\n      agente_humano_id: payload.agente_humano_id || null,\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
       },
       "id": "prepare-text-data",
       "name": "Preparar Dados Texto",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1520,
         420
       ]
     },
@@ -176,7 +213,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1780,
+        2180,
         300
       ],
       "credentials": {
@@ -198,7 +235,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2000,
+        2400,
         180
       ],
       "credentials": {
@@ -212,14 +249,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status)\nVALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.remote_jid }}',\n  'ativa'\n)\nON CONFLICT (projeto_id, area, remote_jid) DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET total_mensagens = total_mensagens + 1, updated_at = NOW()\nWHERE projeto_id = '{{ $json.mensagem.projeto_id }}'::uuid\n  AND remote_jid = '{{ $json.mensagem.remote_jid }}'\n  AND area = '{{ $json.mensagem.area }}'\n  AND status = 'ativa';"
+        "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status, agente_humano_id)\nVALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.remote_jid }}',\n  'ativa',\n  {{ $json.mensagem.agente_humano_id ? \"'\" + $json.mensagem.agente_humano_id + \"'::uuid\" : 'NULL' }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET total_mensagens = total_mensagens + 1,\n    updated_at = NOW(),\n    agente_humano_id = COALESCE(agente_humano_id, {{ $json.mensagem.agente_humano_id ? \"'\" + $json.mensagem.agente_humano_id + \"'::uuid\" : 'NULL' }})\nWHERE projeto_id = '{{ $json.mensagem.projeto_id }}'::uuid\n  AND remote_jid = '{{ $json.mensagem.remote_jid }}'\n  AND area = '{{ $json.mensagem.area }}'\n  AND status = 'ativa';"
       },
       "id": "upsert-sessao",
       "name": "Upsert ml_captura.sessoes_conversa",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2000,
+        2400,
         420
       ],
       "credentials": {
@@ -228,7 +265,7 @@
           "name": "ML Postgres"
         }
       },
-      "notes": "Cria ou atualiza sessão de conversa"
+      "notes": "Cria ou atualiza sessão de conversa, incluindo agente_humano_id resolvido"
     },
     {
       "parameters": {
@@ -239,7 +276,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
+        1960,
         560
       ],
       "notes": "Captura erros sem derrubar o workflow"
@@ -253,7 +290,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1520,
         180
       ]
     },
@@ -266,7 +303,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        1520,
         420
       ]
     }
@@ -306,6 +343,28 @@
       ]
     },
     "Enriquecer com Setor": {
+      "main": [
+        [
+          {
+            "node": "Lookup Agente Multi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Agente Multi": {
+      "main": [
+        [
+          {
+            "node": "Resolver Atendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Atendente": {
       "main": [
         [
           {
@@ -420,7 +479,7 @@
   "meta": {
     "project": "machine-learning",
     "squad": "ml-captura-squad",
-    "version": "1.1.0",
-    "description": "Pipeline principal de captura WhatsApp — Evolution API → normalização → lookup setor dinâmico → Postgres + Groq Whisper"
+    "version": "1.2.0",
+    "description": "Pipeline principal de captura WhatsApp — Evolution API → normalização → lookup setor dinâmico → resolução de atendente (mono/multi) → Postgres + Groq Whisper"
   }
 }
