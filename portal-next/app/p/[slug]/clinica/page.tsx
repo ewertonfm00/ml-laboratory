@@ -15,6 +15,37 @@ interface DepoimentoItem {
   depoimento: string;
 }
 
+interface ProcedimentoItem {
+  id?: string;
+  nome: string;
+  finalidade: string;
+  regiao: string;
+  qtd_sessoes: string;
+  duracao_sessao: string;
+  intervalo_sessoes: string;
+  valor_avulso: string;
+  valor_sessao_pacote: string;
+  valor_pacote: string;
+  descricao: string;
+  beneficios: string;
+  contraindicacoes: string;
+  resultados_esperados: string;
+  cuidados_pre: string;
+  cuidados_pos: string;
+  status: string;
+  observacoes: string;
+  sugestoes_respostas: string;
+  ordem: string;
+}
+
+const emptyProcedimento: ProcedimentoItem = {
+  nome: '', finalidade: '', regiao: '', qtd_sessoes: '', duracao_sessao: '',
+  intervalo_sessoes: '', valor_avulso: '', valor_sessao_pacote: '', valor_pacote: '',
+  descricao: '', beneficios: '', contraindicacoes: '', resultados_esperados: '',
+  cuidados_pre: '', cuidados_pos: '', status: 'ativo', observacoes: '',
+  sugestoes_respostas: '', ordem: '0',
+};
+
 interface PerfilForm {
   // Seção 1
   nome_clinica: string;
@@ -133,16 +164,95 @@ export default function ClinicaPage() {
   const [form, setForm] = useState<PerfilForm>(emptyForm);
   const [faq, setFaq] = useState<FaqItem[]>([]);
   const [depoimentos, setDepoimentos] = useState<DepoimentoItem[]>([]);
+  const [procedimentos, setProcedimentos] = useState<ProcedimentoItem[]>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ s1: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editingProc, setEditingProc] = useState<ProcedimentoItem | null>(null);
+  const [savingProc, setSavingProc] = useState(false);
 
   const toggleSection = (key: string) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const set = (field: keyof PerfilForm, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const setProc = (field: keyof ProcedimentoItem, value: string) =>
+    setEditingProc((prev) => prev ? { ...prev, [field]: value } : prev);
+
+  const loadProcedimentos = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/clinica/${slug}/procedimentos`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.procedimentos) {
+        setProcedimentos(data.procedimentos.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          nome: (p.nome as string) ?? '',
+          finalidade: (p.finalidade as string) ?? '',
+          regiao: (p.regiao as string) ?? '',
+          qtd_sessoes: p.qtd_sessoes?.toString() ?? '',
+          duracao_sessao: p.duracao_sessao?.toString() ?? '',
+          intervalo_sessoes: p.intervalo_sessoes?.toString() ?? '',
+          valor_avulso: p.valor_avulso?.toString() ?? '',
+          valor_sessao_pacote: p.valor_sessao_pacote?.toString() ?? '',
+          valor_pacote: p.valor_pacote?.toString() ?? '',
+          descricao: (p.descricao as string) ?? '',
+          beneficios: (p.beneficios as string) ?? '',
+          contraindicacoes: (p.contraindicacoes as string) ?? '',
+          resultados_esperados: (p.resultados_esperados as string) ?? '',
+          cuidados_pre: (p.cuidados_pre as string) ?? '',
+          cuidados_pos: (p.cuidados_pos as string) ?? '',
+          status: (p.status as string) ?? 'ativo',
+          observacoes: (p.observacoes as string) ?? '',
+          sugestoes_respostas: (p.sugestoes_respostas as string) ?? '',
+          ordem: p.ordem?.toString() ?? '0',
+        })));
+      }
+    } catch { /* silently ignore */ }
+  }, [slug]);
+
+  const handleSaveProc = async () => {
+    if (!editingProc) return;
+    setSavingProc(true);
+    try {
+      const payload = {
+        ...editingProc,
+        qtd_sessoes: editingProc.qtd_sessoes ? parseInt(editingProc.qtd_sessoes) : null,
+        duracao_sessao: editingProc.duracao_sessao ? parseInt(editingProc.duracao_sessao) : null,
+        intervalo_sessoes: editingProc.intervalo_sessoes ? parseInt(editingProc.intervalo_sessoes) : null,
+        valor_avulso: editingProc.valor_avulso ? parseFloat(editingProc.valor_avulso) : null,
+        valor_sessao_pacote: editingProc.valor_sessao_pacote ? parseFloat(editingProc.valor_sessao_pacote) : null,
+        valor_pacote: editingProc.valor_pacote ? parseFloat(editingProc.valor_pacote) : null,
+        ordem: editingProc.ordem ? parseInt(editingProc.ordem) : 0,
+      };
+
+      if (editingProc.id) {
+        await fetch(`/api/clinica/${slug}/procedimentos/${editingProc.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch(`/api/clinica/${slug}/procedimentos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      setEditingProc(null);
+      await loadProcedimentos();
+    } finally {
+      setSavingProc(false);
+    }
+  };
+
+  const handleDeleteProc = async (id: string) => {
+    if (!confirm('Remover este procedimento?')) return;
+    await fetch(`/api/clinica/${slug}/procedimentos/${id}`, { method: 'DELETE' });
+    await loadProcedimentos();
+  };
 
   const load = useCallback(async () => {
     try {
@@ -209,7 +319,10 @@ export default function ClinicaPage() {
     }
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    loadProcedimentos();
+  }, [load, loadProcedimentos]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -506,6 +619,143 @@ export default function ClinicaPage() {
           <Field label="Outras restrições">
             <textarea className={textareaCls} value={form.outras_restricoes} onChange={e => set('outras_restricoes', e.target.value)} placeholder="Outras restrições específicas..." />
           </Field>
+        </Section>
+
+        {/* Seção P — Procedimentos (gerenciado separadamente das APIs /procedimentos) */}
+        <Section title="P. Procedimentos" open={!!openSections.sp} onToggle={() => toggleSection('sp')}>
+          {/* Modal de edição inline */}
+          {editingProc && (
+            <div className="mb-4 bg-[#0F0F1A] rounded-xl border border-violet-500/40 p-4 space-y-4">
+              <p className="text-violet-400 text-sm font-semibold">
+                {editingProc.id ? 'Editar Procedimento' : 'Novo Procedimento'}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Nome *">
+                  <input className={inputCls} value={editingProc.nome} onChange={e => setProc('nome', e.target.value)} placeholder="Ex: Microagulhamento" />
+                </Field>
+                <Field label="Status">
+                  <select className={inputCls} value={editingProc.status} onChange={e => setProc('status', e.target.value)}>
+                    <option value="ativo">Ativo</option>
+                    <option value="inativo">Inativo</option>
+                  </select>
+                </Field>
+                <Field label="Finalidade">
+                  <input className={inputCls} value={editingProc.finalidade} onChange={e => setProc('finalidade', e.target.value)} placeholder="Para que serve?" />
+                </Field>
+                <Field label="Região tratada">
+                  <input className={inputCls} value={editingProc.regiao} onChange={e => setProc('regiao', e.target.value)} placeholder="Ex: Rosto, Corpo" />
+                </Field>
+                <Field label="Qtd. sessões">
+                  <input type="number" className={inputCls} value={editingProc.qtd_sessoes} onChange={e => setProc('qtd_sessoes', e.target.value)} placeholder="4" />
+                </Field>
+                <Field label="Duração/sessão (min)">
+                  <input type="number" className={inputCls} value={editingProc.duracao_sessao} onChange={e => setProc('duracao_sessao', e.target.value)} placeholder="60" />
+                </Field>
+                <Field label="Intervalo entre sessões (dias)">
+                  <input type="number" className={inputCls} value={editingProc.intervalo_sessoes} onChange={e => setProc('intervalo_sessoes', e.target.value)} placeholder="21" />
+                </Field>
+                <Field label="Valor avulso (R$)">
+                  <input type="number" step="0.01" className={inputCls} value={editingProc.valor_avulso} onChange={e => setProc('valor_avulso', e.target.value)} placeholder="350.00" />
+                </Field>
+                <Field label="Valor/sessão em pacote (R$)">
+                  <input type="number" step="0.01" className={inputCls} value={editingProc.valor_sessao_pacote} onChange={e => setProc('valor_sessao_pacote', e.target.value)} placeholder="280.00" />
+                </Field>
+                <Field label="Valor do pacote (R$)">
+                  <input type="number" step="0.01" className={inputCls} value={editingProc.valor_pacote} onChange={e => setProc('valor_pacote', e.target.value)} placeholder="1120.00" />
+                </Field>
+                <Field label="Ordem (exibição)">
+                  <input type="number" className={inputCls} value={editingProc.ordem} onChange={e => setProc('ordem', e.target.value)} placeholder="0" />
+                </Field>
+              </div>
+              <Field label="Descrição">
+                <textarea className={textareaCls} value={editingProc.descricao} onChange={e => setProc('descricao', e.target.value)} placeholder="Descreva o procedimento..." />
+              </Field>
+              <Field label="Benefícios">
+                <textarea className={textareaCls} value={editingProc.beneficios} onChange={e => setProc('beneficios', e.target.value)} placeholder="Principais benefícios..." />
+              </Field>
+              <Field label="Contra-indicações">
+                <textarea className={textareaCls} value={editingProc.contraindicacoes} onChange={e => setProc('contraindicacoes', e.target.value)} placeholder="Quem não pode fazer?" />
+              </Field>
+              <Field label="Resultados esperados">
+                <textarea className={textareaCls} value={editingProc.resultados_esperados} onChange={e => setProc('resultados_esperados', e.target.value)} placeholder="O que o paciente pode esperar?" />
+              </Field>
+              <Field label="Cuidados pré-tratamento">
+                <textarea className={textareaCls} value={editingProc.cuidados_pre} onChange={e => setProc('cuidados_pre', e.target.value)} placeholder="O que o paciente deve fazer antes?" />
+              </Field>
+              <Field label="Cuidados pós-tratamento">
+                <textarea className={textareaCls} value={editingProc.cuidados_pos} onChange={e => setProc('cuidados_pos', e.target.value)} placeholder="O que o paciente deve fazer depois?" />
+              </Field>
+              <Field label="Sugestões de respostas (para o agente IA)">
+                <textarea className={`${textareaCls} min-h-[100px]`} value={editingProc.sugestoes_respostas} onChange={e => setProc('sugestoes_respostas', e.target.value)} placeholder="Perguntas frequentes sobre este procedimento e como respondê-las..." />
+              </Field>
+              <Field label="Observações internas">
+                <textarea className={textareaCls} value={editingProc.observacoes} onChange={e => setProc('observacoes', e.target.value)} placeholder="Notas internas (não exibidas ao paciente)" />
+              </Field>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveProc}
+                  disabled={savingProc || !editingProc.nome.trim()}
+                  className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+                >
+                  {savingProc ? 'Salvando...' : 'Salvar Procedimento'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingProc(null)}
+                  className="text-slate-400 hover:text-slate-200 text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Lista de procedimentos */}
+          {procedimentos.length === 0 && !editingProc && (
+            <p className="text-slate-500 text-sm">Nenhum procedimento cadastrado ainda.</p>
+          )}
+          <div className="space-y-2">
+            {procedimentos.map((proc) => (
+              <div key={proc.id} className="flex items-center justify-between bg-[#0F0F1A] rounded-lg px-4 py-3 border border-[#2A2A3E]">
+                <div>
+                  <p className="text-slate-200 text-sm font-medium">{proc.nome}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    {proc.status === 'inativo' && <span className="text-amber-500 mr-2">Inativo</span>}
+                    {proc.finalidade && <span>{proc.finalidade}</span>}
+                    {proc.valor_pacote && <span className="ml-2">· Pacote R${parseFloat(proc.valor_pacote).toFixed(2)}</span>}
+                    {proc.valor_avulso && !proc.valor_pacote && <span className="ml-2">· Avulso R${parseFloat(proc.valor_avulso).toFixed(2)}</span>}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProc(proc)}
+                    className="text-violet-400 text-xs hover:text-violet-300 transition-colors"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => proc.id && handleDeleteProc(proc.id)}
+                    className="text-red-400 text-xs hover:text-red-300 transition-colors"
+                  >
+                    Remover
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {!editingProc && (
+            <button
+              type="button"
+              onClick={() => setEditingProc({ ...emptyProcedimento })}
+              className="mt-3 text-violet-400 text-sm hover:text-violet-300 transition-colors"
+            >
+              + Adicionar procedimento
+            </button>
+          )}
         </Section>
 
         {/* Seção 9 — Autorizações */}

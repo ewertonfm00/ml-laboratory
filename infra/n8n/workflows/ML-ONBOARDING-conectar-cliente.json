@@ -94,7 +94,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO _plataforma.projetos (nome, slug, descricao, schema_prefix)\nVALUES (\n  '{{ $('Preparar Dados').first().json.nome_empresa }}',\n  '{{ $('Preparar Dados').first().json.slug }}',\n  'Projeto conectado via formulário de onboarding em {{ new Date().toISOString().substring(0, 10) }}',\n  'ml'\n)\nON CONFLICT (slug) DO UPDATE SET updated_at = NOW()\nRETURNING id, nome, slug",
+        "query": "INSERT INTO _plataforma.projetos (nome, slug, descricao, schema_prefix, responsavel)\nVALUES (\n  '{{ $('Preparar Dados').first().json.nome_empresa }}',\n  '{{ $('Preparar Dados').first().json.slug }}',\n  'Projeto conectado via formulário de onboarding em {{ new Date().toISOString().substring(0, 10) }}',\n  'ml',\n  '{{ $('Preparar Dados').first().json.responsavel }}'\n)\nON CONFLICT (slug) DO UPDATE SET\n  responsavel = EXCLUDED.responsavel,\n  updated_at = NOW()\nRETURNING id, nome, slug",
         "additionalFields": {}
       },
       "id": "inserir-projeto",
