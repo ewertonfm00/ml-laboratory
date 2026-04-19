@@ -1,6 +1,6 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-18 (sessão 9 — expansão portal, painel da clínica, novas telas)
+**Última sessão:** 2026-04-19 (sessão 10 — painel clínica completo, migration 018, portal validado)
 
 ---
 
@@ -24,9 +24,10 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 ### SEED MASTER
 - [ ] Usuário passa e-mail + senha → gerar SQL → executar no Railway
 
-### IDENTIFICAÇÃO DE AGENTE
-- [ ] Verificar variáveis do Redrive expostas no chatflow (agente/atendente)
-- [ ] Mapear campo do agente no nó Normalizar Payload
+### TESTES (aguardam WhatsApp conectado)
+- [ ] Story 1.1 tasks 2.6–2.8: testes mono/multi com WhatsApp real
+- [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
+- [ ] Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador → após onboarding EsteticaIA
 
 ---
 
@@ -34,21 +35,20 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | 14 migrations executadas (001→014) |
-| n8n | ✅ Ativo | 20 workflows, ML-CAPTURA publicado |
+| Postgres | ✅ Ativo | 18 migrations executadas (001→018) |
+| n8n | ✅ Ativo | 20+ workflows, ML-CAPTURA publicado |
 | Evolution API | ✅ Ativo | Pronta, nenhuma instância conectada |
-| Portal Next.js | ✅ Deploy OK | `https://portal-ml-production.up.railway.app` |
-| Appsmith | ⚠️ Abandonado | Ainda no ar — remover quando conveniente |
+| Portal Next.js | ✅ HTTP 200 | `https://portal-ml-production.up.railway.app` |
 | Metabase | ✅ Ativo | — |
 
-## Portal — Rotas Disponíveis
+## Portal — Rotas Disponíveis (todas funcionando)
 
 | Rota | Tela |
 |------|------|
-| `/numeros/conectar` | Conectar número WhatsApp |
+| `/numeros/conectar` | Conectar número WhatsApp (QR Code) |
 | `/p/[slug]/numeros` | Números conectados |
-| `/p/[slug]/clinica` | Cadastro do Negócio |
-| `/p/[slug]/procedimentos` | Produtos / Serviços (30 itens) |
+| `/p/[slug]/clinica` | Cadastro do Negócio (9 seções + procedimentos) |
+| `/p/[slug]/procedimentos` | Produtos / Serviços |
 | `/p/[slug]/materiais` | Materiais Técnicos |
 | `/p/[slug]/metodologias` | Metodologias de Vendas |
 | `/p/[slug]/conversas` | Conversas capturadas |

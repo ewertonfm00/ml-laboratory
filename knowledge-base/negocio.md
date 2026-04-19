@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-18
+Última atualização: 2026-04-19
 
 ---
 
@@ -184,3 +184,4 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 | _validacao | Sistema de validação híbrida | 005 |
 | ml_clinica | Cadastro do negócio, produtos/serviços, materiais, metodologias, knowledge base | 013, 014 |
 | ml_analise | Análise por conversa, sinalizações de respostas inadequadas | 014 |
+| _plataforma | Campo `responsavel` adicionado em `projetos` (migration 018) | 018 |
