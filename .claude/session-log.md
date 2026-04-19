@@ -53,3 +53,53 @@ Lógica de resolução no n8n (captura):
 - [ ] Painel da Clínica: telas para substituir formulário da planilha (dados operacionais + procedimentos + sugestões IA)
 
 **Próximo passo sugerido:** Criar story para migration + ajuste de captura — acionar `@sm` para draftar ou ir direto com `@data-engineer` + `@dev`
+
+---
+## Sessão 2026-04-19 (continuação — implementação)
+
+### 1. Implementações
+
+**Migration 015** — `database/migrations/015_captura_agente_humano.sql` (CRIADO, commitado)
+- `ADD COLUMN tipo VARCHAR(10) NOT NULL DEFAULT 'mono' CHECK (tipo IN ('mono','multi'))` em `_plataforma.numeros_projeto`
+- `ADD COLUMN agente_default_id UUID REFERENCES _plataforma.agentes_humanos(id)` em `_plataforma.numeros_projeto`
+- `ADD COLUMN agente_humano_id UUID REFERENCES _plataforma.agentes_humanos(id)` em `ml_captura.sessoes_conversa`
+- Índice `idx_sessoes_agente`, COMMENTs em todas as colunas, idempotente
+
+**Rollback** — `database/migrations/rollbacks/015_captura_agente_humano_rollback.sql` (CRIADO)
+
+**Workflow n8n** — `infra/n8n/workflows/ML-CAPTURA-whatsapp-pipeline.json` (MODIFICADO, v1.2.0)
+- `Lookup Setor`: agora retorna `tipo` e `agente_default_id`
+- `Enriquecer com Setor`: propaga `numero_tipo` e `agente_default_id`
+- Novo node `Lookup Agente Multi`: busca `agentes_humanos` por `identificador_externo` + `numero_id` (continueOnFail: true)
+- Novo node `Resolver Atendente`: mono → usa `agente_default_id`; multi → usa resultado do lookup; fallback null
+- `Upsert sessoes_conversa`: INSERT e UPDATE incluem `agente_humano_id`
+- `Normalizar Payload`: extrai `identificador_externo` de `body.data?.agentId || body.agentId || body.metadados?.agentId`
+
+**Story 1.1** — `docs/stories/1.1.story.md` (CRIADA)
+- Epic 1 — Captura e Rastreabilidade de Conversas
+- Tasks 1.1–1.7 e 2.1–2.5 marcadas como concluídas
+
+**Session log** — `.claude/session-log.md` (CRIADO)
+
+**Commit:** `cc72a04` — `feat: identificação do atendente nas conversas capturadas [Story 1.1]` — pushed para `origin/main`
+
+### 2. Decisões
+
+- **Campo do Redrive no webhook:** `metadados.agentId` (também tenta `body.data?.agentId` e `body.agentId`) — confirmado como padrão padrão Redrive
+- **Fallback null seguro:** quando `identificador_externo` não encontrado em `agentes_humanos`, `agente_humano_id` fica null e sessão é gravada normalmente (sem erro)
+- **COALESCE no UPDATE:** `agente_humano_id` só é preenchido se ainda null — não sobrescreve valor existente
+- **Story-driven development:** story 1.1 criada antes da implementação, conforme AIOX Constitution Art. III
+
+### 3. Todos Ativos
+
+**Story 1.1 — pendentes:**
+- [ ] `1.8` Executar migration no banco: `supabase db push` (requer acesso ao Supabase)
+- [ ] `2.6` Testar cenário mono-agente em ambiente real
+- [ ] `2.7` Testar cenário multi-agente com `identificador_externo` válido
+- [ ] `2.8` Testar cenário multi-agente com `identificador_externo` desconhecido (deve gravar null)
+- [ ] `3.1` Confirmar que agentes ML leem `agente_humano_id` via JOIN nas queries de análise
+
+**Pendências anteriores (não tocadas):**
+- [ ] Conectar número WhatsApp via Appsmith → escanear QR Code (ML-SETUP-INSTANCIA ativo)
+- [ ] Painel da Clínica: telas para substituir formulário da planilha
+- [ ] Campo `responsavel` do onboarding: persistir em `_plataforma.projetos` ou remover do formulário

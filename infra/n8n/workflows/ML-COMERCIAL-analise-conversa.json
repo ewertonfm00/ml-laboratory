@@ -15,7 +15,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Busca sessões ativas sem atividade há mais de ML_SESSAO_TIMEOUT_MINUTOS\n-- e que ainda não foram analisadas\nSELECT\n  s.id          AS sessao_id,\n  s.remote_jid,\n  s.area,\n  s.total_mensagens,\n  s.iniciada_em,\n  array_agg(\n    COALESCE(m.conteudo_raw, t.texto)\n    ORDER BY m.created_at\n  ) FILTER (WHERE COALESCE(m.conteudo_raw, t.texto) IS NOT NULL) AS mensagens\nFROM ml_captura.sessoes_conversa s\nJOIN ml_captura.mensagens_raw m ON m.session_id = s.id::text AND m.area = 'comercial'\nLEFT JOIN ml_captura.transcricoes_audio t ON t.mensagem_id = m.id\nWHERE\n  s.status = 'ativa'\n  AND s.area = 'comercial'\n  AND s.updated_at < NOW() - INTERVAL '30 minutes'\n  AND NOT EXISTS (\n    SELECT 1 FROM ml_comercial.conversas c\n    WHERE c.sessao_id = s.id\n  )\nGROUP BY s.id, s.remote_jid, s.area, s.total_mensagens, s.iniciada_em\nHAVING count(m.id) >= 3\nLIMIT 10;",
+        "query": "-- Busca sessões ativas sem atividade há mais de ML_SESSAO_TIMEOUT_MINUTOS\n-- e que ainda não foram analisadas\nSELECT\n  s.id          AS sessao_id,\n  s.remote_jid,\n  s.area,\n  s.total_mensagens,\n  s.iniciada_em,\n  s.agente_humano_id,\n  array_agg(\n    COALESCE(m.conteudo_raw, t.texto)\n    ORDER BY m.created_at\n  ) FILTER (WHERE COALESCE(m.conteudo_raw, t.texto) IS NOT NULL) AS mensagens\nFROM ml_captura.sessoes_conversa s\nJOIN ml_captura.mensagens_raw m ON m.session_id = s.id::text AND m.area = 'comercial'\nLEFT JOIN ml_captura.transcricoes_audio t ON t.mensagem_id = m.id\nWHERE\n  s.status = 'ativa'\n  AND s.area = 'comercial'\n  AND s.updated_at < NOW() - INTERVAL '30 minutes'\n  AND NOT EXISTS (\n    SELECT 1 FROM ml_comercial.conversas c\n    WHERE c.sessao_id = s.id\n  )\nGROUP BY s.id, s.remote_jid, s.area, s.total_mensagens, s.iniciada_em, s.agente_humano_id\nHAVING count(m.id) >= 3\nLIMIT 10;",
         "additionalFields": {}
       },
       "id": "buscar-sessoes-prontas",
@@ -47,7 +47,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepara o prompt para o Claude Haiku analisar a conversa\nconst sessao = $input.first().json;\nconst mensagens = sessao.mensagens || [];\n\nconst conversa_texto = mensagens.map((m, i) => `[${i+1}] ${m}`).join('\\n');\n\nconst prompt = `Você é um especialista em análise de conversas comerciais de vendas.\n\nAnalise a seguinte conversa comercial e retorne um JSON estruturado:\n\nCONVERSA:\n${conversa_texto}\n\nRetorne APENAS um JSON válido (sem markdown) com esta estrutura:\n{\n  \"tipo_venda\": \"varejo\" | \"consultiva\" | \"despertar_desejo\" | null,\n  \"resultado\": \"converteu\" | \"perdeu\" | \"pendente\",\n  \"tom_predominante\": \"tecnico\" | \"emocional\" | \"relacional\" | \"direto\" | \"misto\",\n  \"score_qualidade\": 0.0 a 10.0,\n  \"fases\": [\n    {\"fase\": \"abertura|descoberta|apresentacao|objecao|fechamento\", \"qualidade\": \"alta|media|baixa\"}\n  ],\n  \"argumentos\": [\n    {\"texto\": \"...\", \"efetivo\": true|false, \"fase\": \"...\"}\n  ],\n  \"objecoes\": [\n    {\"tipo\": \"preco|prazo|necessidade|confianca|concorrencia|outra\", \"contornada\": true|false, \"texto\": \"...\"}\n  ],\n  \"padrao_detectado\": \"descrição do padrão comportamental principal\",\n  \"flags\": [\"objecao_ignorada\", \"tom_inadequado\", etc]\n}`;\n\nreturn [{\n  json: {\n    sessao_id: sessao.sessao_id,\n    remote_jid: sessao.remote_jid,\n    prompt\n  }\n}];"
+        "jsCode": "// Prepara o prompt para o Claude Haiku analisar a conversa\nconst sessao = $input.first().json;\nconst mensagens = sessao.mensagens || [];\n\nconst conversa_texto = mensagens.map((m, i) => `[${i+1}] ${m}`).join('\\n');\n\nconst prompt = `Você é um especialista em análise de conversas comerciais de vendas.\n\nAnalise a seguinte conversa comercial e retorne um JSON estruturado:\n\nCONVERSA:\n${conversa_texto}\n\nRetorne APENAS um JSON válido (sem markdown) com esta estrutura:\n{\n  \"tipo_venda\": \"varejo\" | \"consultiva\" | \"despertar_desejo\" | null,\n  \"resultado\": \"converteu\" | \"perdeu\" | \"pendente\",\n  \"tom_predominante\": \"tecnico\" | \"emocional\" | \"relacional\" | \"direto\" | \"misto\",\n  \"score_qualidade\": 0.0 a 10.0,\n  \"fases\": [\n    {\"fase\": \"abertura|descoberta|apresentacao|objecao|fechamento\", \"qualidade\": \"alta|media|baixa\"}\n  ],\n  \"argumentos\": [\n    {\"texto\": \"...\", \"efetivo\": true|false, \"fase\": \"...\"}\n  ],\n  \"objecoes\": [\n    {\"tipo\": \"preco|prazo|necessidade|confianca|concorrencia|outra\", \"contornada\": true|false, \"texto\": \"...\"}\n  ],\n  \"padrao_detectado\": \"descrição do padrão comportamental principal\",\n  \"flags\": [\"objecao_ignorada\", \"tom_inadequado\", etc]\n}`;\n\nreturn [{\n  json: {\n    sessao_id: sessao.sessao_id,\n    remote_jid: sessao.remote_jid,\n    agente_humano_id: sessao.agente_humano_id || null,\n    prompt\n  }\n}];"
       },
       "id": "preparar-prompt",
       "name": "Preparar Prompt Claude",
@@ -86,7 +86,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extrai e valida o JSON retornado pelo Claude\nconst sessao_id = $('preparar-prompt').first().json.sessao_id;\nconst claudeResponse = $input.first().json;\n\nlet analise;\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  analise = JSON.parse(content);\n} catch(e) {\n  analise = { resultado: 'pendente', score_qualidade: 0, flags: ['parse_error'] };\n}\n\nreturn [{\n  json: {\n    sessao_id,\n    analise,\n    tokens_usados: claudeResponse.usage?.input_tokens + claudeResponse.usage?.output_tokens\n  }\n}];"
+        "jsCode": "// Extrai e valida o JSON retornado pelo Claude\nconst preparar = $('preparar-prompt').first().json;\nconst sessao_id = preparar.sessao_id;\nconst agente_humano_id = preparar.agente_humano_id || null;\nconst claudeResponse = $input.first().json;\n\nlet analise;\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  analise = JSON.parse(content);\n} catch(e) {\n  analise = { resultado: 'pendente', score_qualidade: 0, flags: ['parse_error'] };\n}\n\nreturn [{\n  json: {\n    sessao_id,\n    agente_humano_id,\n    analise,\n    tokens_usados: claudeResponse.usage?.input_tokens + claudeResponse.usage?.output_tokens\n  }\n}];"
       },
       "id": "extrair-analise",
       "name": "Extrair Análise do Claude",
@@ -97,9 +97,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ml_comercial.conversas (\n  sessao_id,\n  tipo_venda,\n  resultado,\n  tom_predominante,\n  score_qualidade,\n  fases,\n  argumentos,\n  flags,\n  padrao_detectado,\n  analisado_por,\n  tokens_usados,\n  raw_analise\n) VALUES (\n  $1::uuid,\n  $2::ml_comercial.tipo_venda,\n  $3::ml_comercial.resultado_conversa,\n  $4::ml_comercial.tom_comunicacao,\n  $5,\n  $6::jsonb,\n  $7::jsonb,\n  $8::jsonb,\n  $9,\n  'conversation-analyst',\n  $10,\n  $11::jsonb\n)\nON CONFLICT DO NOTHING\nRETURNING id;",
+        "query": "INSERT INTO ml_comercial.conversas (\n  sessao_id,\n  agente_humano_id,\n  tipo_venda,\n  resultado,\n  tom_predominante,\n  score_qualidade,\n  fases,\n  argumentos,\n  flags,\n  padrao_detectado,\n  analisado_por,\n  tokens_usados,\n  raw_analise\n) VALUES (\n  $1::uuid,\n  $2::uuid,\n  $3::ml_comercial.tipo_venda,\n  $4::ml_comercial.resultado_conversa,\n  $5::ml_comercial.tom_comunicacao,\n  $6,\n  $7::jsonb,\n  $8::jsonb,\n  $9::jsonb,\n  $10,\n  'conversation-analyst',\n  $11,\n  $12::jsonb\n)\nON CONFLICT DO NOTHING\nRETURNING id;",
         "additionalFields": {
-          "queryParams": "={{ [\n  $json.sessao_id,\n  $json.analise.tipo_venda,\n  $json.analise.resultado || 'pendente',\n  $json.analise.tom_predominante,\n  $json.analise.score_qualidade,\n  JSON.stringify($json.analise.fases || []),\n  JSON.stringify($json.analise.argumentos || []),\n  JSON.stringify($json.analise.flags || []),\n  $json.analise.padrao_detectado,\n  $json.tokens_usados,\n  JSON.stringify($json.analise)\n] }}"
+          "queryParams": "={{ [\n  $json.sessao_id,\n  $json.agente_humano_id || null,\n  $json.analise.tipo_venda,\n  $json.analise.resultado || 'pendente',\n  $json.analise.tom_predominante,\n  $json.analise.score_qualidade,\n  JSON.stringify($json.analise.fases || []),\n  JSON.stringify($json.analise.argumentos || []),\n  JSON.stringify($json.analise.flags || []),\n  $json.analise.padrao_detectado,\n  $json.tokens_usados,\n  JSON.stringify($json.analise)\n] }}"
         }
       },
       "id": "salvar-analise",
@@ -180,7 +180,7 @@
     "project": "machine-learning",
     "squad": "ml-comercial-squad",
     "agent": "conversation-analyst",
-    "version": "1.0.0",
-    "description": "Analisa conversas encerradas via Claude Haiku e alimenta ml_comercial — roda a cada 5 minutos"
+    "version": "1.1.0",
+    "description": "Analisa conversas encerradas via Claude Haiku e alimenta ml_comercial — roda a cada 5 minutos. v1.1: propaga agente_humano_id de sessoes_conversa para ml_comercial.conversas"
   }
 }
