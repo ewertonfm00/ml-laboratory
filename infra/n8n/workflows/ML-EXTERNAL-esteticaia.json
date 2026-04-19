@@ -1,0 +1,249 @@
+{
+  "name": "ML-EXTERNAL-esteticaia",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/external/esteticaia",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-ext",
+      "name": "Webhook EsteticaIA",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "[ML-EXTERNAL] Recebe eventos da EsteticaIA. Endpoint: /ml/external/esteticaia"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst respondentRaw = body.respondent || 'unknown:unknown';\nconst [respondentType, respondentSlug] = respondentRaw.includes(':')\n  ? respondentRaw.split(':', 2)\n  : ['unknown', respondentRaw];\n\nreturn [{\n  json: {\n    instance_name:    body.instanceName,\n    message_id:       body.messageId,\n    remote_jid:       body.remote_jid || body.from,\n    conteudo_raw:     body.body || null,\n    tipo:             body.message_type || 'text',\n    audio_url:        body.audio_url || null,\n    direction:        body.type || 'unknown',\n    respondent_type:  respondentType,\n    respondent_slug:  respondentSlug,\n    respondent_name:  body.attendant_name || null,\n    area:             body.sector || 'comercial',\n    external_session_id: body.session_id || null,\n    timestamp:        body.timestamp || new Date().toISOString(),\n    metadados:        body\n  }\n}];"
+      },
+      "id": "normalizar-ext",
+      "name": "Normalizar Payload EsteticaIA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "notes": "Normaliza payload EsteticaIA para formato interno ML. Extrai respondentType e respondentSlug do campo respondent (ex: ai:sofia-sdr)."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ie.id AS instancia_id,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo\nFROM _plataforma.instancias_evolution ie\nJOIN _plataforma.numeros_projeto np ON np.instancia_id = ie.id\nWHERE ie.instance_name = '{{ $json.instance_name }}'\n  AND np.ativo = true\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "lookup-projeto-ext",
+      "name": "Lookup Projeto EsteticaIA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Resolve instancia_id, numero_id e projeto_id a partir do instanceName enviado pela EsteticaIA."
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $('Normalizar Payload EsteticaIA').first().json;\nconst lookup = $input.first().json;\n\nreturn [{\n  json: {\n    ...payload,\n    instancia_id: lookup.instancia_id || null,\n    numero_id:    lookup.numero_id || null,\n    projeto_id:   lookup.projeto_id || null,\n    numero_tipo:  lookup.numero_tipo || 'multi'\n  }\n}];"
+      },
+      "id": "enrich-projeto-ext",
+      "name": "Enriquecer com Projeto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "notes": "Mescla dados do lookup de projeto ao payload normalizado."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id AS agente_humano_id\nFROM _plataforma.agentes_humanos\nWHERE identificador_externo = '{{ $json.respondent_type }}:{{ $json.respondent_slug }}'\n  AND projeto_id = '{{ $json.projeto_id }}'::uuid\n  AND ativo = true\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "lookup-agente-ext",
+      "name": "Lookup Agente Respondente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        300
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Busca agente_humano_id por identificador_externo (ex: human:maria). continueOnFail=true — não quebra se respondent_type=ai ou agente não encontrado."
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $('Enriquecer com Projeto').first().json;\nlet agente_humano_id = null;\n\nif (dados.respondent_type !== 'ai') {\n  try {\n    const r = $('Lookup Agente Respondente').first().json;\n    agente_humano_id = r.agente_humano_id || null;\n  } catch(e) { agente_humano_id = null; }\n}\n\nreturn [{ json: { ...dados, agente_humano_id } }];"
+      },
+      "id": "resolver-agente-ext",
+      "name": "Resolver Agente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ],
+      "notes": "Resolve agente_humano_id: respondent_type=ai → null; human/specialist → lookup por identificador_externo."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_captura.mensagens_raw\n  (area, fonte, session_id, remote_jid, message_id, tipo, conteudo_raw,\n   audio_url, status, metadados, direction, respondent_type, respondent_name)\nVALUES (\n  '{{ $json.area }}',\n  'esteticaia',\n  '{{ $json.external_session_id }}',\n  '{{ $json.remote_jid }}',\n  '{{ $json.message_id }}',\n  '{{ $json.tipo }}',\n  '{{ $json.conteudo_raw }}',\n  {{ $json.audio_url ? \"'\" + $json.audio_url + \"'\" : 'NULL' }},\n  'recebida',\n  '{{ JSON.stringify($json.metadados) }}'::jsonb,\n  '{{ $json.direction }}',\n  '{{ $json.respondent_type }}',\n  '{{ $json.respondent_name }}'\n)\nON CONFLICT (message_id) DO NOTHING",
+        "additionalFields": {}
+      },
+      "id": "insert-mensagem-ext",
+      "name": "Inserir mensagem_raw",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1520,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Insere mensagem bruta com fonte='esteticaia', direction e respondent_type. ON CONFLICT para idempotência."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_captura.sessoes_conversa\n  (projeto_id, area, remote_jid, status, agente_humano_id, metadados)\nVALUES (\n  '{{ $json.projeto_id }}'::uuid,\n  '{{ $json.area }}',\n  '{{ $json.remote_jid }}',\n  'ativa',\n  {{ $json.agente_humano_id ? \"'\" + $json.agente_humano_id + \"'::uuid\" : 'NULL' }},\n  '{{ JSON.stringify({ external_session_id: $json.external_session_id }) }}'::jsonb\n)\nON CONFLICT (projeto_id, area, remote_jid) DO NOTHING;\n\nUPDATE ml_captura.sessoes_conversa\nSET total_mensagens = total_mensagens + 1,\n    updated_at = NOW(),\n    agente_humano_id = COALESCE(agente_humano_id, {{ $json.agente_humano_id ? \"'\" + $json.agente_humano_id + \"'::uuid\" : 'NULL' }})\nWHERE projeto_id = '{{ $json.projeto_id }}'::uuid\n  AND remote_jid  = '{{ $json.remote_jid }}'\n  AND area        = '{{ $json.area }}'\n  AND status      = 'ativa'",
+        "additionalFields": {}
+      },
+      "id": "upsert-sessao-ext",
+      "name": "Upsert sessao_conversa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1740,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Cria ou atualiza sessão de conversa. external_session_id gravado em metadados para rastreabilidade cruzada com EsteticaIA."
+    }
+  ],
+  "connections": {
+    "Webhook EsteticaIA": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Payload EsteticaIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Payload EsteticaIA": {
+      "main": [
+        [
+          {
+            "node": "Lookup Projeto EsteticaIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Projeto EsteticaIA": {
+      "main": [
+        [
+          {
+            "node": "Enriquecer com Projeto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enriquecer com Projeto": {
+      "main": [
+        [
+          {
+            "node": "Lookup Agente Respondente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Agente Respondente": {
+      "main": [
+        [
+          {
+            "node": "Resolver Agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Agente": {
+      "main": [
+        [
+          {
+            "node": "Inserir mensagem_raw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir mensagem_raw": {
+      "main": [
+        [
+          {
+            "node": "Upsert sessao_conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "America/Sao_Paulo"
+  },
+  "tags": [
+    "ML-EXTERNAL",
+    "esteticaia",
+    "integration",
+    "machine-learning"
+  ],
+  "meta": {
+    "version": "1.0.0",
+    "description": "Integração externa EsteticaIA → ML Laboratory"
+  }
+}
