@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-19
+Última atualização: 2026-04-21
 
 ---
 
@@ -125,12 +125,22 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 ### Nível 1 — Operacionais (análise por área de negócio)
 | Squad | Foco | Agentes |
 |-------|------|---------|
-| ml-comercial-squad | Vendas e conversas comerciais | conversation-analyst, behavioral-profiler, product-approach, objection-handler, training-generator, performance-reporter |
+| ml-comercial-squad | Vendas e conversas comerciais | conversation-analyst, behavioral-profiler, product-approach, objection-handler, training-generator, performance-reporter, niche-content-extractor, profile-segment-matcher, training-content-publisher |
 | ml-operacional-squad | Processos e gargalos | process-analyst, failure-detector, optimization-advisor |
 | ml-financeiro-squad | Risco e fluxo de caixa | risk-analyzer, cashflow-predictor, collections-advisor |
-| ml-atendimento-squad | Satisfação e retenção | satisfaction-analyzer, retention-advisor, service-quality-monitor |
+| ml-atendimento-squad | Satisfação e retenção | satisfaction-analyzer, churn-detector, retention-advisor, service-quality-monitor |
 | ml-marketing-squad | Campanhas e segmentação | message-analyzer, segmentation-advisor, timing-optimizer |
 | ml-pessoas-squad | Talentos e engajamento | talent-profiler, engagement-monitor, onboarding-advisor |
+
+### Nível 0 — Orquestrador (hub de inteligência cross-squad)
+| Squad | Foco | Agentes |
+|-------|------|---------|
+| ml-orquestrador-squad | Síntese e relatórios executivos | cross-area-synthesizer, executive-reporter, anomaly-detector, segment-catalog-manager, insight-scheduler |
+
+### Validação dos squads
+- Validador: `.aiox-core/development/scripts/squad/squad-validator.js`
+- Campos obrigatórios no frontmatter das tasks: `task`, `responsavel`, `responsavel_type`, `atomic_layer`, `elicit`, `Entrada`, `Saida`, `Checklist`
+- Estado atual (2026-04-21): **12/12 squads ✅ — 0 erros, 0 avisos**
 
 ---
 

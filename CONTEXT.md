@@ -1,6 +1,6 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-21 (gap analysis squads ML — completo)
+**Última sessão:** 2026-04-21 (validação completa dos squads ML — 12/12 ✅)
 
 ---
 
@@ -15,8 +15,7 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 
 ## Pendências
 
-### SQUADS ML — PÓS GAP ANALYSIS (novos)
-- [ ] Validar squads com `*validate-squad` para cada squad
+### SQUADS ML — OPERACIONALIZAÇÃO
 - [ ] Implementar workflows n8n das tasks criadas (começar por ml-captura: configure-webhook → collect-messages → transcribe-audio)
 - [ ] Seed inicial do segment-catalog-manager (catálogo vazio inutiliza Saída 2)
 
@@ -38,6 +37,9 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 - [ ] Forçar redeploy portal-ml no Railway (bloqueio do dashboard de conversas)
 - [ ] Confirmar schema real via `/api/diagnostico` e fazer fix definitivo
 
+### GIT
+- [ ] Push dos 6 commits locais para origin/main (`@devops`)
+
 ---
 
 ## Infraestrutura Railway — Estado Atual
@@ -50,22 +52,22 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 | Portal Next.js | ✅ HTTP 200 | `https://portal-ml-production.up.railway.app` |
 | Metabase | ✅ Ativo | — |
 
-## Squads ML — Estado Atual (pós gap analysis)
+## Squads ML — Estado Atual (validação 12/12 ✅)
 
-| Squad | Agentes | Tasks | Status |
-|-------|---------|-------|--------|
-| ml-captura | 6 | 3 | ✅ Completo |
-| ml-data-eng | 5 | 3 | ✅ Completo |
-| ml-ia-padroes | 8 | 3 | ✅ Completo |
-| ml-plataforma | 5 | 3 | ✅ Completo |
-| ml-skills | 6 | 3 | ✅ Completo |
-| ml-comercial | 9 | 6 | ✅ Completo |
-| ml-atendimento | 4 | 3 | ✅ Completo |
-| ml-financeiro | 3 | 4 | ✅ Completo |
-| ml-marketing | 3 | 3 | ✅ Completo |
-| ml-operacional | 3 | 3 | ✅ Completo |
-| ml-pessoas | 3 | 3 | ✅ Completo |
-| ml-orquestrador | 5 | 4 | ✅ Completo |
+| Squad | Agentes | Tasks | Validação |
+|-------|---------|-------|-----------|
+| ml-captura | 6 | 3 | ✅ |
+| ml-data-eng | 5 | 3 | ✅ |
+| ml-ia-padroes | 8 | 3 | ✅ |
+| ml-plataforma | 5 | 3 | ✅ |
+| ml-skills | 6 | 3 | ✅ |
+| ml-comercial | 9 | 6 | ✅ |
+| ml-atendimento | 4 | 3 | ✅ |
+| ml-financeiro | 3 | 4 | ✅ |
+| ml-marketing | 3 | 3 | ✅ |
+| ml-operacional | 3 | 3 | ✅ |
+| ml-pessoas | 3 | 3 | ✅ |
+| ml-orquestrador | 5 | 4 | ✅ |
 
 ## Contexto técnico
 
