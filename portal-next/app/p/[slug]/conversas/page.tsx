@@ -29,54 +29,57 @@ async function getConversas(slug: string): Promise<ConversaRow[]> {
     const projetoId = projRows[0]?.id;
     if (!projetoId) return [];
 
-    // Query principal: analise_conversa já tem os campos agrupados por conversa
+    // Fonte primária: sessoes_conversa (populada a cada mensagem capturada)
+    // Enriquecida com analise_conversa quando disponível
     try {
       return await query<ConversaRow>(
         `SELECT
-          ac.sessao_id,
-          ac.numero_whatsapp,
-          ac.agente_nome,
-          COALESCE(
-            (SELECT COUNT(*)::text FROM ml_captura.mensagens_raw mr
-             WHERE mr.session_id = ac.sessao_id),
-            '0'
-          ) as total_mensagens,
-          COALESCE(ac.data_conversa, ac.created_at) as inicio,
-          ac.updated_at as fim,
+          sc.id::text                      AS sessao_id,
+          sc.remote_jid                    AS numero_whatsapp,
+          ah.nome                          AS agente_nome,
+          sc.total_mensagens::text         AS total_mensagens,
+          sc.iniciada_em                   AS inicio,
+          sc.updated_at                    AS fim,
           ac.nota_comercial,
           ac.nota_tecnica,
           ac.disc_identificado,
           ac.tem_sinalizacao,
           ac.revisado,
-          COUNT(s.id) as total_sinalizacoes
-        FROM ml_analise.analise_conversa ac
+          COUNT(s.id)                      AS total_sinalizacoes
+        FROM ml_captura.sessoes_conversa sc
+        LEFT JOIN _plataforma.agentes_humanos ah ON ah.id = sc.agente_humano_id
+        LEFT JOIN ml_analise.analise_conversa ac
+          ON ac.projeto_id = sc.projeto_id AND ac.numero_whatsapp = sc.remote_jid
         LEFT JOIN ml_analise.sinalizacoes s ON s.analise_id = ac.id AND s.resolvido = false
-        WHERE ac.projeto_id = $1
-        GROUP BY ac.id
-        ORDER BY ac.updated_at DESC
+        WHERE sc.projeto_id = $1
+        GROUP BY sc.id, ah.nome, ac.nota_comercial, ac.nota_tecnica,
+                 ac.disc_identificado, ac.tem_sinalizacao, ac.revisado
+        ORDER BY sc.updated_at DESC
         LIMIT 50`,
         [projetoId]
       );
     } catch {
-      // Fallback: mensagens_raw com nomes de coluna corretos
+      // Fallback: mensagens_raw agrupadas por contato
       return await query<ConversaRow>(
         `SELECT
-          mr.session_id as sessao_id,
-          mr.remote_jid  as numero_whatsapp,
-          NULL::text     as agente_nome,
-          COUNT(*)::text as total_mensagens,
-          MIN(mr.created_at) as inicio,
-          MAX(mr.created_at) as fim,
-          NULL::numeric as nota_comercial,
-          NULL::numeric as nota_tecnica,
-          NULL::text    as disc_identificado,
-          false         as tem_sinalizacao,
-          false         as revisado,
-          0::bigint     as total_sinalizacoes
-         FROM ml_captura.mensagens_raw mr
-         GROUP BY mr.session_id, mr.remote_jid
-         ORDER BY MAX(mr.created_at) DESC
-         LIMIT 50`
+          mr.remote_jid              AS sessao_id,
+          mr.remote_jid              AS numero_whatsapp,
+          NULL::text                 AS agente_nome,
+          COUNT(*)::text             AS total_mensagens,
+          MIN(mr.created_at)         AS inicio,
+          MAX(mr.created_at)         AS fim,
+          NULL::numeric              AS nota_comercial,
+          NULL::numeric              AS nota_tecnica,
+          NULL::text                 AS disc_identificado,
+          false                      AS tem_sinalizacao,
+          false                      AS revisado,
+          0::bigint                  AS total_sinalizacoes
+        FROM ml_captura.mensagens_raw mr
+        WHERE mr.projeto_id = $1
+        GROUP BY mr.remote_jid
+        ORDER BY MAX(mr.created_at) DESC
+        LIMIT 50`,
+        [projetoId]
       );
     }
   } catch {
