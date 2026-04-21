@@ -1,6 +1,6 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-19 (sessão 10 — painel clínica completo, migration 018, portal validado)
+**Última sessão:** 2026-04-21 (sessão 11 — limpeza de arquivos, CLAUDE.md otimizado)
 
 ---
 
@@ -35,7 +35,7 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | 18 migrations executadas (001→018) |
+| Postgres | ✅ Ativo | 19 migrations executadas (001→019) |
 | n8n | ✅ Ativo | 20+ workflows, ML-CAPTURA publicado |
 | Evolution API | ✅ Ativo | Pronta, nenhuma instância conectada |
 | Portal Next.js | ✅ HTTP 200 | `https://portal-ml-production.up.railway.app` |
