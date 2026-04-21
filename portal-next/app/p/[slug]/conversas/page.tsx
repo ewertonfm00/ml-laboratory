@@ -111,7 +111,7 @@ function formatDuration(inicio: string, fim: string): string {
   return `${h}h${m > 0 ? ` ${m}min` : ''}`;
 }
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 export default async function ConversasPage({ params }: Props) {
   const { slug } = await params;
