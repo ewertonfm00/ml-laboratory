@@ -30,16 +30,16 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/cross-area-synthesizer.md
-    - agents/executive-reporter.md
-    - agents/anomaly-detector.md
-    - agents/segment-catalog-manager.md
-    - agents/insight-scheduler.md
+    - cross-area-synthesizer.md
+    - executive-reporter.md
+    - anomaly-detector.md
+    - segment-catalog-manager.md
+    - insight-scheduler.md
   tasks:
-    - tasks/synthesize-cross-area.md
-    - tasks/generate-executive-report.md
-    - tasks/detect-anomaly.md
-    - tasks/schedule-insights.md
+    - synthesize-cross-area.md
+    - generate-executive-report.md
+    - detect-anomaly.md
+    - schedule-insights.md
   workflows: []
   checklists: []
   templates: []

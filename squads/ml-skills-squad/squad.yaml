@@ -20,16 +20,16 @@ isolation:
 
 components:
   agents:
-    - agents/skill-generator.md
-    - agents/skill-validator.md
-    - agents/agent-trainer.md
-    - agents/niche-agent-assembler.md
-    - agents/agent-performance-tracker.md
-    - agents/ab-test-manager.md
+    - skill-generator.md
+    - skill-validator.md
+    - agent-trainer.md
+    - niche-agent-assembler.md
+    - agent-performance-tracker.md
+    - ab-test-manager.md
   tasks:
-    - tasks/generate-skill.md
-    - tasks/validate-skill.md
-    - tasks/train-agent.md
+    - generate-skill.md
+    - validate-skill.md
+    - train-agent.md
   workflows: []
   checklists: []
   templates: []

@@ -4,6 +4,8 @@ agent: satisfaction-analyzer
 squad: ml-atendimento-squad
 atomic_layer: task
 elicit: false
+responsavel: satisfaction-analyzer
+responsavel_type: agent
 Entrada: |
   - conversa_raw: Conversa de atendimento transcrita
   - cliente_id: Identificador do cliente

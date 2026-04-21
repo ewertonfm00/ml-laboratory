@@ -1,9 +1,31 @@
 ---
 id: monitor-health
 name: Monitor Services Health
+task: Monitor Services Health
 squad: ml-plataforma-squad
 agent: monitor-agent
 icon: "🩺"
+atomic_layer: task
+elicit: false
+responsavel: monitor-agent
+responsavel_type: agent
+Entrada: |
+  - infra_registry: Infraestrutura registrada em ml_platform.infra_registry
+  - credenciais_servicos: Credenciais de acesso a todos os serviços no ambiente
+  - numero_alerta: Número WhatsApp de alerta configurado para o cliente
+Saida: |
+  - health_score: Score global de saúde da infraestrutura (0-100)
+  - servicos_status: Objeto com status e latência de cada serviço verificado
+  - alertas_disparados: Lista de alertas enviados com descrição do problema
+  - timestamp_verificacao: Timestamp ISO da verificação realizada
+Checklist:
+  - "[ ] Checar conectividade Postgres em todos os schemas ativos (ping + tempo de resposta)"
+  - "[ ] Checar Redis (ping + latência média em 3 chamadas consecutivas)"
+  - "[ ] Checar n8n (workflows ativos e execuções das últimas 2 horas sem erros críticos)"
+  - "[ ] Checar Evolution API (webhook conectado, último evento < 30 minutos)"
+  - "[ ] Checar filas pendentes no Redis (threshold: > 100 mensagens não processadas)"
+  - "[ ] Calcular health score global (média ponderada dos scores individuais)"
+  - "[ ] Disparar alerta WhatsApp se score < 80 e persistir em ml_platform.health_checks"
 ---
 
 # monitor-health

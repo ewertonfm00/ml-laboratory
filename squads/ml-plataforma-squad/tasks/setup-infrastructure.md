@@ -1,9 +1,33 @@
 ---
 id: setup-infrastructure
 name: Setup Client Infrastructure
+task: Setup Client Infrastructure
 squad: ml-plataforma-squad
 agent: infra-manager
 icon: "🏗️"
+atomic_layer: task
+elicit: false
+responsavel: infra-manager
+responsavel_type: agent
+Entrada: |
+  - dados_cliente: Dados do cliente (número WhatsApp, nome do projeto, squads ativos)
+  - credenciais_railway: Conta Railway com permissão para criar projetos
+  - credenciais_evolution: Credenciais de acesso à Evolution API
+  - templates_n8n: Templates base de n8n disponíveis em .aiox-core/
+Saida: |
+  - railway_project_id: ID do projeto criado no Railway
+  - postgres_connection_string: String de conexão Postgres com usuário de aplicação
+  - redis_url: URL de conexão Redis com prefixo configurado
+  - n8n_url: URL de acesso à instância n8n do cliente
+  - status_provisionado: Status geral de saúde de todos os serviços
+Checklist:
+  - "[ ] Criar projeto Railway para o cliente (Postgres, Redis, n8n)"
+  - "[ ] Configurar schemas Postgres com prefixo ml_* para cada squad ativo"
+  - "[ ] Criar usuários Postgres com permissões granulares por schema"
+  - "[ ] Configurar Redis com prefixo ml:{cliente_id}: para isolamento de chaves"
+  - "[ ] Inicializar n8n com import dos templates base de workflows do laboratório ML"
+  - "[ ] Configurar Evolution API (instância, número WhatsApp, QR code)"
+  - "[ ] Registrar infraestrutura em ml_platform.infra_registry e validar conectividade"
 ---
 
 # setup-infrastructure

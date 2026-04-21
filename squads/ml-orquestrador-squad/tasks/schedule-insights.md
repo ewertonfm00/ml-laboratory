@@ -1,9 +1,32 @@
 ---
 id: schedule-insights
 name: Schedule and Deliver Insights
+task: Schedule and Deliver Insights
 squad: ml-orquestrador-squad
 agent: insight-scheduler
 icon: "📬"
+atomic_layer: task
+elicit: false
+responsavel: insight-scheduler
+responsavel_type: agent
+Entrada: |
+  - alertas_anomaly: Alertas do anomaly-detector com urgência classificada na fila de entrega
+  - relatorios_executive: Relatórios do executive-reporter disponíveis na fila de entrega
+  - delivery_config: Agenda e mapeamento de destinatários em ml_orquestrador.delivery_config
+Saida: |
+  - entrega_id: UUID único de cada entrega registrada
+  - destinatarios: Lista de destinatários que receberam a entrega
+  - canal_usado: Canal de entrega utilizado (whatsapp/email)
+  - timestamp_entrega: Timestamp ISO da confirmação de entrega
+  - status_entrega: Status final (entregue/falha/pendente_retry)
+Checklist:
+  - "[ ] Receber alertas e relatórios na fila de entrega"
+  - "[ ] Verificar agenda de entregas configurada (digest diário, relatório semanal)"
+  - "[ ] Identificar destinatários por tipo de insight e urgência"
+  - "[ ] Selecionar canal de entrega (WhatsApp para urgente/digest, e-mail para semanal)"
+  - "[ ] Formatar mensagem para o canal (WhatsApp: curto/direto, e-mail: formatado+PDF)"
+  - "[ ] Enviar mensagem via canal selecionado (Evolution API ou SMTP)"
+  - "[ ] Registrar entrega e executar retry automático em caso de falha"
 ---
 
 # schedule-insights

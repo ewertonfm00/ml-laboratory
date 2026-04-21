@@ -1,9 +1,31 @@
 ---
 id: analyze-cashflow
 name: Analyze Cash Flow Patterns and Forecast
+task: Analyze Cash Flow Patterns and Forecast
 squad: ml-financeiro-squad
 agent: cashflow-predictor
 icon: "💰"
+atomic_layer: task
+elicit: false
+responsavel: cashflow-predictor
+responsavel_type: agent
+Entrada: |
+  - historico_pagamentos: Histórico de pagamentos dos últimos 90 dias em ml_financeiro.historico_pagamentos
+  - carteira_clientes: Clientes ativos com faturas em aberto mapeados
+  - threshold_risco: Valor mínimo de caixa esperado por semana (configurado)
+Saida: |
+  - previsao_fluxo: Previsão semanal para as próximas 8 semanas com 3 cenários
+  - semanas_risco: Lista de semanas com previsão abaixo do threshold com severidade
+  - probabilidade_recebimento_por_cliente: Score de probabilidade de pagamento por fatura em aberto
+  - recomendacoes: Ações recomendadas para semanas críticas com prazo e responsável
+Checklist:
+  - "[ ] Carregar histórico de pagamentos dos últimos 90 dias"
+  - "[ ] Identificar sazonalidade (padrões por dia da semana, semana do mês, mês do ano)"
+  - "[ ] Identificar padrões por tipo de cliente (pontual/atrasa/adiantado)"
+  - "[ ] Calcular probabilidade de recebimento por fatura em aberto"
+  - "[ ] Agregar previsão semanal das próximas 8 semanas (pessimista/realista/otimista)"
+  - "[ ] Identificar semanas de risco abaixo do threshold mínimo"
+  - "[ ] Persistir previsão em ml_financeiro.previsoes_cashflow com premissas"
 ---
 
 # analyze-cashflow

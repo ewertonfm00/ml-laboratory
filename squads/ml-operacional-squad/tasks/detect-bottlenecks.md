@@ -1,9 +1,31 @@
 ---
 id: detect-bottlenecks
 name: Detect Operational Bottlenecks
+task: Detect Operational Bottlenecks
 squad: ml-operacional-squad
 agent: failure-detector
 icon: "🔧"
+atomic_layer: task
+elicit: false
+responsavel: failure-detector
+responsavel_type: agent
+Entrada: |
+  - mapa_processos: Processos operacionais mapeados em map-process.md com etapas e responsáveis
+  - historico_incidentes: Histórico de reclamações, retrabalho e incidentes operacionais
+  - conversas_analisadas: Conversas com menção a problemas operacionais classificadas
+Saida: |
+  - gargalos_detectados: Lista priorizada de gargalos com etapa, score de impacto e evidências
+  - score_impacto: Score calculado (frequência × gravidade) para cada gargalo
+  - frequencia_falha: Frequência de ocorrência por gargalo (por semana/mês)
+  - etapas_criticas: Etapas do processo com maior concentração de falhas
+Checklist:
+  - "[ ] Analisar fluxos operacionais do map-process.md (etapas, responsáveis, handoffs)"
+  - "[ ] Identificar etapas com maior frequência de reclamação ou retrabalho"
+  - "[ ] Calcular tempo médio de execução por etapa vs tempo esperado (SLA)"
+  - "[ ] Detectar padrões de falha recorrente (dia, horário, equipe, tipo de erro)"
+  - "[ ] Verificar correlação entre falhas operacionais e reclamações de clientes"
+  - "[ ] Calcular score de impacto por gargalo (frequência × gravidade)"
+  - "[ ] Persistir gargalos em ml_operacional.gargalos com score, frequência e evidências"
 ---
 
 # detect-bottlenecks

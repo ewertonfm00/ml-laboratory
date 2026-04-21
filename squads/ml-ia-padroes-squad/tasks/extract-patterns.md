@@ -1,9 +1,30 @@
 ---
 id: extract-patterns
 name: Extract Behavioral Patterns from Conversations
+task: Extract Behavioral Patterns from Conversations
 squad: ml-ia-padroes-squad
 agent: pattern-extractor
 icon: "🔍"
+atomic_layer: task
+elicit: false
+responsavel: pattern-extractor
+responsavel_type: agent
+Entrada: |
+  - conversas_classificadas: Conversas com status classificado de ml_captura.classificacoes
+  - periodo: Data início e fim do período de análise (mínimo 20 conversas por tipo_venda)
+  - resultado_conversa: Resultado registrado por conversa (converteu/perdeu/em andamento)
+Saida: |
+  - padroes_extraidos: Lista de padrões com texto, frequência e correlação com conversão
+  - periodo_analisado: Data início e fim do período analisado
+  - total_conversas: Total de conversas processadas por tipo_venda
+Checklist:
+  - "[ ] Selecionar conversas do período com status classificado (mínimo 20 por tipo_venda)"
+  - "[ ] Agrupar conversas por tipo_venda e por resultado (converteu/perdeu)"
+  - "[ ] Identificar sequências recorrentes de abertura"
+  - "[ ] Identificar sequências de argumentação no corpo da conversa"
+  - "[ ] Identificar sequências de fechamento e técnicas de conversão"
+  - "[ ] Calcular frequência e correlação de cada padrão com resultado"
+  - "[ ] Persistir padrões em ml_padroes.padroes_extraidos (frequência >= 3 ocorrências)"
 ---
 
 # extract-patterns

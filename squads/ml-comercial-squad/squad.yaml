@@ -49,22 +49,22 @@ sale_types:
 
 components:
   agents:
-    - agents/conversation-analyst.md
-    - agents/behavioral-profiler.md
-    - agents/product-approach.md
-    - agents/objection-handler.md
-    - agents/training-generator.md
-    - agents/performance-reporter.md
-    - agents/niche-content-extractor.md
-    - agents/profile-segment-matcher.md
-    - agents/training-content-publisher.md
+    - conversation-analyst.md
+    - behavioral-profiler.md
+    - product-approach.md
+    - objection-handler.md
+    - training-generator.md
+    - performance-reporter.md
+    - niche-content-extractor.md
+    - profile-segment-matcher.md
+    - training-content-publisher.md
   tasks:
-    - tasks/analyze-conversation.md
-    - tasks/build-behavioral-profile.md
-    - tasks/map-product-approach.md
-    - tasks/catalog-objections.md
-    - tasks/generate-training-content.md
-    - tasks/generate-performance-report.md
+    - analyze-conversation.md
+    - build-behavioral-profile.md
+    - map-product-approach.md
+    - catalog-objections.md
+    - generate-training-content.md
+    - generate-performance-report.md
   workflows: []
   checklists: []
   templates: []

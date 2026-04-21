@@ -20,15 +20,15 @@ isolation:
 
 components:
   agents:
-    - agents/infra-manager.md
-    - agents/monitor-agent.md
-    - agents/deploy-coordinator.md
-    - agents/onboarding-orchestrator.md
-    - agents/crm-sync-agent.md
+    - infra-manager.md
+    - monitor-agent.md
+    - deploy-coordinator.md
+    - onboarding-orchestrator.md
+    - crm-sync-agent.md
   tasks:
-    - tasks/setup-infrastructure.md
-    - tasks/monitor-health.md
-    - tasks/deploy-update.md
+    - setup-infrastructure.md
+    - monitor-health.md
+    - deploy-update.md
   workflows: []
   checklists: []
   templates: []

@@ -33,14 +33,14 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/satisfaction-analyzer.md
-    - agents/service-quality-monitor.md
-    - agents/retention-advisor.md
-    - agents/churn-detector.md
+    - satisfaction-analyzer.md
+    - service-quality-monitor.md
+    - retention-advisor.md
+    - churn-detector.md
   tasks:
-    - tasks/analyze-satisfaction.md
-    - tasks/detect-churn-signals.md
-    - tasks/generate-retention-strategy.md
+    - analyze-satisfaction.md
+    - detect-churn-signals.md
+    - generate-retention-strategy.md
   workflows: []
   checklists: []
   templates: []

@@ -1,9 +1,31 @@
 ---
 id: classify-data
 name: Classify Conversations by Type and Area
+task: Classify Conversations by Type and Area
 squad: ml-data-eng-squad
 agent: data-classifier
 icon: "🏷️"
+atomic_layer: task
+elicit: false
+responsavel: data-classifier
+responsavel_type: agent
+Entrada: |
+  - conversas_pendentes: Conversas em ml_captura.mensagens_raw com status pendente_classificacao
+  - api_key_claude: Chave de API Claude com modelo Haiku disponível
+  - taxonomia: Taxonomia de classificação (tipos de venda e áreas de negócio)
+Saida: |
+  - tipo_venda: Classificação do tipo de abordagem comercial (varejo/consultiva/despertar_desejo)
+  - area_negocio: Área de negócio responsável pela conversa
+  - confianca_classificacao: Score de confiança do modelo (0.0 a 1.0)
+  - schema_destino: Schema Postgres de destino para roteamento da conversa
+Checklist:
+  - "[ ] Ler conversas com status pendente_classificacao em lotes de 50 registros"
+  - "[ ] Montar prompt para Claude Haiku com texto e taxonomia de classificação"
+  - "[ ] Classificar por tipo_venda (varejo/consultiva/despertar_desejo)"
+  - "[ ] Classificar por area_negocio (comercial/atendimento/financeiro/operacional/marketing/pessoas)"
+  - "[ ] Calcular confiança da classificação (0.0 a 1.0)"
+  - "[ ] Persistir classificação em ml_captura.classificacoes com justificativa"
+  - "[ ] Rotear conversa para schema do squad correspondente e sinalizar baixa confiança"
 ---
 
 # classify-data

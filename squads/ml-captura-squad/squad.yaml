@@ -20,16 +20,16 @@ isolation:
 
 components:
   agents:
-    - agents/webhook-manager.md
-    - agents/audio-transcriber.md
-    - agents/message-collector.md
-    - agents/technical-content-loader.md
-    - agents/privacy-filter.md
-    - agents/multi-source-collector.md
+    - webhook-manager.md
+    - audio-transcriber.md
+    - message-collector.md
+    - technical-content-loader.md
+    - privacy-filter.md
+    - multi-source-collector.md
   tasks:
-    - tasks/configure-webhook.md
-    - tasks/transcribe-audio.md
-    - tasks/collect-messages.md
+    - configure-webhook.md
+    - transcribe-audio.md
+    - collect-messages.md
   workflows: []
   checklists: []
   templates: []

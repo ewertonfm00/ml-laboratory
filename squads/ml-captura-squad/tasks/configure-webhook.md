@@ -1,9 +1,29 @@
 ---
 id: configure-webhook
 name: Configure Webhook Evolution API
+task: Configure Webhook Evolution API
 squad: ml-captura-squad
 agent: webhook-manager
 icon: "🔗"
+atomic_layer: task
+elicit: false
+responsavel: webhook-manager
+responsavel_type: agent
+Entrada: |
+  - numero_whatsapp: Número WhatsApp válido e ativo na Evolution API
+  - instancia_n8n_url: URL da instância n8n com permissão para criar workflows
+  - credenciais_evolution: Credenciais da Evolution API configuradas no ambiente
+Saida: |
+  - webhook_url: URL completa do endpoint n8n configurado
+  - numero_id: Identificador da instância na Evolution API
+  - status_configurado: Boolean indicando se o webhook está ativo e recebendo eventos
+Checklist:
+  - "[ ] Validar se o número informado existe e está ativo na Evolution API"
+  - "[ ] Criar endpoint receptor no n8n com rota /ml/captura/{numero_id}"
+  - "[ ] Registrar webhook na Evolution API apontando para o endpoint n8n"
+  - "[ ] Enviar mensagem de teste e verificar recebimento no endpoint"
+  - "[ ] Persistir configuração em ml_captura.webhooks_config com status e webhook_url"
+  - "[ ] Retornar confirmação com dados da configuração ativa"
 ---
 
 # configure-webhook

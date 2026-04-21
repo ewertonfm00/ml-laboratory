@@ -4,6 +4,8 @@ agent: talent-profiler
 squad: ml-pessoas-squad
 atomic_layer: task
 elicit: false
+responsavel: talent-profiler
+responsavel_type: agent
 Entrada: |
   - dados_desempenho: Métricas e resultados do colaborador
   - interacoes: Conversas e registros de trabalho

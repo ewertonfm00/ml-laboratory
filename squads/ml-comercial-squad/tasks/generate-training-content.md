@@ -1,9 +1,31 @@
 ---
 id: generate-training-content
 name: Generate Personalized Training Content
+task: Generate Personalized Training Content
 squad: ml-comercial-squad
 agent: training-generator
 icon: "📚"
+atomic_layer: task
+elicit: false
+responsavel: training-generator
+responsavel_type: agent
+Entrada: |
+  - vendedor_id: Identificador do vendedor a receber o treinamento
+  - gaps_priorizados: Lista de gaps identificados pelo knowledge-gap-detector e behavioral-profiler
+  - conversas_reais: Conversas reais do vendedor disponíveis para extração de exemplos
+Saida: |
+  - modulos_treinamento: Lista de módulos gerados com título, conteúdo e exercício
+  - gap_abordado: Gap principal resolvido por cada módulo
+  - exemplos_reais_usados: IDs das conversas reais usadas como referência
+  - tempo_estimado_leitura: Tempo estimado total de leitura em minutos
+Checklist:
+  - "[ ] Carregar gaps priorizados do vendedor (knowledge-gap-detector + behavioral-profiler)"
+  - "[ ] Priorizar gaps por impacto na conversão"
+  - "[ ] Selecionar conversas reais de sucesso como exemplos positivos"
+  - "[ ] Selecionar conversas do próprio vendedor que ilustram o gap (exemplos negativos)"
+  - "[ ] Gerar módulo de treinamento por gap (contexto → negativo → positivo → instrução → exercício)"
+  - "[ ] Personalizar com referências a situações reais que o vendedor viveu"
+  - "[ ] Persistir módulos em ml_comercial.conteudos_treinamento com vendedor_id e gaps"
 ---
 
 # generate-training-content

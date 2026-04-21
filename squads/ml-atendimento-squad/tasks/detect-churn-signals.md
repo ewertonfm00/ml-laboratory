@@ -1,9 +1,31 @@
 ---
 id: detect-churn-signals
 name: Detect Churn Risk Signals
+task: Detect Churn Risk Signals
 squad: ml-atendimento-squad
 agent: churn-detector
 icon: "⚠️"
+atomic_layer: task
+elicit: false
+responsavel: churn-detector
+responsavel_type: agent
+Entrada: |
+  - historico_interacoes: Histórico de interações dos clientes ativos (mínimo 30 dias)
+  - modelo_config: Configuração do modelo de churn score em ml_atendimento.churn_model_config
+  - cliente_id: Identificador do cliente a ser avaliado (ou lista de clientes ativos)
+Saida: |
+  - lista_clientes_risco: Lista de clientes em risco ordenada por churn score descendente
+  - churn_scores: Score calculado por cliente com justificativa
+  - nivel_urgencia_por_cliente: Classificação de urgência de intervenção (imediata/próxima semana/monitorar)
+  - sinais_detectados_por_cliente: Sinais específicos que contribuíram para o score de cada cliente
+Checklist:
+  - "[ ] Calcular churn score para todos os clientes ativos usando histórico de interações"
+  - "[ ] Filtrar clientes com score >= 70 (alto risco)"
+  - "[ ] Analisar sinais específicos de cada cliente em risco"
+  - "[ ] Classificar urgência de intervenção por cliente (imediata/próxima semana/monitorar)"
+  - "[ ] Encaminhar lista priorizada para retention-advisor com detalhes dos sinais"
+  - "[ ] Registrar scores e sinais em ml_atendimento.churn_scores com timestamp"
+  - "[ ] Validar taxa de falsos positivos < 20%"
 ---
 
 # detect-churn-signals

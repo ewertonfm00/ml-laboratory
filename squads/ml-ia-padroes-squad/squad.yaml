@@ -20,18 +20,18 @@ isolation:
 
 components:
   agents:
-    - agents/pattern-extractor.md
-    - agents/behavior-analyst.md
-    - agents/benchmark-generator.md
-    - agents/assertiveness-analyzer.md
-    - agents/response-variation-cataloger.md
-    - agents/knowledge-gap-detector.md
-    - agents/feedback-collector.md
-    - agents/benchmark-calibrator.md
+    - pattern-extractor.md
+    - behavior-analyst.md
+    - benchmark-generator.md
+    - assertiveness-analyzer.md
+    - response-variation-cataloger.md
+    - knowledge-gap-detector.md
+    - feedback-collector.md
+    - benchmark-calibrator.md
   tasks:
-    - tasks/extract-patterns.md
-    - tasks/analyze-behavior.md
-    - tasks/generate-benchmarks.md
+    - extract-patterns.md
+    - analyze-behavior.md
+    - generate-benchmarks.md
   workflows: []
   checklists: []
   templates: []

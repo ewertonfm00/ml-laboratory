@@ -1,9 +1,33 @@
 ---
 id: build-behavioral-profile
 name: Build Vendor Behavioral Profile
+task: Build Vendor Behavioral Profile
 squad: ml-comercial-squad
 agent: behavioral-profiler
 icon: "👤"
+atomic_layer: task
+elicit: false
+responsavel: behavioral-profiler
+responsavel_type: agent
+Entrada: |
+  - vendedor_id: Identificador do vendedor a ser perfilado
+  - periodo: Data início e fim do período de análise
+  - modelos_comportamentais: Análises de conversas do vendedor do ml-ia-padroes-squad
+Saida: |
+  - perfil_comportamental: Objeto completo com todos os atributos do perfil
+  - estilo_dominante: Estilo de venda predominante classificado
+  - pontos_fortes: Lista de comportamentos com correlação positiva com conversão
+  - gaps: Lista de comportamentos ausentes ou negativos identificados
+  - disc_aproximado: Perfil DISC estimado (D/I/S/C com percentuais)
+  - total_conversas_base: Número de conversas usadas para construir o perfil
+Checklist:
+  - "[ ] Agregar análises de conversas do vendedor no período a partir de ml_padroes.modelos_comportamentais"
+  - "[ ] Identificar padrões comportamentais consistentes (presentes em >= 70% das conversas)"
+  - "[ ] Classificar estilo de venda dominante (varejo/consultiva/despertar_desejo)"
+  - "[ ] Mapear pontos fortes (correlação positiva com conversão)"
+  - "[ ] Mapear gaps (comportamentos ausentes ou correlação negativa)"
+  - "[ ] Calcular DISC aproximado baseado em padrões de comunicação observados"
+  - "[ ] Gerar narrativa descritiva do perfil e persistir em ml_comercial.perfis_comportamentais"
 ---
 
 # build-behavioral-profile

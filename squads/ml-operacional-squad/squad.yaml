@@ -33,13 +33,13 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/process-analyst.md
-    - agents/failure-detector.md
-    - agents/optimization-advisor.md
+    - process-analyst.md
+    - failure-detector.md
+    - optimization-advisor.md
   tasks:
-    - tasks/map-process.md
-    - tasks/detect-bottlenecks.md
-    - tasks/generate-optimization-report.md
+    - map-process.md
+    - detect-bottlenecks.md
+    - generate-optimization-report.md
   workflows: []
   checklists: []
   templates: []

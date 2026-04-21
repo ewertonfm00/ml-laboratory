@@ -1,9 +1,32 @@
 ---
 id: generate-optimization-report
 name: Generate Operational Optimization Report
+task: Generate Operational Optimization Report
 squad: ml-operacional-squad
 agent: optimization-advisor
 icon: "📋"
+atomic_layer: task
+elicit: false
+responsavel: optimization-advisor
+responsavel_type: agent
+Entrada: |
+  - gargalos_priorizados: Gargalos detectados e priorizados pelo detect-bottlenecks em ml_operacional.gargalos
+  - contexto_processo: Contexto do processo operacional e recursos disponíveis
+  - stakeholders: Responsáveis e áreas mapeados para atribuição de ações
+Saida: |
+  - relatorio_otimizacao: Relatório executivo completo com contexto, análise e plano de ação
+  - recomendacoes_priorizadas: Lista de melhorias ordenadas por impacto/esforço com responsável
+  - quick_wins: Melhorias implementáveis em < 1 semana com alto impacto
+  - plano_90_dias: Calendário de implementação distribuído em 30/60/90 dias
+  - ganho_estimado: Estimativa de melhoria por indicador para cada recomendação implementada
+Checklist:
+  - "[ ] Carregar gargalos priorizados (score de impacto, frequência, etapa e evidências)"
+  - "[ ] Analisar causa raiz dos top 5 gargalos (processo/tecnologia/pessoa/comunicação)"
+  - "[ ] Gerar recomendações de melhoria por gargalo (o que, como, resultado esperado)"
+  - "[ ] Classificar cada recomendação por esforço (baixo/médio/alto)"
+  - "[ ] Identificar quick wins (alto impacto + baixo esforço, < 1 semana)"
+  - "[ ] Organizar plano de ação 30/60/90 dias"
+  - "[ ] Persistir relatório em ml_operacional.relatorios_otimizacao com métricas"
 ---
 
 # generate-optimization-report

@@ -1,9 +1,30 @@
 ---
 id: design-schema
 name: Design Postgres Schema
+task: Design Postgres Schema
 squad: ml-data-eng-squad
 agent: schema-designer
 icon: "🗄️"
+atomic_layer: task
+elicit: false
+responsavel: schema-designer
+responsavel_type: agent
+Entrada: |
+  - requisitos_dados: Requisitos de dados da área (entidades, relacionamentos, volume estimado)
+  - squad_name: Nome do squad para definir prefixo do schema (ml_{squad_name})
+  - padroes_acesso: Padrões de acesso e consulta analítica esperados
+Saida: |
+  - schema_ddl: DDL SQL completo e comentado pronto para execução
+  - diagrama_er: Diagrama entidade-relacionamento em formato markdown
+  - migration_file: Arquivo de migration versionado para aplicação via Supabase ou Flyway
+Checklist:
+  - "[ ] Analisar requisitos de dados (entidades, cardinalidades, volume estimado)"
+  - "[ ] Mapear entidades e relacionamentos em diagrama ER em formato markdown"
+  - "[ ] Definir tipos de dados, constraints e valores default para cada campo"
+  - "[ ] Criar DDL completo com tabelas, índices e particionamento se necessário"
+  - "[ ] Documentar cada tabela e coluna com comentários SQL (COMMENT ON)"
+  - "[ ] Revisar DDL com data-quality-validator (normalização, índices, anti-patterns)"
+  - "[ ] Gerar arquivo de migration SQL versionado no padrão V{n}__{descricao}.sql"
 ---
 
 # design-schema

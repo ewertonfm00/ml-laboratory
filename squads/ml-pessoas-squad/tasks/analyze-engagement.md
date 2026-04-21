@@ -1,9 +1,31 @@
 ---
 id: analyze-engagement
 name: Analyze Team Engagement Signals
+task: Analyze Team Engagement Signals
 squad: ml-pessoas-squad
 agent: engagement-monitor
 icon: "👥"
+atomic_layer: task
+elicit: false
+responsavel: engagement-monitor
+responsavel_type: agent
+Entrada: |
+  - padroes_comportamentais: Padrões dos colaboradores no período (mínimo 30 dias de dados)
+  - historico_performance: Histórico de interações e indicadores de performance por colaborador
+  - periodo_comparacao: Período anterior para calcular variação de engajamento
+Saida: |
+  - scores_engajamento: Score calculado por colaborador no período
+  - colaboradores_risco: Lista de colaboradores com risco de desligamento e urgência
+  - sinais_detectados: Sinais comportamentais específicos observados por colaborador em risco
+  - variacao_vs_periodo_anterior: Delta percentual de engajamento por colaborador
+Checklist:
+  - "[ ] Analisar padrões de comportamento dos colaboradores no período"
+  - "[ ] Calcular score de engajamento individual (iniciativa/qualidade/frequência/colaboração)"
+  - "[ ] Comparar score atual com período anterior e calcular variação percentual"
+  - "[ ] Identificar quedas de engajamento >= 20% vs período anterior"
+  - "[ ] Detectar sinais específicos de risco de desligamento"
+  - "[ ] Classificar risco de desligamento por colaborador (alto/médio/monitorar)"
+  - "[ ] Persistir scores em ml_pessoas.scores_engajamento com timestamp e variação"
 ---
 
 # analyze-engagement

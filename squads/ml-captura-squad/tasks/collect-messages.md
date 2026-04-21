@@ -1,9 +1,31 @@
 ---
 id: collect-messages
 name: Collect and Normalize Messages
+task: Collect and Normalize Messages
 squad: ml-captura-squad
 agent: message-collector
 icon: "📥"
+atomic_layer: task
+elicit: false
+responsavel: message-collector
+responsavel_type: agent
+Entrada: |
+  - payload_webhook: Payload bruto recebido do webhook-manager via Evolution API
+  - message_id: Identificador único da mensagem para controle de deduplicação
+  - sessao_id: UUID da sessão de conversa em andamento (ou novo)
+Saida: |
+  - mensagem_normalizada: Objeto com campos padronizados da mensagem
+  - tipo_conteudo: Enum (texto/audio/imagem/documento)
+  - sessao_id: UUID gerado ou associado à conversa em andamento
+  - numero_id: Identificador da instância Evolution API de origem
+Checklist:
+  - "[ ] Receber evento do webhook-manager com payload bruto da Evolution API"
+  - "[ ] Verificar deduplicação no Redis usando ml:captura:msg:{message_id}"
+  - "[ ] Extrair campos do payload (mensagem, remetente, destinatário, timestamp, tipo, message_id)"
+  - "[ ] Normalizar formato para schema padrão interno do laboratório ML"
+  - "[ ] Identificar tipo de conteúdo (texto, áudio, imagem, documento)"
+  - "[ ] Encaminhar áudios para audio-transcriber e textos para privacy-filter"
+  - "[ ] Persistir mensagem bruta em ml_captura.mensagens_raw com status de roteamento"
 ---
 
 # collect-messages

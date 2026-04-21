@@ -4,6 +4,8 @@ agent: process-analyst
 squad: ml-operacional-squad
 atomic_layer: task
 elicit: false
+responsavel: process-analyst
+responsavel_type: agent
 Entrada: |
   - conversa_raw: Texto transcrito da interação operacional
   - area: Área operacional

@@ -1,9 +1,31 @@
 ---
 id: generate-segmentation
 name: Generate Behavioral Segmentation for Campaign
+task: Generate Behavioral Segmentation for Campaign
 squad: ml-marketing-squad
 agent: segmentation-advisor
 icon: "🎯"
+atomic_layer: task
+elicit: false
+responsavel: segmentation-advisor
+responsavel_type: agent
+Entrada: |
+  - objetivo_campanha: Objetivo da campanha (reativacao/upsell/renovacao/prospeccao)
+  - comportamentos_clientes: Comportamentos extraídos das conversas disponíveis em ml_captura e squads operacionais
+  - base_clientes: Base de clientes ativa com histórico de interações
+Saida: |
+  - segmentos: Lista de segmentos com características comportamentais, tamanho e abordagem recomendada
+  - tamanho_por_segmento: Número de clientes em cada segmento
+  - valor_estimado: Valor potencial de conversão estimado por segmento
+  - abordagem_recomendada: Estratégia de comunicação diferenciada para cada segmento
+Checklist:
+  - "[ ] Definir critérios de segmentação baseados no objetivo da campanha"
+  - "[ ] Extrair comportamentos relevantes das conversas (frequência, produtos, objeções, sensibilidade)"
+  - "[ ] Agrupar clientes com perfis comportamentais similares por clustering"
+  - "[ ] Calcular tamanho e valor estimado de cada segmento"
+  - "[ ] Recomendar abordagem diferenciada por segmento (mensagem, oferta, canal, timing)"
+  - "[ ] Gerar lista de clientes por segmento com atributos principais"
+  - "[ ] Persistir segmentação em ml_marketing.segmentacoes com objetivo e segmentos"
 ---
 
 # generate-segmentation

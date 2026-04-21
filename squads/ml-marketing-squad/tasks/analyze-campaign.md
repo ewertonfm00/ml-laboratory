@@ -4,6 +4,8 @@ agent: message-analyzer
 squad: ml-marketing-squad
 atomic_layer: task
 elicit: false
+responsavel: message-analyzer
+responsavel_type: agent
 Entrada: |
   - mensagens_enviadas: Lote de mensagens da campanha
   - respostas_clientes: Conversas geradas após o envio

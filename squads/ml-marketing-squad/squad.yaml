@@ -33,13 +33,13 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/message-analyzer.md
-    - agents/segmentation-advisor.md
-    - agents/timing-optimizer.md
+    - message-analyzer.md
+    - segmentation-advisor.md
+    - timing-optimizer.md
   tasks:
-    - tasks/analyze-campaign.md
-    - tasks/optimize-message.md
-    - tasks/generate-segmentation.md
+    - analyze-campaign.md
+    - optimize-message.md
+    - generate-segmentation.md
   workflows: []
   checklists: []
   templates: []

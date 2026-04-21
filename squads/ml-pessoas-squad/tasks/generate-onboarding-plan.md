@@ -1,9 +1,32 @@
 ---
 id: generate-onboarding-plan
 name: Generate Personalized Onboarding Plan
+task: Generate Personalized Onboarding Plan
 squad: ml-pessoas-squad
 agent: onboarding-advisor
 icon: "🎯"
+atomic_layer: task
+elicit: false
+responsavel: onboarding-advisor
+responsavel_type: agent
+Entrada: |
+  - perfil_ideal_funcao: Perfil ideal da função do talent-profiler (competências e comportamentos esperados)
+  - perfil_colaborador: Perfil do novo colaborador (experiência, DISC, competências declaradas)
+  - melhores_praticas: Melhores práticas de onboarding documentadas para a função
+Saida: |
+  - plano_onboarding: Plano completo com atividades, responsáveis e prazos para os 90 dias
+  - trilha_desenvolvimento: Sequência de aprendizados e experiências organizada por prioridade
+  - milestones_30_60_90: Objetivos mensuráveis para cada checkpoint do onboarding
+  - metricas_sucesso: Indicadores quantitativos para avaliação de cada milestone
+  - gaps_a_desenvolver: Lista priorizada de competências e comportamentos a desenvolver
+Checklist:
+  - "[ ] Carregar perfil ideal da função do talent-profiler"
+  - "[ ] Comparar perfil ideal com perfil do novo colaborador"
+  - "[ ] Priorizar gaps a desenvolver no onboarding por impacto na função"
+  - "[ ] Selecionar melhores práticas de onboarding comprovadas para a função"
+  - "[ ] Gerar trilha personalizada com atividades, recursos e responsáveis por gap"
+  - "[ ] Definir milestones mensuráveis de 30/60/90 dias"
+  - "[ ] Persistir plano em ml_pessoas.planos_onboarding com colaborador_id e função"
 ---
 
 # generate-onboarding-plan

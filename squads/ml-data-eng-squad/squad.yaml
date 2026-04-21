@@ -20,15 +20,15 @@ isolation:
 
 components:
   agents:
-    - agents/schema-designer.md
-    - agents/etl-engineer.md
-    - agents/data-classifier.md
-    - agents/question-pattern-mapper.md
-    - agents/data-quality-validator.md
+    - schema-designer.md
+    - etl-engineer.md
+    - data-classifier.md
+    - question-pattern-mapper.md
+    - data-quality-validator.md
   tasks:
-    - tasks/design-schema.md
-    - tasks/build-etl-pipeline.md
-    - tasks/classify-data.md
+    - design-schema.md
+    - build-etl-pipeline.md
+    - classify-data.md
   workflows: []
   checklists: []
   templates: []

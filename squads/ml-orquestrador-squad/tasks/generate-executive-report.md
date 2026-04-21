@@ -1,9 +1,31 @@
 ---
 id: generate-executive-report
 name: Generate Executive Report
+task: Generate Executive Report
 squad: ml-orquestrador-squad
 agent: executive-reporter
 icon: "📄"
+atomic_layer: task
+elicit: false
+responsavel: executive-reporter
+responsavel_type: agent
+Entrada: |
+  - sintese_cross_area: Síntese cross-área do período em ml_orquestrador.cross_area_insights
+  - resultados_ab_tests: Resultados de testes A/B do ab-test-manager (se aplicável)
+  - destinatarios: Lista de destinatários e formato de entrega configurados para o cliente
+Saida: |
+  - relatorio_executivo: Relatório formatado em linguagem executiva, máximo 1 página
+  - top_3_insights: Os 3 insights selecionados com impacto estimado e ação recomendada
+  - recomendacoes_priorizadas: Ações concretas priorizadas por urgência e impacto
+  - proximo_review: Data e agenda sugerida para próxima revisão executiva
+Checklist:
+  - "[ ] Carregar síntese do cross-area-synthesizer do período atual"
+  - "[ ] Carregar resultados de testes A/B (se houver experimentos ativos)"
+  - "[ ] Selecionar os 3 insights de maior impacto estimado no negócio"
+  - "[ ] Estruturar no formato executivo (situação → o que importa → causa → ação)"
+  - "[ ] Revisar linguagem (eliminar jargão técnico, quantificar impacto financeiro)"
+  - "[ ] Validar que o relatório cabe em máximo 1 página (~400-500 palavras)"
+  - "[ ] Persistir relatório em ml_orquestrador.relatorios_executivos com metadados"
 ---
 
 # generate-executive-report

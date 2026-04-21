@@ -1,9 +1,31 @@
 ---
 id: transcribe-audio
 name: Transcribe Audio WhatsApp
+task: Transcribe Audio WhatsApp
 squad: ml-captura-squad
 agent: audio-transcriber
 icon: "🎙️"
+atomic_layer: task
+elicit: false
+responsavel: audio-transcriber
+responsavel_type: agent
+Entrada: |
+  - audio_url: URL de download do arquivo de áudio fornecida pela Evolution API
+  - sessao_id: UUID da sessão de conversa associada
+  - api_key_groq: Chave de API Groq configurada no ambiente
+Saida: |
+  - transcricao_texto: Texto transcrito e normalizado do áudio
+  - duracao_audio: Duração em segundos do arquivo de áudio
+  - confianca_transcricao: Score de confiança da transcrição (0.0 a 1.0)
+  - sessao_id: Identificador da sessão de conversa associada
+Checklist:
+  - "[ ] Receber payload do message-collector com URL do áudio e sessao_id"
+  - "[ ] Baixar arquivo de áudio da URL fornecida (formato ogg/mp4)"
+  - "[ ] Enviar arquivo para Groq Whisper API com modelo whisper-large-v3 e language pt"
+  - "[ ] Receber transcrição com score de confiança e duração do áudio"
+  - "[ ] Normalizar texto (remover ruídos, corrigir pontuação básica, trim de espaços)"
+  - "[ ] Persistir resultado em ml_captura.transcricoes com todos os campos"
+  - "[ ] Encaminhar texto normalizado para privacy-filter via evento interno"
 ---
 
 # transcribe-audio

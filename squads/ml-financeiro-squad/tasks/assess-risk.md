@@ -4,6 +4,8 @@ agent: risk-analyzer
 squad: ml-financeiro-squad
 atomic_layer: task
 elicit: false
+responsavel: risk-analyzer
+responsavel_type: agent
 Entrada: |
   - conversa_raw: Conversa sobre pagamentos ou financeiro
   - historico_pagamentos: Histórico do cliente

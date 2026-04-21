@@ -33,14 +33,14 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/cashflow-predictor.md
-    - agents/risk-analyzer.md
-    - agents/collections-advisor.md
+    - cashflow-predictor.md
+    - risk-analyzer.md
+    - collections-advisor.md
   tasks:
-    - tasks/assess-risk.md
-    - tasks/analyze-cashflow.md
-    - tasks/detect-financial-risk.md
-    - tasks/generate-forecast.md
+    - assess-risk.md
+    - analyze-cashflow.md
+    - detect-financial-risk.md
+    - generate-forecast.md
   workflows: []
   checklists: []
   templates: []

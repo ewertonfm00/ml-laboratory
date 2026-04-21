@@ -1,9 +1,30 @@
 ---
 id: synthesize-cross-area
 name: Synthesize Cross-Area Intelligence
+task: Synthesize Cross-Area Intelligence
 squad: ml-orquestrador-squad
 agent: cross-area-synthesizer
 icon: "🔀"
+atomic_layer: task
+elicit: false
+responsavel: cross-area-synthesizer
+responsavel_type: agent
+Entrada: |
+  - relatorios_squads: Relatórios e insights de todos os squads ativos no período
+  - periodo_sintese: Período de síntese definido (semanal ou mensal)
+  - metricas_chave: Métricas-chave por squad (conversão, churn, risco, gargalos, engajamento)
+Saida: |
+  - correlacoes_detectadas: Lista de correlações entre métricas de áreas distintas com força da correlação
+  - narrativa_integrada: Narrativa em linguagem executiva do estado integrado do negócio
+  - insights_priorizados: Top insights ordenados por impacto estimado no negócio
+  - hipoteses_causa_raiz: Hipóteses explicativas para as correlações detectadas com evidências
+Checklist:
+  - "[ ] Coletar resumos de padrões e métricas-chave de todos os squads ativos"
+  - "[ ] Identificar correlações temporais entre métricas de áreas diferentes"
+  - "[ ] Detectar causa raiz sistêmica das correlações (produto/processo/equipe/mercado)"
+  - "[ ] Priorizar insights por impacto estimado (financeiro × urgência × abrangência)"
+  - "[ ] Gerar narrativa integrada do estado do negócio em linguagem executiva"
+  - "[ ] Persistir síntese em ml_orquestrador.cross_area_insights com correlações e narrativa"
 ---
 
 # synthesize-cross-area

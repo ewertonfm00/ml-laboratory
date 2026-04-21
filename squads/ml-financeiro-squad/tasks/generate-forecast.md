@@ -1,9 +1,31 @@
 ---
 id: generate-forecast
 name: Generate Consolidated Financial Forecast
+task: Generate Consolidated Financial Forecast
 squad: ml-financeiro-squad
 agent: cashflow-predictor
 icon: "📉"
+atomic_layer: task
+elicit: false
+responsavel: cashflow-predictor
+responsavel_type: agent
+Entrada: |
+  - previsoes_individuais: Previsões individuais de clientes geradas pelo analyze-cashflow
+  - scores_risco: Scores de risco do detect-financial-risk para ajuste dos cenários
+  - historico_sazonalidade: Histórico de sazonalidade dos últimos 12 meses
+Saida: |
+  - previsao_consolidada: Previsão de caixa consolidada com valores por semana/mês
+  - cenarios: Objeto com valores para os 3 cenários (otimista/realista/pessimista) com premissas
+  - principais_riscos: Lista dos riscos financeiros mais relevantes do período
+  - recomendacoes_gestao: Ações recomendadas com impacto estimado e prazo de implementação
+Checklist:
+  - "[ ] Agregar previsões individuais de recebimento por cliente para o período consolidado"
+  - "[ ] Aplicar fatores sazonais dos últimos 12 meses"
+  - "[ ] Aplicar fatores de risco do risk-analyzer para clientes alto/crítico"
+  - "[ ] Calcular 3 cenários consolidados (otimista/realista/pessimista)"
+  - "[ ] Identificar principais riscos (concentração, semanas críticas, sazonalidade negativa)"
+  - "[ ] Identificar oportunidades (semanas com folga para investimento)"
+  - "[ ] Persistir relatório em ml_financeiro.relatorios_previsao"
 ---
 
 # generate-forecast

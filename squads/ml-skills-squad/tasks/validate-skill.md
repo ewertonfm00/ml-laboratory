@@ -1,9 +1,31 @@
 ---
 id: validate-skill
 name: Validate Skill Before Deployment
+task: Validate Skill Before Deployment
 squad: ml-skills-squad
 agent: skill-validator
 icon: "✅"
+atomic_layer: task
+elicit: false
+responsavel: skill-validator
+responsavel_type: agent
+Entrada: |
+  - skill_id: UUID da skill gerada pelo skill-generator com status pendente_validacao
+  - material_tecnico: Material técnico dos produtos via technical-content-loader
+  - api_claude: Acesso à API Claude para simulação de conversas
+Saida: |
+  - validation_score: Score de validação calculado (0-100)
+  - status: Resultado da validação (aprovada/reprovada)
+  - problemas_encontrados: Lista de contradições, lacunas ou erros técnicos identificados
+  - cenarios_testados: Descrição dos 10 cenários simulados e resultado de cada um
+Checklist:
+  - "[ ] Carregar skill do skill-generator pelo skill_id fornecido"
+  - "[ ] Simular 10 cenários de conversa distintos usando a skill via Claude API"
+  - "[ ] Verificar coerência e alinhamento de cada simulação ao cenário"
+  - "[ ] Verificar alinhamento com material técnico (informações factuais vs conteúdo oficial)"
+  - "[ ] Detectar contradições internas (triggers conflitantes, instruções ambíguas)"
+  - "[ ] Detectar lacunas (cenários críticos não cobertos)"
+  - "[ ] Calcular score e aprovar (>= 80) ou reprovar com lista de problemas para correção"
 ---
 
 # validate-skill

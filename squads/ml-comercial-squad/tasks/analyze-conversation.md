@@ -4,6 +4,8 @@ agent: conversation-analyst
 squad: ml-comercial-squad
 atomic_layer: task
 elicit: false
+responsavel: conversation-analyst
+responsavel_type: agent
 Entrada: |
   - conversa_raw: Texto transcrito da conversa
   - vendedor_id: ID do vendedor

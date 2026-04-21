@@ -1,9 +1,31 @@
 ---
 id: generate-skill
 name: Generate Niche Agent Skill
+task: Generate Niche Agent Skill
 squad: ml-skills-squad
 agent: skill-generator
 icon: "⚡"
+atomic_layer: task
+elicit: false
+responsavel: skill-generator
+responsavel_type: agent
+Entrada: |
+  - padroes_validados: Padrões comportamentais validados em ml_padroes.padroes_extraidos para o nicho/produto
+  - conteudo_tecnico: Conteúdo técnico dos produtos carregado pelo niche-content-extractor
+  - top_cenarios: Top 10 cenários do nicho mapeados e priorizados
+Saida: |
+  - skill_id: UUID único da skill gerada
+  - skill_content: Skill estruturada no formato AIOX Agent Framework
+  - cenarios_cobertos: Lista dos cenários do nicho contemplados pela skill
+  - score_cobertura: Percentual dos top 10 cenários cobertos (0.0 a 1.0)
+Checklist:
+  - "[ ] Carregar padrões do ml-ia-padroes-squad para o nicho e produto específico"
+  - "[ ] Carregar conteúdo técnico do produto via niche-content-extractor"
+  - "[ ] Estruturar skill com 4 componentes (cenário, trigger, instrução, exemplo)"
+  - "[ ] Validar cobertura dos top 10 cenários prioritários do nicho"
+  - "[ ] Formatar skill no padrão AIOX Agent Framework (YAML + exemplos em markdown)"
+  - "[ ] Persistir skill em ml_skills.skills_geradas com versão e score de cobertura"
+  - "[ ] Encaminhar skill para skill-validator antes de marcar como disponível"
 ---
 
 # generate-skill

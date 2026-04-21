@@ -1,9 +1,31 @@
 ---
 id: optimize-message
 name: Optimize Marketing Message
+task: Optimize Marketing Message
 squad: ml-marketing-squad
 agent: message-analyzer
 icon: "✉️"
+atomic_layer: task
+elicit: false
+responsavel: message-analyzer
+responsavel_type: agent
+Entrada: |
+  - historico_mensagens: Histórico de mensagens enviadas ao segmento com métricas de engajamento
+  - mensagem_atual: Mensagem atual ou briefing da mensagem a otimizar
+  - segmento_alvo: Segmento-alvo com características comportamentais definidas
+Saida: |
+  - mensagem_otimizada: Variação principal recomendada com justificativa baseada em dados
+  - variacoes_alternativas: As 3 variações geradas para teste A/B
+  - elementos_eficazes: Lista de elementos identificados como correlacionados com engajamento
+  - engajamento_estimado: Score de engajamento estimado para cada variação (baseline e delta esperado)
+Checklist:
+  - "[ ] Analisar variações de mensagens enviadas anteriormente para o segmento"
+  - "[ ] Identificar elementos que correlacionam positivamente com engajamento"
+  - "[ ] Categorizar elementos eficazes (tom, estrutura, CTA, horário)"
+  - "[ ] Aplicar elementos identificados à mensagem atual"
+  - "[ ] Gerar 3 variações distintas (variação A: tom, B: estrutura, C: CTA)"
+  - "[ ] Calcular score de engajamento esperado por variação"
+  - "[ ] Persistir mensagens em ml_marketing.mensagens_otimizadas com scores"
 ---
 
 # optimize-message

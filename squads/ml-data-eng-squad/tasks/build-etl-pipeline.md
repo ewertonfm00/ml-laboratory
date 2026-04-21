@@ -1,9 +1,31 @@
 ---
 id: build-etl-pipeline
 name: Build ETL Pipeline n8n
+task: Build ETL Pipeline n8n
 squad: ml-data-eng-squad
 agent: etl-engineer
 icon: "🔄"
+atomic_layer: task
+elicit: false
+responsavel: etl-engineer
+responsavel_type: agent
+Entrada: |
+  - schema_origem: Schema de origem (ml_captura.*) com tabelas e campos mapeados
+  - schema_destino: Schema destino do squad operacional definido e criado
+  - regras_transformacao: Regras de transformação documentadas para cada campo
+  - trigger_ativacao: Trigger definido (schedule ou evento por inserção)
+Saida: |
+  - workflow_n8n_id: ID do workflow criado/atualizado no n8n
+  - pipeline_config: Configuração resumida com mapeamentos, frequência e modo de trigger
+  - registros_processados: Número de registros processados no último ciclo de teste
+Checklist:
+  - "[ ] Mapear campos da tabela de origem para o schema destino"
+  - "[ ] Definir transformações necessárias (normalização, enriquecimento, agregação, conversão)"
+  - "[ ] Criar workflow n8n (Trigger → Extract → Transform → Load)"
+  - "[ ] Configurar tratamento de erros (try/catch, dead-letter queue no Redis)"
+  - "[ ] Configurar retry automático (3 tentativas com backoff exponencial)"
+  - "[ ] Testar pipeline com amostra de dados reais e validar integridade"
+  - "[ ] Ativar workflow com schedule ou trigger por evento de inserção"
 ---
 
 # build-etl-pipeline

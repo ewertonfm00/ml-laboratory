@@ -1,9 +1,31 @@
 ---
 id: train-agent
 name: Train Niche Agent with Production Data
+task: Train Niche Agent with Production Data
 squad: ml-skills-squad
 agent: agent-trainer
 icon: "🎓"
+atomic_layer: task
+elicit: false
+responsavel: agent-trainer
+responsavel_type: agent
+Entrada: |
+  - agente_versao_atual: Agente de nicho com versão atual em produção (>= 2 semanas)
+  - metricas_performance: Métricas das últimas 2 semanas do agent-performance-tracker
+  - threshold_benchmark: Threshold de conversão e escalonamento do benchmark para o nicho
+Saida: |
+  - versao_agente: Nova versão do agente gerada após o treinamento
+  - melhorias_aplicadas: Lista de skills atualizadas com descrição da melhoria
+  - cenarios_melhorados: Cenários que receberam atualização de skill
+  - delta_performance_esperado: Estimativa de melhoria de conversão baseada nas mudanças
+Checklist:
+  - "[ ] Carregar métricas de performance das últimas 2 semanas (conversão, escalonamentos, avaliações)"
+  - "[ ] Identificar cenários com baixa performance (conversão abaixo do threshold ou escalonamento > 10%)"
+  - "[ ] Analisar onde o agente falhou em cada cenário problemático"
+  - "[ ] Gerar hipóteses de melhoria para cada cenário (instrução, exemplo, trigger)"
+  - "[ ] Atualizar skills problemáticas via skill-generator com as hipóteses aplicadas"
+  - "[ ] Validar skills atualizadas via skill-validator (aprovar score >= 80)"
+  - "[ ] Criar nova versão do agente e registrar training run em ml_skills.training_runs"
 ---
 
 # train-agent

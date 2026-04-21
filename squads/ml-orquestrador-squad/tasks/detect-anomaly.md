@@ -1,9 +1,32 @@
 ---
 id: detect-anomaly
 name: Detect Cross-Area Anomalies
+task: Detect Cross-Area Anomalies
 squad: ml-orquestrador-squad
 agent: anomaly-detector
 icon: "🔔"
+atomic_layer: task
+elicit: false
+responsavel: anomaly-detector
+responsavel_type: agent
+Entrada: |
+  - metricas_squads: Métricas-chave de todos os squads operacionais (latência máxima 1 hora)
+  - baseline_30_dias: Baseline dos últimos 30 dias em ml_orquestrador.metricas_baseline
+  - thresholds_anomalia: Thresholds configurados por métrica (padrão: 2 desvios padrão)
+Saida: |
+  - anomalias_detectadas: Lista de anomalias identificadas com métrica, desvio e áreas afetadas
+  - tipo: Classificação de cada anomalia como risco ou oportunidade
+  - urgencia: Nível de urgência por anomalia (imediata/esta semana/monitorar)
+  - areas_afetadas: Squads com métricas em desvio para cada anomalia detectada
+  - recomendacao_acao: Ação inicial recomendada para cada anomalia identificada
+Checklist:
+  - "[ ] Monitorar métricas-chave de todos os squads operacionais"
+  - "[ ] Comparar valores atuais com baseline dos últimos 30 dias"
+  - "[ ] Detectar desvios >= 2 desvios padrão em qualquer métrica monitorada"
+  - "[ ] Verificar correlação cross-área (desvio isolado vs anomalia sistêmica)"
+  - "[ ] Classificar anomalia como risco ou oportunidade"
+  - "[ ] Calcular urgência (imediata >= 3σ / esta semana 2-3σ / monitorar)"
+  - "[ ] Disparar alerta para insight-scheduler e persistir em ml_orquestrador.anomalias_detectadas"
 ---
 
 # detect-anomaly

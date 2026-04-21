@@ -1,9 +1,33 @@
 ---
 id: generate-retention-strategy
 name: Generate Personalized Retention Strategy
+task: Generate Personalized Retention Strategy
 squad: ml-atendimento-squad
 agent: retention-advisor
 icon: "🤝"
+atomic_layer: task
+elicit: false
+responsavel: retention-advisor
+responsavel_type: agent
+Entrada: |
+  - cliente_id: Identificador do cliente em risco de churn
+  - churn_score: Score e sinais detectados pelo churn-detector
+  - historico_cliente: Histórico completo do cliente (compras, interações, reclamações, produtos)
+  - perfil_comportamental: Perfil comportamental do cliente (disponível ou inferível)
+Saida: |
+  - estrategia_retencao: Plano completo com 3 abordagens priorizadas e scripts de contato
+  - causa_raiz_identificada: Motivo principal do risco de churn identificado
+  - abordagens_priorizadas: Lista de abordagens ordenadas por probabilidade de sucesso estimada
+  - canal_recomendado: Canal de contato ideal para o perfil do cliente
+  - timing_contato: Horário e dia recomendado para primeiro contato
+Checklist:
+  - "[ ] Carregar histórico completo do cliente (compras, interações, reclamações, produtos)"
+  - "[ ] Carregar análise de churn score e sinais específicos do churn-detector"
+  - "[ ] Cruzar sinais de churn com perfil comportamental do cliente"
+  - "[ ] Identificar causa raiz do risco de churn"
+  - "[ ] Gerar plano de retenção com 3 abordagens priorizadas por probabilidade de sucesso"
+  - "[ ] Definir canal de contato ideal baseado no perfil e urgência"
+  - "[ ] Definir timing de contato e registrar estratégia em ml_atendimento.estrategias_retencao"
 ---
 
 # generate-retention-strategy

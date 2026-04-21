@@ -33,13 +33,13 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/talent-profiler.md
-    - agents/engagement-monitor.md
-    - agents/onboarding-advisor.md
+    - talent-profiler.md
+    - engagement-monitor.md
+    - onboarding-advisor.md
   tasks:
-    - tasks/profile-talent.md
-    - tasks/analyze-engagement.md
-    - tasks/generate-onboarding-plan.md
+    - profile-talent.md
+    - analyze-engagement.md
+    - generate-onboarding-plan.md
   workflows: []
   checklists: []
   templates: []
