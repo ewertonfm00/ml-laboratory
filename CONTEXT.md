@@ -1,6 +1,6 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-21 (sessão 11 — limpeza de arquivos, CLAUDE.md otimizado)
+**Última sessão:** 2026-04-21 (gap analysis squads ML — completo)
 
 ---
 
@@ -14,6 +14,11 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 ---
 
 ## Pendências
+
+### SQUADS ML — PÓS GAP ANALYSIS (novos)
+- [ ] Validar squads com `*validate-squad` para cada squad
+- [ ] Implementar workflows n8n das tasks criadas (começar por ml-captura: configure-webhook → collect-messages → transcribe-audio)
+- [ ] Seed inicial do segment-catalog-manager (catálogo vazio inutiliza Saída 2)
 
 ### CONEXÃO WHATSAPP
 - [ ] Acessar `/numeros/conectar` e escanear QR Code
@@ -29,6 +34,10 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
 - [ ] Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador → após onboarding EsteticaIA
 
+### DASHBOARD
+- [ ] Forçar redeploy portal-ml no Railway (bloqueio do dashboard de conversas)
+- [ ] Confirmar schema real via `/api/diagnostico` e fazer fix definitivo
+
 ---
 
 ## Infraestrutura Railway — Estado Atual
@@ -37,24 +46,26 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 |---------|--------|---------|
 | Postgres | ✅ Ativo | 19 migrations executadas (001→019) |
 | n8n | ✅ Ativo | 20+ workflows, ML-CAPTURA publicado |
-| Evolution API | ✅ Ativo | Pronta, nenhuma instância conectada |
+| Evolution API | ✅ Ativo | Pronta, aguardando QR Code |
 | Portal Next.js | ✅ HTTP 200 | `https://portal-ml-production.up.railway.app` |
 | Metabase | ✅ Ativo | — |
 
-## Portal — Rotas Disponíveis (todas funcionando)
+## Squads ML — Estado Atual (pós gap analysis)
 
-| Rota | Tela |
-|------|------|
-| `/numeros/conectar` | Conectar número WhatsApp (QR Code) |
-| `/p/[slug]/numeros` | Números conectados |
-| `/p/[slug]/clinica` | Cadastro do Negócio (9 seções + procedimentos) |
-| `/p/[slug]/procedimentos` | Produtos / Serviços |
-| `/p/[slug]/materiais` | Materiais Técnicos |
-| `/p/[slug]/metodologias` | Metodologias de Vendas |
-| `/p/[slug]/conversas` | Conversas capturadas |
-| `/p/[slug]/agente` | Perfil DISC + Painel Performance |
-| `/p/[slug]/skills` | Skills |
-| `/p/[slug]/validacao/fila` | Fila de Validação |
+| Squad | Agentes | Tasks | Status |
+|-------|---------|-------|--------|
+| ml-captura | 6 | 3 | ✅ Completo |
+| ml-data-eng | 5 | 3 | ✅ Completo |
+| ml-ia-padroes | 8 | 3 | ✅ Completo |
+| ml-plataforma | 5 | 3 | ✅ Completo |
+| ml-skills | 6 | 3 | ✅ Completo |
+| ml-comercial | 9 | 6 | ✅ Completo |
+| ml-atendimento | 4 | 3 | ✅ Completo |
+| ml-financeiro | 3 | 4 | ✅ Completo |
+| ml-marketing | 3 | 3 | ✅ Completo |
+| ml-operacional | 3 | 3 | ✅ Completo |
+| ml-pessoas | 3 | 3 | ✅ Completo |
+| ml-orquestrador | 5 | 4 | ✅ Completo |
 
 ## Contexto técnico
 
