@@ -21,7 +21,7 @@ async function getProjetoStats(projetoId: string) {
         [projetoId]
       ),
       query<{ total: string }>(
-        `SELECT COUNT(*) as total FROM _plataforma.numeros_projeto WHERE projeto_id = $1 AND status = 'conectado'`,
+        `SELECT COUNT(*) as total FROM _plataforma.numeros_projeto WHERE projeto_id = $1 AND status = 'ativo'`,
         [projetoId]
       ),
     ]);
