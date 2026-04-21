@@ -40,6 +40,20 @@ Constrói e mantém o perfil comportamental de cada vendedor a partir de múltip
 - `*compare-profiles` — Compara dois perfis de vendedores
 - `*ideal-match` — Compara perfil vs ideal por tipo de venda
 
+## Outputs duais (reposicionado v2.0)
+
+Este agente gera dois tipos de output distintos:
+
+**Saída 1 — Perfil de nicho (conteúdo específico do segmento):**
+- Perfil comportamental do vendedor no contexto do segmento piloto
+- Estilo de venda validado para os produtos/serviços sendo comercializados
+- Alimenta: `niche-content-extractor` e `niche-agent-assembler`
+
+**Saída 2 — Perfil universal portável:**
+- Características comportamentais independentes do nicho (DISC, metodologia, comunicação)
+- Avaliação de portabilidade para outros segmentos de mercado
+- Alimenta: `profile-portability-evaluator` e `segment-match-scorer`
+
 ## Data
 
 - **Fonte:** Postgres schema `ml_comercial`, tabela `perfis_vendedor`

@@ -49,6 +49,20 @@ Cataloga todas as objeções que aparecem nas conversas reais, classifica por fr
 - `*top-objections` — Lista top objeções por produto
 - `*gap-analysis` — Identifica objeções sem boa resposta catalogada
 
+## Outputs duais (reposicionado v2.0)
+
+Este agente gera dois tipos de output distintos:
+
+**Saída 1 — Objeções do segmento (conteúdo específico):**
+- Catálogo de objeções reais com contexto e respostas validadas para o segmento piloto
+- Segmentado por produto, tipo de venda e perfil de cliente
+- Alimenta: `niche-content-extractor` com pares objeção-resposta prontos para uso
+
+**Saída 2 — Padrões universais de objeção:**
+- Tipologia universal de objeções independente do nicho (preço, prazo, necessidade, confiança)
+- Padrões comportamentais de como o vendedor lida com objeções (evita, enfrenta, contorna)
+- Alimenta: `profile-portability-evaluator` com dado sobre capacidade de lidar com objeções
+
 ## Data
 
 - **Fonte:** Postgres schema `ml_comercial`, tabela `objecoes`

@@ -253,3 +253,271 @@ Lógica de resolução no n8n (captura):
 - [ ] Conectar número WhatsApp via Appsmith → escanear QR Code
 - [ ] Painel da Clínica: telas para substituir formulário da planilha
 - [ ] Campo `responsavel` do onboarding: persistir ou remover
+
+---
+## Sessão 2026-04-19 (encerramento)
+
+### 1. Implementações
+- `portal-next/app/p/[slug]/clinica/page.tsx`: formulário completo com 9 seções colapsáveis (Identidade, Contato/Localização, Operação/Agendamento, Pagamento, Configuração do Agente, FAQ, Depoimentos, Contra-indicações, Autorizações) + modal inline CRUD de procedimentos — commit 3a02ab1
+- `database/migrations/018_projetos_responsavel.sql`: ADD COLUMN responsavel VARCHAR(255) em _plataforma.projetos — aplicada no Railway (IF NOT EXISTS executou sem erro)
+- `database/migrations/rollbacks/018_projetos_responsavel_rollback.sql`: rollback correspondente
+- `infra/n8n/workflows/ML-ONBOARDING-conectar-cliente.json`: INSERT e ON CONFLICT UPDATE com campo responsavel
+- `CONTEXT.md`: atualizado — 18 migrations, portal validado HTTP 200, pendências revistas
+- `logs-sessao/2026-04-19_encerramento.md`: criado
+- `knowledge-base/negocio.md`: migration 018 registrada
+
+### 2. Decisões
+- Painel da Clínica implementado como formulário único (9 seções) com modal inline para procedimentos — não como telas separadas — simplifica navegação
+- 404 em /p/omega-laser/clinica é comportamento correto: slug só existe no banco após onboarding do cliente
+- Migration 018 aplicada mesmo com coluna já existindo — IF NOT EXISTS garantiu idempotência
+- Portal raiz (/) e /numeros/conectar confirmados HTTP 200 via @qa
+
+### 3. Todos ativos
+- [ ] PRIORIDADE 1 (manual): escanear QR Code em https://portal-ml-production.up.railway.app/numeros/conectar
+- [ ] Após QR Code: enviar mensagem teste → capturar payload → adaptar nó "Normalizar Payload"
+- [ ] Seed master: usuário passa e-mail + senha → gerar SQL → executar Railway
+- [ ] Story 1.1 tasks 2.6–2.8: testes mono/multi (aguarda WhatsApp conectado)
+- [ ] Story 1.2 tasks 3.1–3.2: testes E2E EsteticaIA (aguarda homologação)
+- [ ] Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador (aguarda onboarding EsteticaIA)
+
+---
+## Sessão 2026-04-20
+
+### 1. Implementações
+
+**Migration 018** — aplicada no Railway via psql (coluna `responsavel` em `_plataforma.projetos` — já existia, IF NOT EXISTS executou sem erro)
+
+**n8n workflow ML-SETUP-INSTANCIA** (`x5K56gBpg0IZj47m`) — 3 correções aplicadas via API:
+- Nó "Criar Instância Evolution": removido `authentication: genericCredentialType` → `none` (credencial não existia)
+- Nó "Criar Instância Evolution": `qrcode: "true"` (string) → `true` (boolean) via jsonBody com sintaxe `={...}` (sem `=` prefix causava crash antes de executar qualquer nó)
+- Workflow desativado/reativado para reregistrar webhook após atualização
+
+**Railway portal-ml** — DATABASE_URL corrigida:
+- Antes: `postgres.railway.internal:5432/railway` (URL interna — private networking não configurado)
+- Depois: `mainline.proxy.rlwy.net:13932/railway` (URL pública — funcional)
+
+**Railway n8n** — `DB_POSTGRESDB_POOL_SIZE=5` adicionado para limitar pool interno
+
+**`portal-next/lib/db.ts`** — pool reduzido `max: 10` → `max: 3`, `idleTimeoutMillis: 30000` → `10000` — commit `55d6e89`
+
+**Banco** — projeto `Omega Laser Locações` renomeado: `nome='Estética IA'`, `slug='estetica-ia'`
+
+**Banco** — 98 conexões idle terminadas via `pg_terminate_backend` (banco estava saturado com max_connections=100)
+
+**Funcionalidades entregues:**
+- QR Code de conexão WhatsApp funcionando end-to-end via portal
+- Portal carregando projetos ativos do banco (após fix DATABASE_URL)
+- Número `ml-5516988456918` conectado e ativo
+- Pipeline ML-CAPTURA recebendo eventos `messages.upsert` com payload completo
+
+### 2. Decisões
+
+- **URL pública para portal**: URL interna Railway falha sem private networking explícito entre serviços
+- **Pool portal max:3**: Railway Postgres limita a 100 conexões; n8n consome ~98 internamente
+- **DB_POSTGRESDB_POOL_SIZE=5**: limitar pool interno n8n para reservar conexões para workflows
+- **Limpeza manual de conexões**: `pg_terminate_backend` via banco `postgres` (não `railway`) quando saturado
+- **Todos os números da ML** conectam no projeto "Machine Learning"; "Estética IA" (ex-Omega Laser Locações) é para o cliente clínica
+- **jsonBody n8n**: DEVE começar com `=` para ser avaliado como expressão dinâmica; sem `=`, `={{ }}` causa JSON parse error e crash antes de executar qualquer nó
+- **Instâncias nomeadas** como `ml-{numero_limpo}` pelo workflow ML-SETUP-INSTANCIA
+
+### 3. Todos Ativos
+
+- [ ] **Validar pipeline ML-CAPTURA end-to-end**: recebeu "Teste 123" mas falhou em "Lookup Setor" por too many clients — após fix de conexões, reenviar mensagem de teste e confirmar insert em `ml_captura.mensagens_raw` e `sessoes_conversa`
+- [ ] **Adaptar nó "Normalizar Payload"**: verificar extração de `remoteJid`, `pushName`, `conversation` do payload real (formato Evolution API confirmado na sessão)
+- [ ] **Seed MASTER**: criar usuário master no banco (usuário precisa fornecer e-mail + senha)
+- [ ] **Story 1.1 tasks 2.6–2.8**: testes mono/multi (WhatsApp já conectado — pode executar agora)
+- [ ] **Story 1.2 tasks 3.1–3.2**: testes E2E EsteticaIA (aguarda homologação)
+- [ ] **Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador** (aguarda onboarding EsteticaIA)
+
+---
+## Sessão 2026-04-20 (continuação — arquitetura de squads e agentes)
+
+### 1. Implementações
+
+**`memory/project_visao_escopo.md`** — ATUALIZADO
+- Adicionada seção "PRINCÍPIO FUNDAMENTAL" com regra explícita: Omega Laser é laboratório, não cliente final
+- Padrões extraídos são universais e portáveis — nunca referenciar como "padrões da Omega Laser"
+- Atualizado contexto de mercado para distinguir ambiente de piloto vs. produto final
+
+### 2. Decisões
+
+**Arquitetura de 3 saídas do ML Laboratory (definição formal):**
+
+| Saída | O que é | Agentes chave |
+|-------|---------|---------------|
+| **Saída 1 — Agente de nicho** | IA treinada com conteúdo exato do segmento piloto (scripts, objeções, produtos, abordagens validadas) — deployável para atender o mesmo público | `niche-content-extractor`, `niche-agent-assembler` (AUSENTES) |
+| **Saída 2 — Perfil comportamental portável** | Características comportamentais extraídas (DISC, estilo de venda, metodologia) + avaliação de portabilidade para outros segmentos | `profile-portability-evaluator`, `segment-match-scorer` (AUSENTES) |
+| **Saída 3 — Base de conhecimento com assertividade** | Material técnico dos produtos vs. respostas reais dos atendentes → score de assertividade + catálogo de variações de resposta por pergunta + gaps de conhecimento | `technical-content-loader`, `assertiveness-analyzer`, `response-variation-cataloger`, `knowledge-gap-detector`, `question-pattern-mapper` (TODOS AUSENTES) |
+
+**Princípio fundamental registrado:**
+- Omega Laser = ambiente de piloto (dataset inicial), não cliente final do produto
+- Produto final = padrões e perfis universais de comportamento comercial, agnósticos de nicho
+- NUNCA dizer "skills/padrões da Omega Laser" — SEMPRE "padrões identificados no piloto, aplicáveis universalmente"
+
+**Agentes ausentes identificados (8 novos):**
+- Saída 1: `niche-content-extractor`, `niche-agent-assembler`
+- Saída 2: `profile-portability-evaluator`, `segment-match-scorer`
+- Saída 3: `technical-content-loader`, `assertiveness-analyzer`, `response-variation-cataloger`, `knowledge-gap-detector`
+- Suporte Saída 3: `question-pattern-mapper` (ml-data-eng-squad)
+
+**Agentes existentes que precisam ser reposicionados:**
+- `behavioral-profiler`, `objection-handler`, `product-approach` — output deve ser explicitamente dividido entre "conteúdo de nicho" (Saída 1) e "padrão universal" (Saída 2)
+
+**Agente `@squad-creator` (Craft)** ativado para conduzir revisão formal
+
+### 3. Todos Ativos
+
+- [ ] **Revisão formal da arquitetura de squads** — executar `*design-squad` com blueprint atualizado para modelo de 3 saídas
+- [ ] **Criar 8 agentes ausentes** nos squads correspondentes
+- [ ] **Reposicionar agentes existentes** com output dual (nicho + universal)
+- [ ] **Criar `ml-orquestrador-squad`** (novo) — `cross-area-synthesizer`, `executive-reporter`, `anomaly-detector`
+- [ ] **Operacionalizar `ml-skills-squad`** — agentes existem, workflows n8n não implementados
+- [ ] Todas as pendências da sessão anterior (dashboard, pipeline, seeds) continuam ativas
+
+---
+## Sessão 2026-04-20 (continuação — design-squad 3 saídas)
+
+### 1. Implementações
+- `memory/project_visao_escopo.md`: PRINCÍPIO FUNDAMENTAL adicionado — Omega Laser é laboratório/piloto, padrões são universais
+- `.claude/session-log.md`: sessão de arquitetura appendada
+- ClickUp: task "Onboarding - Machine Learning (2026-04-20)" criada → https://app.clickup.com/t/86ah095yt
+
+### 2. Decisões
+
+**3 saídas formais do ML Laboratory (definidas e aceitas):**
+- Saída 1 — Agente de nicho replicável (conteúdo exato do segmento, deployável para o mesmo público)
+- Saída 2 — Perfil comportamental portável (DISC, estilo, metodologia → avaliado para outros segmentos)
+- Saída 3 — Base de conhecimento com assertividade (material técnico vs. respostas reais → score + variações + gaps)
+
+**9 agentes novos aceitos pelo usuário:**
+- niche-content-extractor → ml-comercial-squad (Saída 1)
+- niche-agent-assembler → ml-skills-squad (Saída 1)
+- profile-portability-evaluator → ml-comercial-squad (Saída 2)
+- segment-match-scorer → ml-comercial-squad (Saída 2)
+- technical-content-loader → ml-captura-squad (Saída 3)
+- assertiveness-analyzer → ml-ia-padroes-squad (Saída 3)
+- response-variation-cataloger → ml-ia-padroes-squad (Saída 3)
+- knowledge-gap-detector → ml-ia-padroes-squad (Saída 3)
+- question-pattern-mapper → ml-data-eng-squad (Saída 3)
+
+**3 agentes existentes aguardando confirmação de reposicionamento (output dual):**
+- behavioral-profiler: perfil de nicho (S1) + perfil universal portável (S2)
+- objection-handler: objeções do segmento (S1) + padrões universais (S2)
+- product-approach: scripts de nicho (S1) + padrão de abordagem portável (S2)
+
+### 3. Todos Ativos
+- [ ] EM PROGRESSO — *design-squad Fase 4: aguardando [A]ceitar/[M]odificar/[P]ular reposicionamento dos 3 agentes
+- [ ] Fase 5: adicionar ml-orquestrador-squad (cross-area-synthesizer, executive-reporter, anomaly-detector)
+- [ ] Fase 6: gerar blueprint YAML em squads/.designs/
+- [ ] *extend-squad para cada squad afetado após blueprint aprovado
+- [ ] Operacionalizar ml-skills-squad (workflows n8n ausentes)
+- [ ] Pendências anteriores: pipeline ML-CAPTURA, seed MASTER, Stories 1.1/1.2, seeds EsteticaIA
+
+---
+## Sessão 2026-04-21 (extend-squad — implementação completa dos 24 agentes novos)
+
+### 1. Implementações
+
+**24 agentes criados:**
+- ml-captura: technical-content-loader.md, privacy-filter.md, multi-source-collector.md
+- ml-data-eng: question-pattern-mapper.md, data-quality-validator.md
+- ml-ia-padroes: assertiveness-analyzer.md, response-variation-cataloger.md, knowledge-gap-detector.md, feedback-collector.md, benchmark-calibrator.md
+- ml-skills: niche-agent-assembler.md, agent-performance-tracker.md, ab-test-manager.md
+- ml-comercial: niche-content-extractor.md, profile-portability-evaluator.md, segment-match-scorer.md, training-content-publisher.md
+- ml-orquestrador (NOVO SQUAD): squad.yaml + cross-area-synthesizer.md, executive-reporter.md, anomaly-detector.md, segment-catalog-manager.md, insight-scheduler.md
+- ml-plataforma: onboarding-orchestrator.md, crm-sync-agent.md
+
+**3 agentes reposicionados (output dual adicionado):**
+- ml-comercial/agents/behavioral-profiler.md — bloco "Outputs duais" S1+S2
+- ml-comercial/agents/objection-handler.md — bloco "Outputs duais" S1+S2
+- ml-comercial/agents/product-approach.md — bloco "Outputs duais" S1+S2
+
+**7 squad.yaml atualizados:** captura(6), data-eng(5), ia-padroes(8), skills(6), comercial(10), orquestrador(5/novo), plataforma(5)
+
+### 2. Decisões
+- Formato agente: frontmatter YAML + seções MD (Responsabilidades, Inputs, Outputs, Commands, Data, Colaboração)
+- Pipeline qualidade: privacy-filter → data-quality-validator antes de qualquer análise — não-bloqueantes
+- Output dual: behavioral-profiler, objection-handler, product-approach geram S1 (nicho) + S2 (universal)
+- ml-orquestrador-squad: nível 1-operational, priority 0 — depende de todos os outros operacionais
+- Threshold data-quality-validator: ≥60 aprovado, 40-59 revisão manual
+- Benchmark recalibra: +500 conversas ou 30 dias ou drift >20%
+- CRM sync: HubSpot/RD/Pipedrive planejados; webhook genérico disponível imediatamente
+
+### 3. Todos Ativos
+- [ ] Commit de todos os arquivos desta sessão (aguarda confirmação)
+- [ ] Operacionalizar ml-skills-squad (workflows n8n ausentes)
+- [ ] Seed inicial do segment-catalog-manager (catálogo vazio sem utilidade)
+- [ ] Pendências anteriores: pipeline ML-CAPTURA, seed MASTER, Stories 1.1/1.2, seeds EsteticaIA
+
+---
+## Sessão 2026-04-21 (design-squad — blueprint 3 saídas concluído)
+
+### 1. Implementações
+- `squads/.designs/ml-3-outputs-blueprint.yaml` — CRIADO: blueprint completo com 24 agentes novos, 3 reposicionados, 1 squad novo (ml-orquestrador-squad), 7 squads afetados
+- `memory/project_visao_escopo.md` — PRINCÍPIO FUNDAMENTAL adicionado
+- ClickUp sincronizado: https://app.clickup.com/t/86ah09bvy
+
+### 2. Decisões
+
+**3 saídas formais do ML Laboratory:**
+- Saída 1: Agente de nicho replicável — IA treinada com conteúdo exato do segmento, deployável para o mesmo público
+- Saída 2: Perfil comportamental portável — DISC + estilo + metodologia → avaliado para outros segmentos de mercado
+- Saída 3: Base de conhecimento com assertividade — material técnico vs. respostas reais → score + variações + gaps
+
+**24 agentes novos aceitos:**
+- ml-captura: technical-content-loader (S3), privacy-filter, multi-source-collector
+- ml-data-eng: question-pattern-mapper (S3), data-quality-validator
+- ml-ia-padroes: assertiveness-analyzer (S3), response-variation-cataloger (S3), knowledge-gap-detector (S3), feedback-collector, benchmark-calibrator
+- ml-skills: niche-agent-assembler (S1), agent-performance-tracker (S1), ab-test-manager (S1)
+- ml-comercial: niche-content-extractor (S1), profile-portability-evaluator (S2), segment-match-scorer (S2), training-content-publisher
+- ml-orquestrador (NOVO SQUAD): cross-area-synthesizer, executive-reporter, anomaly-detector, segment-catalog-manager (S2), insight-scheduler
+- ml-plataforma: onboarding-orchestrator, crm-sync-agent
+
+**3 agentes reposicionados (output dual S1+S2):** behavioral-profiler, product-approach, objection-handler
+
+**Princípio fundamental:** Omega Laser = laboratório/piloto; padrões extraídos = universais e agnósticos de nicho
+
+### 3. Todos Ativos
+- [ ] *extend-squad ml-captura-squad → technical-content-loader, privacy-filter, multi-source-collector
+- [ ] *extend-squad ml-data-eng-squad → question-pattern-mapper, data-quality-validator
+- [ ] *extend-squad ml-ia-padroes-squad → 5 agentes novos
+- [ ] *extend-squad ml-skills-squad → niche-agent-assembler, agent-performance-tracker, ab-test-manager
+- [ ] *extend-squad ml-comercial-squad → 4 agentes novos + reposicionar 3
+- [ ] *create-squad ml-orquestrador-squad → novo squad com 5 agentes
+- [ ] *extend-squad ml-plataforma-squad → onboarding-orchestrator, crm-sync-agent
+- [ ] Operacionalizar ml-skills-squad (workflows n8n ausentes)
+- [ ] Pendências anteriores: pipeline ML-CAPTURA, seed MASTER, Stories 1.1/1.2, seeds EsteticaIA
+
+---
+## Sessão 2026-04-20 (continuação — bug dashboard conversas)
+
+### 1. Implementações
+
+**`portal-next/app/p/[slug]/conversas/page.tsx`** — 3 tentativas de fix (commits `a0bd75f`, `3fd1866`, `3fd1866`):
+- Fix 1: query usava colunas inexistentes em `mensagens_raw` (`sessao_id`, `numero_whatsapp`, `agente_nome`) → migrada para `analise_conversa`
+- Fix 2: `analise_conversa` estava vazia (ML não rodou) → query retornava `[]` sem exception, fallback nunca disparava → migrada para `sessoes_conversa` como fonte primária com LEFT JOIN em `analise_conversa`
+- Fix 3 (pendente): deploy não reprocessou o commit mais recente (`97f8f5a`) — Railway rodando build antigo (`0e2bfeac`)
+
+**`portal-next/app/api/diagnostico/route.ts`** — CRIADO (commit `97f8f5a`)
+- Rota GET que retorna: projetos, colunas de `sessoes_conversa`, contagens de mensagens/sessoes/analises, amostras das tabelas
+- URL: `https://portal-ml-production.up.railway.app/api/diagnostico`
+- Status: retornando 404 — deploy não atualizou ainda
+
+### 2. Decisões
+
+- **Fonte primária do dashboard**: `sessoes_conversa` (populada a cada mensagem pelo n8n), não `analise_conversa` (só preenchida após ML rodar)
+- **JOIN opcional com `analise_conversa`**: enriquece com notas/DISC quando disponível, mas conversa aparece mesmo sem análise
+- **Diagnóstico necessário**: Railway não atualizou o deploy — commit `97f8f5a` não refletido em produção ainda
+- **Problema raiz suspeito**: `sessoes_conversa` pode não ter coluna `projeto_id` na migration 002 (n8n insere, mas migration não define) — precisa validação via banco
+
+### 3. Todos Ativos
+
+- [ ] **BLOQUEIO**: Railway não atualizou deploy para commit `97f8f5a` — forçar redeploy no portal-ml
+- [ ] **Após redeploy**: acessar `https://portal-ml-production.up.railway.app/api/diagnostico` e colar resultado aqui
+- [ ] **Confirmar se `sessoes_conversa` tem `projeto_id`** — se não tiver, query falha silenciosamente e dashboard continua vazio
+- [ ] **Após diagnóstico**: fazer fix definitivo baseado no schema real do banco
+- [ ] **Remover rota `/api/diagnostico`** após diagnóstico concluído (é temporária)
+- [ ] Validar pipeline ML-CAPTURA end-to-end (pendente da sessão anterior)
+- [ ] Seed MASTER (aguarda e-mail + senha do usuário)
+- [ ] Story 1.1 tasks 2.6–2.8 (WhatsApp conectado — pode executar)
+- [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)

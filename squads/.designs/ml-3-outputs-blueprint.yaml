@@ -1,0 +1,351 @@
+squad:
+  name: ml-laboratory-3-outputs
+  description: "Blueprint de revisão arquitetural — modelo de 3 saídas distintas"
+  domain: ml-laboratory
+  version: "2.0"
+
+# ============================================================
+# PRINCÍPIO FUNDAMENTAL
+# Omega Laser = ambiente de piloto (dataset inicial)
+# Padrões extraídos = universais, agnósticos de nicho
+# Produto final = inteligência portável aplicável a qualquer segmento
+# ============================================================
+
+outputs:
+  saida_1:
+    name: Agente de nicho replicável
+    description: >
+      IA treinada com conteúdo exato do segmento piloto (scripts, objeções,
+      abordagens validadas), deployável para atender o mesmo público com
+      que os vendedores reais foram treinados.
+  saida_2:
+    name: Perfil comportamental portável
+    description: >
+      Características comportamentais extraídas (DISC, estilo de venda,
+      metodologia) avaliadas quanto à portabilidade para outros segmentos
+      de mercado — com score e justificativa por segmento.
+  saida_3:
+    name: Base de conhecimento com assertividade
+    description: >
+      Material técnico dos produtos vs. respostas reais dos atendentes →
+      score de assertividade + catálogo de variações de resposta por pergunta
+      + mapa de gaps de conhecimento.
+
+# ============================================================
+# AGENTES POR SQUAD
+# status: existing | new | repositioned
+# ============================================================
+
+squads:
+
+  # ----------------------------------------------------------
+  ml-captura-squad:
+    agents:
+      - id: webhook-manager
+        status: existing
+      - id: audio-transcriber
+        status: existing
+      - id: message-collector
+        status: existing
+      - id: technical-content-loader
+        status: new
+        saida: saida_3
+        role: >
+          Ingere e indexa materiais técnicos dos produtos/serviços (PDF, MD, DOCX)
+          disponibilizando-os como referência para assertiveness-analyzer.
+        commands: [load-material, index-content, update-material, list-materials]
+        confidence: 0.97
+      - id: privacy-filter
+        status: new
+        saida: transversal
+        role: >
+          Anonimiza PII (CPF, telefone, endereço, nome completo) das conversas
+          antes de entrarem no pipeline — conformidade LGPD.
+        commands: [filter-pii, anonymize-conversation, audit-privacy]
+        confidence: 0.98
+      - id: multi-source-collector
+        status: new
+        saida: transversal
+        role: >
+          Expande captura além do WhatsApp — e-mail, CRM exports, transcrições
+          de chamadas, chat de site — normalizando para o mesmo schema do pipeline.
+        commands: [connect-source, normalize-payload, list-sources]
+        confidence: 0.85
+
+  # ----------------------------------------------------------
+  ml-data-eng-squad:
+    agents:
+      - id: schema-designer
+        status: existing
+      - id: etl-engineer
+        status: existing
+      - id: data-classifier
+        status: existing
+      - id: question-pattern-mapper
+        status: new
+        saida: saida_3
+        role: >
+          Agrupa perguntas semanticamente similares dos clientes em clusters —
+          normaliza variações da mesma dúvida para alimentar response-variation-cataloger.
+        commands: [map-questions, cluster-similar, normalize-patterns]
+        confidence: 0.90
+      - id: data-quality-validator
+        status: new
+        saida: transversal
+        role: >
+          Valida qualidade dos dados antes do pipeline — conversas curtas demais,
+          áudio com transcrição falha, payloads incompletos — evita que lixo
+          distorça os padrões extraídos.
+        commands: [validate-conversation, score-quality, reject-low-quality]
+        confidence: 0.93
+
+  # ----------------------------------------------------------
+  ml-ia-padroes-squad:
+    agents:
+      - id: pattern-extractor
+        status: existing
+      - id: behavior-analyst
+        status: existing
+      - id: benchmark-generator
+        status: existing
+      - id: assertiveness-analyzer
+        status: new
+        saida: saida_3
+        role: >
+          Compara cada resposta do atendente com o material técnico indexado —
+          classifica como Correta / Parcialmente correta / Incorreta / Sem referência
+          e gera score de assertividade por atendente, produto e período.
+        commands: [analyze-assertiveness, score-response, generate-assertiveness-report]
+        confidence: 0.96
+      - id: response-variation-cataloger
+        status: new
+        saida: saida_3
+        role: >
+          Para cada pergunta recorrente, cataloga todas as variações de resposta
+          encontradas nas conversas reais — agrupando por resultado (converteu /
+          gerou objeção / sem resposta), frequência e score de assertividade.
+        commands: [catalog-variations, group-by-question, rank-responses]
+        confidence: 0.91
+      - id: knowledge-gap-detector
+        status: new
+        saida: saida_3
+        role: >
+          Identifica onde atendentes sistematicamente erram, evitam responder ou
+          respondem com baixa assertividade — mapa de gaps por produto, atendente
+          e tema com recomendações de melhoria.
+        commands: [detect-gaps, map-weak-topics, generate-gap-report]
+        confidence: 0.93
+      - id: feedback-collector
+        status: new
+        saida: transversal
+        role: >
+          Captura se as recomendações geradas foram implementadas e qual foi o
+          resultado real — fecha o ciclo de aprendizado do sistema. Sem ele,
+          o laboratório nunca sabe se a inteligência gerada funcionou.
+        commands: [collect-feedback, register-outcome, update-effectiveness]
+        confidence: 0.94
+      - id: benchmark-calibrator
+        status: new
+        saida: transversal
+        role: >
+          Recalibra automaticamente os benchmarks à medida que o dataset cresce —
+          garante que referências de "bom", "médio" e "fraco" evoluam com os dados
+          reais e não fiquem desatualizadas.
+        commands: [recalibrate-benchmarks, version-benchmark, compare-periods]
+        confidence: 0.88
+
+  # ----------------------------------------------------------
+  ml-skills-squad:
+    agents:
+      - id: skill-generator
+        status: existing
+      - id: skill-validator
+        status: existing
+      - id: agent-trainer
+        status: existing
+      - id: niche-agent-assembler
+        status: new
+        saida: saida_1
+        role: >
+          Monta o agente de IA final com conteúdo extraído pelo niche-content-extractor —
+          configura persona, prompt base, biblioteca de respostas e regras de abordagem.
+          Pronto para deploy no mesmo segmento onde foi treinado.
+        commands: [assemble-agent, configure-persona, export-agent]
+        confidence: 0.92
+      - id: agent-performance-tracker
+        status: new
+        saida: saida_1
+        role: >
+          Monitora desempenho real dos agentes deployados em produção — taxa de
+          conversão, objeções não respondidas, pontos de abandono — retroalimenta
+          niche-agent-assembler para refinamento contínuo.
+        commands: [track-performance, generate-performance-report, flag-regressions]
+        confidence: 0.91
+      - id: ab-test-manager
+        status: new
+        saida: saida_1
+        role: >
+          Gerencia testes A/B entre abordagens do agente deployado — testa variações
+          de script, argumento e abordagem em conversas reais e mede qual versão
+          converte mais. Valida cientificamente a efetividade do agente.
+        commands: [create-test, assign-variant, evaluate-results, declare-winner]
+        confidence: 0.89
+
+  # ----------------------------------------------------------
+  ml-comercial-squad:
+    agents:
+      - id: conversation-analyst
+        status: existing
+      - id: behavioral-profiler
+        status: repositioned
+        output_change: >
+          Antes: perfil do vendedor (genérico)
+          Depois: perfil de nicho (Saída 1) + perfil universal portável (Saída 2)
+        saidas: [saida_1, saida_2]
+      - id: product-approach
+        status: repositioned
+        output_change: >
+          Antes: abordagem por produto
+          Depois: scripts de nicho (Saída 1) + padrão de abordagem portável (Saída 2)
+        saidas: [saida_1, saida_2]
+      - id: objection-handler
+        status: repositioned
+        output_change: >
+          Antes: catálogo de objeções
+          Depois: objeções do segmento (Saída 1) + padrões universais de objeção (Saída 2)
+        saidas: [saida_1, saida_2]
+      - id: training-generator
+        status: existing
+      - id: performance-reporter
+        status: existing
+      - id: niche-content-extractor
+        status: new
+        saida: saida_1
+        role: >
+          Extrai conteúdo específico do segmento das conversas reais: scripts validados,
+          argumentos de venda, objeções com contexto, abordagens que converteram —
+          segmentado por produto/serviço.
+        commands: [extract-scripts, extract-objections, extract-arguments]
+        confidence: 0.95
+      - id: profile-portability-evaluator
+        status: new
+        saida: saida_2
+        role: >
+          Recebe perfil comportamental extraído e avalia em quais outros segmentos
+          de mercado esse perfil tende a performar bem — com justificativa baseada
+          em características do perfil vs. exigências do segmento.
+        commands: [evaluate-portability, map-segments, generate-portability-report]
+        confidence: 0.88
+      - id: segment-match-scorer
+        status: new
+        saida: saida_2
+        role: >
+          Pontua numericamente a compatibilidade entre um perfil comportamental
+          e cada segmento de mercado cadastrado — gera ranking de segmentos por
+          afinidade com o perfil.
+        commands: [score-segment, rank-segments, compare-profiles]
+        confidence: 0.85
+      - id: training-content-publisher
+        status: new
+        saida: transversal
+        role: >
+          Publica conteúdo de treinamento gerado pelo training-generator para os
+          atendentes certos, no momento certo, pelo canal certo — incluindo
+          micro-treinamentos disparados automaticamente ao detectar gaps.
+        commands: [publish-training, schedule-delivery, track-completion]
+        confidence: 0.92
+
+  # ----------------------------------------------------------
+  ml-orquestrador-squad:
+    status: new_squad
+    agents:
+      - id: cross-area-synthesizer
+        status: new
+        saida: transversal
+        role: >
+          Cruza padrões de múltiplos squads operacionais para detectar correlações
+          que nenhum squad enxerga isoladamente — ex: queda de vendas + aumento de
+          churn + desengajamento de equipe simultaneamente.
+        commands: [synthesize-cross-area, detect-correlations, generate-unified-view]
+        confidence: 0.87
+      - id: executive-reporter
+        status: new
+        saida: transversal
+        role: >
+          Gera relatório integrado de inteligência de negócio para gestão —
+          visão consolidada de todas as áreas com insights priorizados por impacto.
+        commands: [generate-executive-report, prioritize-insights, schedule-report]
+        confidence: 0.90
+      - id: anomaly-detector
+        status: new
+        saida: transversal
+        role: >
+          Detecta anomalias e correlações incomuns entre áreas em tempo real —
+          dispara alertas quando padrões combinados indicam risco ou oportunidade.
+        commands: [detect-anomaly, trigger-alert, explain-anomaly]
+        confidence: 0.85
+      - id: segment-catalog-manager
+        status: new
+        saida: saida_2
+        role: >
+          Mantém e evolui o catálogo de segmentos de mercado usado pelo
+          segment-match-scorer — sem esse catálogo estruturado, a avaliação
+          de portabilidade de perfis não tem base de comparação.
+        commands: [add-segment, update-segment, list-segments, enrich-segment]
+        confidence: 0.97
+      - id: insight-scheduler
+        status: new
+        saida: transversal
+        role: >
+          Empurra insights para as pessoas certas no momento certo — digest diário,
+          alertas em tempo real, resumo semanal via WhatsApp ou e-mail — sem
+          depender que o usuário acesse o portal para saber o que está acontecendo.
+        commands: [schedule-insight, configure-digest, send-alert]
+        confidence: 0.93
+
+  # ----------------------------------------------------------
+  ml-plataforma-squad:
+    agents:
+      - id: infra-manager
+        status: existing
+      - id: monitor-agent
+        status: existing
+      - id: deploy-coordinator
+        status: existing
+      - id: onboarding-orchestrator
+        status: new
+        saida: transversal
+        role: >
+          Automatiza o processo completo de adicionar novo cliente ao laboratório —
+          criação de usuário, projeto, números, agentes, materiais técnicos iniciais
+          e configurações. Hoje esse processo é 100% manual.
+        commands: [onboard-client, setup-project, configure-numbers, verify-setup]
+        confidence: 0.96
+      - id: crm-sync-agent
+        status: new
+        saida: transversal
+        role: >
+          Sincroniza insights gerados de volta para o CRM do cliente (Salesforce,
+          HubSpot, RD Station, Pipedrive) — perfil do vendedor, score de performance,
+          recomendações de abordagem — na ferramenta que o time comercial já usa.
+        commands: [sync-to-crm, map-fields, configure-integration, audit-sync]
+        confidence: 0.86
+
+metadata:
+  created_at: "2026-04-21"
+  created_by: "@squad-creator (Craft)"
+  session: "design-squad interativo — 3 saídas formais"
+  source: "análise de squads existentes + sessão de discovery com usuário"
+  total_new_agents: 24
+  total_repositioned: 3
+  total_new_squads: 1
+  squads_affected: 7
+
+next_steps:
+  - "*extend-squad ml-captura-squad — adicionar: technical-content-loader, privacy-filter, multi-source-collector"
+  - "*extend-squad ml-data-eng-squad — adicionar: question-pattern-mapper, data-quality-validator"
+  - "*extend-squad ml-ia-padroes-squad — adicionar: assertiveness-analyzer, response-variation-cataloger, knowledge-gap-detector, feedback-collector, benchmark-calibrator"
+  - "*extend-squad ml-skills-squad — adicionar: niche-agent-assembler, agent-performance-tracker, ab-test-manager"
+  - "*extend-squad ml-comercial-squad — adicionar: niche-content-extractor, profile-portability-evaluator, segment-match-scorer, training-content-publisher + reposicionar: behavioral-profiler, product-approach, objection-handler"
+  - "*create-squad ml-orquestrador-squad — novo squad com 5 agentes"
+  - "*extend-squad ml-plataforma-squad — adicionar: onboarding-orchestrator, crm-sync-agent"

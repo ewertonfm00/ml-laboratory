@@ -23,6 +23,8 @@ components:
     - agents/infra-manager.md
     - agents/monitor-agent.md
     - agents/deploy-coordinator.md
+    - agents/onboarding-orchestrator.md
+    - agents/crm-sync-agent.md
   tasks:
     - tasks/setup-infrastructure.md
     - tasks/monitor-health.md

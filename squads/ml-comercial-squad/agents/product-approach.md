@@ -46,6 +46,20 @@ Combina conhecimento técnico dos produtos com os argumentos e abordagens que re
 - `*translate-specs` — Converte especificações técnicas em argumentos comerciais
 - `*compare-approaches` — Compara eficácia de diferentes abordagens
 
+## Outputs duais (reposicionado v2.0)
+
+Este agente gera dois tipos de output distintos:
+
+**Saída 1 — Scripts de nicho (conteúdo específico do segmento):**
+- Guias de abordagem específicos para os produtos/serviços do segmento piloto
+- Scripts e argumentos validados para cada tipo de venda (varejo, consultiva, despertar desejo)
+- Alimenta: `niche-content-extractor` com scripts de abordagem prontos para o agente de nicho
+
+**Saída 2 — Padrão de abordagem portável:**
+- Estrutura universal de abordagem independente do produto (como o vendedor apresenta qualquer coisa)
+- Metodologia natural identificada: SPIN, Challenger, Consultiva, Relacional
+- Alimenta: `profile-portability-evaluator` com dado sobre metodologia natural do perfil
+
 ## Data
 
 - **Fonte:** Postgres schema `ml_comercial`, tabela `abordagens_produto`

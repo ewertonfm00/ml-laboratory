@@ -23,6 +23,11 @@ components:
     - agents/pattern-extractor.md
     - agents/behavior-analyst.md
     - agents/benchmark-generator.md
+    - agents/assertiveness-analyzer.md
+    - agents/response-variation-cataloger.md
+    - agents/knowledge-gap-detector.md
+    - agents/feedback-collector.md
+    - agents/benchmark-calibrator.md
   tasks:
     - tasks/extract-patterns.md
     - tasks/analyze-behavior.md

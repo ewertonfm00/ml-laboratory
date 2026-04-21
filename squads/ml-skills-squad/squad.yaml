@@ -23,6 +23,9 @@ components:
     - agents/skill-generator.md
     - agents/skill-validator.md
     - agents/agent-trainer.md
+    - agents/niche-agent-assembler.md
+    - agents/agent-performance-tracker.md
+    - agents/ab-test-manager.md
   tasks:
     - tasks/generate-skill.md
     - tasks/validate-skill.md

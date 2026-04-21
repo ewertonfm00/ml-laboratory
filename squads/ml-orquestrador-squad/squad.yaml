@@ -1,0 +1,69 @@
+name: ml-orquestrador-squad
+version: 0.1.0
+description: Sintetiza inteligência cross-área, gerencia catálogo de segmentos e entrega insights proativos para gestão — nenhum squad operacional enxerga o todo, o orquestrador enxerga
+author: Synkra AIOX
+license: MIT
+slashPrefix: ml-orquestrador
+
+aiox:
+  minVersion: "2.1.0"
+  type: squad
+  level: 1-operational
+  project: machine-learning
+  status: planned
+  priority: 0
+
+isolation:
+  namespace: ml
+  postgres_schema: ml_orquestrador
+  redis_prefix: "ml:orquestrador:"
+  n8n_tag: "[ML-ORQUESTRADOR]"
+  railway_service: ml-orquestrador
+
+intelligence_generated:
+  - Visão integrada cross-área de negócio
+  - Correlações entre squads que nenhum squad individual detecta
+  - Catálogo de segmentos de mercado para avaliação de portabilidade
+  - Alertas proativos de anomalias e oportunidades
+  - Relatórios executivos consolidados com insights priorizados
+  - Entrega proativa de insights pelo canal certo no momento certo
+
+components:
+  agents:
+    - agents/cross-area-synthesizer.md
+    - agents/executive-reporter.md
+    - agents/anomaly-detector.md
+    - agents/segment-catalog-manager.md
+    - agents/insight-scheduler.md
+  tasks: []
+  workflows: []
+  checklists: []
+  templates: []
+
+dependencies:
+  squads:
+    - ml-captura-squad
+    - ml-data-eng-squad
+    - ml-ia-padroes-squad
+    - ml-skills-squad
+    - ml-comercial-squad
+    - ml-atendimento-squad
+    - ml-financeiro-squad
+    - ml-operacional-squad
+    - ml-marketing-squad
+    - ml-pessoas-squad
+  services:
+    - Postgres (schema: ml_orquestrador)
+    - Redis
+    - Claude Sonnet
+    - Evolution API (para entrega via WhatsApp)
+
+keywords:
+  - ml
+  - orquestrador
+  - cross-area
+  - insights
+  - executive
+  - segmentos
+  - alertas
+  - sintese

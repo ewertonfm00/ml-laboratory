@@ -23,6 +23,9 @@ components:
     - agents/webhook-manager.md
     - agents/audio-transcriber.md
     - agents/message-collector.md
+    - agents/technical-content-loader.md
+    - agents/privacy-filter.md
+    - agents/multi-source-collector.md
   tasks:
     - tasks/configure-webhook.md
     - tasks/transcribe-audio.md
@@ -39,6 +42,8 @@ dependencies:
     - Groq Whisper
     - Postgres (schema: ml_captura)
     - Redis
+    - Google Drive (opcional, multi-source-collector)
+    - Gmail IMAP (opcional, multi-source-collector)
 
 keywords:
   - ml

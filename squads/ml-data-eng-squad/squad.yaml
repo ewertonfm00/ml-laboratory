@@ -23,6 +23,8 @@ components:
     - agents/schema-designer.md
     - agents/etl-engineer.md
     - agents/data-classifier.md
+    - agents/question-pattern-mapper.md
+    - agents/data-quality-validator.md
   tasks:
     - tasks/design-schema.md
     - tasks/build-etl-pipeline.md
