@@ -36,10 +36,12 @@ components:
     - message-analyzer.md
     - segmentation-advisor.md
     - timing-optimizer.md
+    - campaign-executor.md
   tasks:
     - analyze-campaign.md
     - optimize-message.md
     - generate-segmentation.md
+    - execute-campaign.md
   workflows: []
   checklists: []
   templates: []

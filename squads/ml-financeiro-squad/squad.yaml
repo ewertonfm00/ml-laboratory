@@ -36,6 +36,7 @@ components:
     - cashflow-predictor.md
     - risk-analyzer.md
     - collections-advisor.md
+    - forecast-analyst.md
   tasks:
     - assess-risk.md
     - analyze-cashflow.md
