@@ -29,10 +29,10 @@ async function getConversas(slug: string): Promise<ConversaRow[]> {
     const projetoId = projRows[0]?.id;
     if (!projetoId) return [];
 
-    // Fonte primária: sessoes_conversa (populada a cada mensagem capturada)
-    // Enriquecida com analise_conversa quando disponível
+    // Fonte primária: sessoes_conversa + analise_conversa
+    let rows: ConversaRow[] = [];
     try {
-      return await query<ConversaRow>(
+      rows = await query<ConversaRow>(
         `SELECT
           sc.id::text                      AS sessao_id,
           sc.remote_jid                    AS numero_whatsapp,
@@ -58,30 +58,35 @@ async function getConversas(slug: string): Promise<ConversaRow[]> {
         LIMIT 50`,
         [projetoId]
       );
-    } catch {
-      // Fallback: mensagens_raw agrupadas por contato
-      return await query<ConversaRow>(
-        `SELECT
-          mr.remote_jid              AS sessao_id,
-          mr.remote_jid              AS numero_whatsapp,
-          NULL::text                 AS agente_nome,
-          COUNT(*)::text             AS total_mensagens,
-          MIN(mr.created_at)         AS inicio,
-          MAX(mr.created_at)         AS fim,
-          NULL::numeric              AS nota_comercial,
-          NULL::numeric              AS nota_tecnica,
-          NULL::text                 AS disc_identificado,
-          false                      AS tem_sinalizacao,
-          false                      AS revisado,
-          0::bigint                  AS total_sinalizacoes
-        FROM ml_captura.mensagens_raw mr
-        WHERE mr.projeto_id = $1
-        GROUP BY mr.remote_jid
-        ORDER BY MAX(mr.created_at) DESC
-        LIMIT 50`,
-        [projetoId]
-      );
+    } catch { /* ignora, tenta fallback */ }
+
+    // Fallback: mensagens_raw quando sessoes_conversa está vazio
+    if (rows.length === 0) {
+      try {
+        rows = await query<ConversaRow>(
+          `SELECT
+            mr.remote_jid              AS sessao_id,
+            mr.remote_jid              AS numero_whatsapp,
+            NULL::text                 AS agente_nome,
+            COUNT(*)::text             AS total_mensagens,
+            MIN(mr.created_at)         AS inicio,
+            MAX(mr.created_at)         AS fim,
+            NULL::numeric              AS nota_comercial,
+            NULL::numeric              AS nota_tecnica,
+            NULL::text                 AS disc_identificado,
+            false                      AS tem_sinalizacao,
+            false                      AS revisado,
+            0::bigint                  AS total_sinalizacoes
+          FROM ml_captura.mensagens_raw mr
+          WHERE mr.projeto_id = $1
+          GROUP BY mr.remote_jid
+          ORDER BY MAX(mr.created_at) DESC
+          LIMIT 50`,
+          [projetoId]
+        );
+      } catch { /* retorna vazio */ }
     }
+    return rows;
   } catch {
     return [];
   }
