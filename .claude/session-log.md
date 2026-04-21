@@ -521,3 +521,67 @@ Lógica de resolução no n8n (captura):
 - [ ] Seed MASTER (aguarda e-mail + senha do usuário)
 - [ ] Story 1.1 tasks 2.6–2.8 (WhatsApp conectado — pode executar)
 - [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)
+
+---
+## Sessão 2026-04-21 (gap analysis — squads e agentes ML completos)
+
+### 1. Implementações
+
+**squad.yaml corrigidos — divergências de nomes (6 squads):**
+- `squads/ml-atendimento-squad/squad.yaml` — agentes: satisfaction-analyst → satisfaction-analyzer, churn-detector mantido, adicionado service-quality-monitor
+- `squads/ml-financeiro-squad/squad.yaml` — agentes: cashflow-analyst → cashflow-predictor, risk-detector → risk-analyzer, forecast-generator → collections-advisor; tasks: adicionado assess-risk.md
+- `squads/ml-marketing-squad/squad.yaml` — agentes: campaign-analyst → message-analyzer, message-optimizer → timing-optimizer
+- `squads/ml-operacional-squad/squad.yaml` — agentes: bottleneck-detector → failure-detector; tasks: analyze-process → map-process
+- `squads/ml-pessoas-squad/squad.yaml` — agentes: engagement-analyst → engagement-monitor; tasks: build-talent-profile → profile-talent
+- `squads/ml-comercial-squad/squad.yaml` — removidos profile-portability-evaluator + segment-match-scorer, adicionado profile-segment-matcher
+- `squads/ml-orquestrador-squad/squad.yaml` — tasks: [] → 4 tasks declaradas
+
+**Agentes criados (17 novos):**
+- ml-captura: webhook-manager.md, audio-transcriber.md, message-collector.md
+- ml-data-eng: schema-designer.md, etl-engineer.md, data-classifier.md
+- ml-ia-padroes: pattern-extractor.md, behavior-analyst.md, benchmark-generator.md
+- ml-plataforma: infra-manager.md, monitor-agent.md, deploy-coordinator.md
+- ml-skills: skill-generator.md, skill-validator.md, agent-trainer.md
+- ml-comercial: profile-segment-matcher.md (consolida 2 agentes)
+- ml-atendimento: churn-detector.md
+
+**Agentes removidos (2):**
+- `squads/ml-comercial-squad/agents/profile-portability-evaluator.md`
+- `squads/ml-comercial-squad/agents/segment-match-scorer.md`
+
+**Tasks criadas (27 novas — todos squads completos):**
+- ml-captura: configure-webhook.md, transcribe-audio.md, collect-messages.md
+- ml-data-eng: design-schema.md, build-etl-pipeline.md, classify-data.md
+- ml-ia-padroes: extract-patterns.md, analyze-behavior.md, generate-benchmarks.md
+- ml-plataforma: setup-infrastructure.md, monitor-health.md, deploy-update.md
+- ml-skills: generate-skill.md, validate-skill.md, train-agent.md
+- ml-comercial: build-behavioral-profile.md, map-product-approach.md, catalog-objections.md, generate-training-content.md, generate-performance-report.md
+- ml-atendimento: detect-churn-signals.md, generate-retention-strategy.md
+- ml-financeiro: analyze-cashflow.md, detect-financial-risk.md, generate-forecast.md
+- ml-marketing: optimize-message.md, generate-segmentation.md
+- ml-operacional: detect-bottlenecks.md, generate-optimization-report.md
+- ml-pessoas: analyze-engagement.md, generate-onboarding-plan.md
+- ml-orquestrador: synthesize-cross-area.md, generate-executive-report.md, detect-anomaly.md, schedule-insights.md
+
+### 2. Decisões
+
+- **Consolidar profile-portability-evaluator + segment-match-scorer → profile-segment-matcher**: avaliação qualitativa + score numérico são um único processo; separação não justificava dois agentes
+- **Opção A para churn-detector**: manter service-quality-monitor (já implementado, avalia qualidade do serviço) E criar churn-detector novo (prediz risco de cancelamento) — escopos distintos
+- **benchmark-generator separado do benchmark-calibrator**: generator cria benchmarks iniciais (uma vez por cliente), calibrator recalibra continuamente — frequências e momentos distintos
+- **Corrigir squad.yaml para refletir nomes reais do disco**: arquivos no disco tinham nomes mais descritivos; preferiu-se atualizar o yaml para alinhar com o disco (não renomear arquivos)
+- **4 tasks core do orquestrador**: synthesize-cross-area, generate-executive-report, detect-anomaly, schedule-insights — os 4 fluxos fundamentais do hub de inteligência
+
+### 3. Todos Ativos
+
+**Próximos passos naturais (novos):**
+- [ ] Validar squads criados com `*validate-squad` para cada squad
+- [ ] Implementar workflows n8n correspondentes às tasks criadas (ml-captura é o ponto de entrada)
+- [ ] Seed inicial do segment-catalog-manager (catálogo vazio sem utilidade para Saída 2)
+
+**Pendências anteriores (continuam ativas):**
+- [ ] Forçar redeploy portal-ml no Railway (bloqueio do dashboard)
+- [ ] Acessar `/api/diagnostico` e confirmar schema real do banco
+- [ ] Validar pipeline ML-CAPTURA end-to-end (WhatsApp conectado)
+- [ ] Seed MASTER (aguarda e-mail + senha do usuário)
+- [ ] Story 1.1 tasks 2.6–2.8 (WhatsApp conectado — pode executar)
+- [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)

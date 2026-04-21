@@ -33,9 +33,10 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/satisfaction-analyst.md
-    - agents/churn-detector.md
+    - agents/satisfaction-analyzer.md
+    - agents/service-quality-monitor.md
     - agents/retention-advisor.md
+    - agents/churn-detector.md
   tasks:
     - tasks/analyze-satisfaction.md
     - tasks/detect-churn-signals.md

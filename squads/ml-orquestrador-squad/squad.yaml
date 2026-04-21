@@ -35,7 +35,11 @@ components:
     - agents/anomaly-detector.md
     - agents/segment-catalog-manager.md
     - agents/insight-scheduler.md
-  tasks: []
+  tasks:
+    - tasks/synthesize-cross-area.md
+    - tasks/generate-executive-report.md
+    - tasks/detect-anomaly.md
+    - tasks/schedule-insights.md
   workflows: []
   checklists: []
   templates: []

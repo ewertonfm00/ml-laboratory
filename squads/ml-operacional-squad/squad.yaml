@@ -34,10 +34,10 @@ intelligence_generated:
 components:
   agents:
     - agents/process-analyst.md
-    - agents/bottleneck-detector.md
+    - agents/failure-detector.md
     - agents/optimization-advisor.md
   tasks:
-    - tasks/analyze-process.md
+    - tasks/map-process.md
     - tasks/detect-bottlenecks.md
     - tasks/generate-optimization-report.md
   workflows: []

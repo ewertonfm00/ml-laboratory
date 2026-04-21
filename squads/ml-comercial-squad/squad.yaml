@@ -56,8 +56,7 @@ components:
     - agents/training-generator.md
     - agents/performance-reporter.md
     - agents/niche-content-extractor.md
-    - agents/profile-portability-evaluator.md
-    - agents/segment-match-scorer.md
+    - agents/profile-segment-matcher.md
     - agents/training-content-publisher.md
   tasks:
     - tasks/analyze-conversation.md

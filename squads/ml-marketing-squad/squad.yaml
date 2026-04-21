@@ -33,9 +33,9 @@ intelligence_generated:
 
 components:
   agents:
-    - agents/campaign-analyst.md
-    - agents/message-optimizer.md
+    - agents/message-analyzer.md
     - agents/segmentation-advisor.md
+    - agents/timing-optimizer.md
   tasks:
     - tasks/analyze-campaign.md
     - tasks/optimize-message.md

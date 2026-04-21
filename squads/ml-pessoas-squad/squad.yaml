@@ -34,10 +34,10 @@ intelligence_generated:
 components:
   agents:
     - agents/talent-profiler.md
-    - agents/engagement-analyst.md
+    - agents/engagement-monitor.md
     - agents/onboarding-advisor.md
   tasks:
-    - tasks/build-talent-profile.md
+    - tasks/profile-talent.md
     - tasks/analyze-engagement.md
     - tasks/generate-onboarding-plan.md
   workflows: []
