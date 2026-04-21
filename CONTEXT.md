@@ -1,6 +1,6 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-21 (validação completa dos squads ML — 12/12 ✅)
+**Última sessão:** 2026-04-21 (auditoria de squads — 2 novos agentes + 1 task criados)
 
 ---
 
@@ -18,6 +18,7 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 ### SQUADS ML — OPERACIONALIZAÇÃO
 - [ ] Implementar workflows n8n das tasks criadas (começar por ml-captura: configure-webhook → collect-messages → transcribe-audio)
 - [ ] Seed inicial do segment-catalog-manager (catálogo vazio inutiliza Saída 2)
+- [ ] Migrar 62 agentes dos squads para formato completo do template (sem persona_profile/autoClaude) — usar `@icarus *scan-agents all`
 
 ### CONEXÃO WHATSAPP
 - [ ] Acessar `/numeros/conectar` e escanear QR Code
@@ -38,7 +39,7 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 - [ ] Confirmar schema real via `/api/diagnostico` e fazer fix definitivo
 
 ### GIT
-- [ ] Push dos 6 commits locais para origin/main (`@devops`)
+- [ ] Push dos commits locais para origin/main (`@devops`) — branch está 8 commits à frente
 
 ---
 
@@ -52,10 +53,10 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 | Portal Next.js | ✅ HTTP 200 | `https://portal-ml-production.up.railway.app` |
 | Metabase | ✅ Ativo | — |
 
-## Squads ML — Estado Atual (validação 12/12 ✅)
+## Squads ML — Estado Atual (pós-auditoria)
 
-| Squad | Agentes | Tasks | Validação |
-|-------|---------|-------|-----------|
+| Squad | Agentes | Tasks | Status |
+|-------|---------|-------|--------|
 | ml-captura | 6 | 3 | ✅ |
 | ml-data-eng | 5 | 3 | ✅ |
 | ml-ia-padroes | 8 | 3 | ✅ |
@@ -63,8 +64,8 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 | ml-skills | 6 | 3 | ✅ |
 | ml-comercial | 9 | 6 | ✅ |
 | ml-atendimento | 4 | 3 | ✅ |
-| ml-financeiro | 3 | 4 | ✅ |
-| ml-marketing | 3 | 3 | ✅ |
+| ml-financeiro | **4** | 4 | ✅ (+forecast-analyst) |
+| ml-marketing | **4** | **4** | ✅ (+campaign-executor +execute-campaign) |
 | ml-operacional | 3 | 3 | ✅ |
 | ml-pessoas | 3 | 3 | ✅ |
 | ml-orquestrador | 5 | 4 | ✅ |

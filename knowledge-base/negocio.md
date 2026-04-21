@@ -127,9 +127,9 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 |-------|------|---------|
 | ml-comercial-squad | Vendas e conversas comerciais | conversation-analyst, behavioral-profiler, product-approach, objection-handler, training-generator, performance-reporter, niche-content-extractor, profile-segment-matcher, training-content-publisher |
 | ml-operacional-squad | Processos e gargalos | process-analyst, failure-detector, optimization-advisor |
-| ml-financeiro-squad | Risco e fluxo de caixa | risk-analyzer, cashflow-predictor, collections-advisor |
+| ml-financeiro-squad | Risco e fluxo de caixa | risk-analyzer, cashflow-predictor, collections-advisor, **forecast-analyst** |
 | ml-atendimento-squad | Satisfação e retenção | satisfaction-analyzer, churn-detector, retention-advisor, service-quality-monitor |
-| ml-marketing-squad | Campanhas e segmentação | message-analyzer, segmentation-advisor, timing-optimizer |
+| ml-marketing-squad | Campanhas e segmentação | message-analyzer, segmentation-advisor, timing-optimizer, **campaign-executor** |
 | ml-pessoas-squad | Talentos e engajamento | talent-profiler, engagement-monitor, onboarding-advisor |
 
 ### Nível 0 — Orquestrador (hub de inteligência cross-squad)
