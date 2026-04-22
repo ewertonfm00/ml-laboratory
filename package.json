@@ -1,0 +1,20 @@
+{
+  "name": "aiox-machine-learning",
+  "version": "1.0.0",
+  "description": "AIOX - Machine Learning",
+  "private": true,
+  "scripts": {
+    "aiox:doctor": "npx aiox-core doctor",
+    "aiox:validate": "npx aiox-core validate",
+    "aiox:update": "npx aiox-core update",
+    "test": "echo 'No tests configured' && exit 0",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "aiox-core": "^5.0.7",
+    "yaml": "^2.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

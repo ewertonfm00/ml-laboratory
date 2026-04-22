@@ -1,0 +1,534 @@
+{
+  "fileVersion": 2,
+  "datasources": [
+    {
+      "id": "ds_ml_portal",
+      "name": "ML Portal DB",
+      "pluginId": "postgres-plugin",
+      "datasourceConfiguration": {
+        "connection": {
+          "mode": "READ_WRITE",
+          "ssl": { "authType": "DEFAULT" }
+        },
+        "endpoints": [
+          { "host": "mainline.proxy.rlwy.net", "port": 13932 }
+        ],
+        "authentication": {
+          "authenticationType": "dbAuth",
+          "username": "portal_app",
+          "password": "PortalApp2026!",
+          "databaseName": "postgres"
+        }
+      }
+    }
+  ],
+  "pageList": [
+    {
+      "id": "page_projetos",
+      "name": "Projetos e Números",
+      "slug": "projetos-e-numeros",
+      "isDefault": true
+    },
+    {
+      "id": "page_skills",
+      "name": "Skills",
+      "slug": "skills",
+      "isDefault": false
+    },
+    {
+      "id": "page_agente",
+      "name": "Perfil de Agente",
+      "slug": "perfil-de-agente",
+      "isDefault": false
+    },
+    {
+      "id": "page_fila",
+      "name": "Fila de Validação",
+      "slug": "fila-de-validacao",
+      "isDefault": false
+    }
+  ],
+  "actionList": [
+    {
+      "id": "act_get_projetos",
+      "name": "getProjects",
+      "pageId": "page_projetos",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT p.id, p.nome, p.slug, p.descricao, p.ativo, COUNT(n.id) AS total_numeros, p.created_at FROM _plataforma.projetos p LEFT JOIN _plataforma.numeros_projeto n ON n.projeto_id = p.id GROUP BY p.id ORDER BY p.nome;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": true,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_get_numeros",
+      "name": "getNumerosByProject",
+      "pageId": "page_projetos",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT n.id, n.numero_whatsapp, n.nome_identificador, n.setor, n.status, n.total_mensagens, n.ultima_mensagem_em, n.multi_agente, n.ferramenta_multiagente FROM _plataforma.numeros_projeto n WHERE n.projeto_id = '{{tblProjects.selectedRow.id}}' ORDER BY n.nome_identificador;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": false,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_get_skills",
+      "name": "getSkillCategorias",
+      "pageId": "page_skills",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT c.id, c.nome, c.tipo, c.subcategoria, c.descricao, c.ativa, COUNT(s.id) AS total_skills FROM _plataforma.skill_categorias c LEFT JOIN _plataforma.skills s ON s.categoria_id = c.id GROUP BY c.id, c.nome, c.tipo, c.subcategoria, c.descricao, c.ativa ORDER BY c.tipo, c.nome;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": true,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_get_skills_detail",
+      "name": "getSkillsByCategoria",
+      "pageId": "page_skills",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT s.id, s.nome, s.descricao, s.nivel_minimo, s.nivel_maximo, s.ativa FROM _plataforma.skills s WHERE s.categoria_id = '{{tblCategorias.selectedRow.id}}' ORDER BY s.nome;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": false,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_get_agente_perfis",
+      "name": "getAgentePerfis",
+      "pageId": "page_agente",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT ap.id, ap.nome_agente, ap.tipo_disc, ap.perfil_resumo, ap.pontos_fortes, ap.pontos_desenvolvimento, ap.estilo_comunicacao, ap.motivadores, ap.updated_at FROM _plataforma.agente_perfis ap ORDER BY ap.updated_at DESC;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": true,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_get_performance",
+      "name": "getAgentePerformance",
+      "pageId": "page_agente",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT perf.id, perf.agente_id, perf.metrica, perf.valor, perf.periodo, perf.updated_at FROM _plataforma.agente_performance perf ORDER BY perf.periodo DESC LIMIT 50;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": true,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_get_fila",
+      "name": "getFilaValidacao",
+      "pageId": "page_fila",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "SELECT fv.id, fv.produto_mencionado, fv.resposta_detectada, fv.status_validacao, fv.confianca_automatica, fv.validado_por, fv.criado_em, fv.atualizado_em FROM _validacao.fila_validacao fv ORDER BY CASE fv.status_validacao WHEN 'pendente_humano' THEN 1 WHEN 'pendente_auto' THEN 2 ELSE 3 END, fv.criado_em ASC;",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": true,
+      "isValid": true,
+      "confirmBeforeExecute": false
+    },
+    {
+      "id": "act_aprovar_validacao",
+      "name": "aprovarValidacao",
+      "pageId": "page_fila",
+      "pluginType": "DB",
+      "datasource": { "id": "ds_ml_portal", "name": "ML Portal DB" },
+      "actionConfiguration": {
+        "body": "UPDATE _validacao.fila_validacao SET status_validacao = 'aprovado', atualizado_em = NOW() WHERE id = '{{tblFila.selectedRow.id}}'; SELECT * FROM _validacao.fila_validacao WHERE id = '{{tblFila.selectedRow.id}}';",
+        "timeoutInMillisecond": 10000,
+        "paginationType": "NONE",
+        "encodeParamsToggle": true
+      },
+      "executeOnLoad": false,
+      "isValid": true,
+      "confirmBeforeExecute": true
+    }
+  ],
+  "actionCollectionList": [],
+  "customJSLibs": [],
+  "widgetData": {
+    "Projetos e Números": {
+      "widgetId": "w_canvas_projetos",
+      "type": "CANVAS_WIDGET",
+      "widgetName": "MainContainer",
+      "topRow": 0,
+      "bottomRow": 100,
+      "leftColumn": 0,
+      "rightColumn": 64,
+      "children": [
+        {
+          "widgetId": "w_txt_title_proj",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitleProjects",
+          "topRow": 0,
+          "bottomRow": 4,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Projetos & Números",
+          "fontSize": "HEADING1",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_tbl_projects",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblProjects",
+          "topRow": 5,
+          "bottomRow": 30,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getProjects.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": true,
+          "isVisibleSearch": true,
+          "isVisibleFilters": true,
+          "isVisibleDownload": true,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "nome": { "columnType": "text", "alias": "Projeto", "index": 0, "isVisible": true },
+            "total_numeros": { "columnType": "number", "alias": "Números", "index": 1, "isVisible": true },
+            "ativo": { "columnType": "text", "alias": "Status", "index": 2, "isVisible": true },
+            "created_at": { "columnType": "date", "alias": "Criado em", "index": 3, "isVisible": true }
+          },
+          "columnOrder": ["nome", "total_numeros", "ativo", "created_at"],
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_txt_title_num",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitleNumbers",
+          "topRow": 32,
+          "bottomRow": 36,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Números do Projeto Selecionado",
+          "fontSize": "HEADING2",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_tbl_numbers",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblNumbers",
+          "topRow": 37,
+          "bottomRow": 65,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getNumerosByProject.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": true,
+          "isVisibleSearch": true,
+          "isVisibleFilters": false,
+          "isVisibleDownload": false,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "nome_identificador": { "columnType": "text", "alias": "Identificador", "index": 0, "isVisible": true },
+            "numero_whatsapp": { "columnType": "text", "alias": "Número", "index": 1, "isVisible": true },
+            "setor": { "columnType": "text", "alias": "Setor", "index": 2, "isVisible": true },
+            "status": { "columnType": "text", "alias": "Status", "index": 3, "isVisible": true },
+            "total_mensagens": { "columnType": "number", "alias": "Total msgs", "index": 4, "isVisible": true }
+          },
+          "columnOrder": ["nome_identificador", "numero_whatsapp", "setor", "status", "total_mensagens"],
+          "animateLoading": true
+        }
+      ]
+    },
+    "Skills": {
+      "widgetId": "w_canvas_skills",
+      "type": "CANVAS_WIDGET",
+      "widgetName": "MainContainer",
+      "topRow": 0,
+      "bottomRow": 100,
+      "leftColumn": 0,
+      "rightColumn": 64,
+      "children": [
+        {
+          "widgetId": "w_txt_title_skills",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitleSkills",
+          "topRow": 0,
+          "bottomRow": 4,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Skills — Categorias",
+          "fontSize": "HEADING1",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_tbl_categorias",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblCategorias",
+          "topRow": 5,
+          "bottomRow": 30,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getSkillCategorias.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": true,
+          "isVisibleSearch": true,
+          "isVisibleFilters": true,
+          "isVisibleDownload": true,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "nome": { "columnType": "text", "alias": "Categoria", "index": 0, "isVisible": true },
+            "tipo": { "columnType": "text", "alias": "Tipo", "index": 1, "isVisible": true },
+            "subcategoria": { "columnType": "text", "alias": "Subcategoria", "index": 2, "isVisible": true },
+            "total_skills": { "columnType": "number", "alias": "Skills", "index": 3, "isVisible": true },
+            "ativa": { "columnType": "text", "alias": "Ativa", "index": 4, "isVisible": true }
+          },
+          "columnOrder": ["nome", "tipo", "subcategoria", "total_skills", "ativa"],
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_txt_title_skills_det",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitleSkillsDetail",
+          "topRow": 32,
+          "bottomRow": 36,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Skills da Categoria Selecionada",
+          "fontSize": "HEADING2",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_tbl_skills",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblSkills",
+          "topRow": 37,
+          "bottomRow": 65,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getSkillsByCategoria.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": true,
+          "isVisibleSearch": true,
+          "isVisibleFilters": false,
+          "isVisibleDownload": false,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "nome": { "columnType": "text", "alias": "Skill", "index": 0, "isVisible": true },
+            "descricao": { "columnType": "text", "alias": "Descrição", "index": 1, "isVisible": true },
+            "nivel_minimo": { "columnType": "number", "alias": "Nível Min.", "index": 2, "isVisible": true },
+            "nivel_maximo": { "columnType": "number", "alias": "Nível Max.", "index": 3, "isVisible": true },
+            "ativa": { "columnType": "text", "alias": "Ativa", "index": 4, "isVisible": true }
+          },
+          "columnOrder": ["nome", "descricao", "nivel_minimo", "nivel_maximo", "ativa"],
+          "animateLoading": true
+        }
+      ]
+    },
+    "Perfil de Agente": {
+      "widgetId": "w_canvas_agente",
+      "type": "CANVAS_WIDGET",
+      "widgetName": "MainContainer",
+      "topRow": 0,
+      "bottomRow": 100,
+      "leftColumn": 0,
+      "rightColumn": 64,
+      "children": [
+        {
+          "widgetId": "w_txt_title_agente",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitleAgente",
+          "topRow": 0,
+          "bottomRow": 4,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Perfil de Agente — DISC",
+          "fontSize": "HEADING1",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_tbl_agente_perfis",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblAgentePerfis",
+          "topRow": 5,
+          "bottomRow": 30,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getAgentePerfis.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": true,
+          "isVisibleSearch": true,
+          "isVisibleFilters": true,
+          "isVisibleDownload": true,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "nome_agente": { "columnType": "text", "alias": "Agente", "index": 0, "isVisible": true },
+            "tipo_disc": { "columnType": "text", "alias": "DISC", "index": 1, "isVisible": true },
+            "perfil_resumo": { "columnType": "text", "alias": "Perfil", "index": 2, "isVisible": true },
+            "estilo_comunicacao": { "columnType": "text", "alias": "Comunicação", "index": 3, "isVisible": true },
+            "updated_at": { "columnType": "date", "alias": "Atualizado", "index": 4, "isVisible": true }
+          },
+          "columnOrder": ["nome_agente", "tipo_disc", "perfil_resumo", "estilo_comunicacao", "updated_at"],
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_txt_title_perf",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitlePerformance",
+          "topRow": 32,
+          "bottomRow": 36,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Performance",
+          "fontSize": "HEADING2",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_tbl_performance",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblPerformance",
+          "topRow": 37,
+          "bottomRow": 65,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getAgentePerformance.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": false,
+          "isVisibleSearch": false,
+          "isVisibleFilters": false,
+          "isVisibleDownload": true,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "metrica": { "columnType": "text", "alias": "Métrica", "index": 0, "isVisible": true },
+            "valor": { "columnType": "text", "alias": "Valor", "index": 1, "isVisible": true },
+            "periodo": { "columnType": "text", "alias": "Período", "index": 2, "isVisible": true }
+          },
+          "columnOrder": ["metrica", "valor", "periodo"],
+          "animateLoading": true
+        }
+      ]
+    },
+    "Fila de Validação": {
+      "widgetId": "w_canvas_fila",
+      "type": "CANVAS_WIDGET",
+      "widgetName": "MainContainer",
+      "topRow": 0,
+      "bottomRow": 100,
+      "leftColumn": 0,
+      "rightColumn": 64,
+      "children": [
+        {
+          "widgetId": "w_txt_title_fila",
+          "type": "TEXT_WIDGET",
+          "widgetName": "txtTitleFila",
+          "topRow": 0,
+          "bottomRow": 4,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "text": "Fila de Validação",
+          "fontSize": "HEADING1",
+          "fontStyle": "BOLD",
+          "textColor": "#1A1A2E",
+          "isVisible": true,
+          "animateLoading": true
+        },
+        {
+          "widgetId": "w_btn_aprovar",
+          "type": "BUTTON_WIDGET",
+          "widgetName": "btnAprovar",
+          "topRow": 5,
+          "bottomRow": 9,
+          "leftColumn": 48,
+          "rightColumn": 64,
+          "text": "Aprovar Selecionado",
+          "buttonColor": "#10B981",
+          "isVisible": true,
+          "animateLoading": true,
+          "onClick": "{{aprovarValidacao.run(() => getFilaValidacao.run(), () => {})}}"
+        },
+        {
+          "widgetId": "w_tbl_fila",
+          "type": "TABLE_WIDGET_V2",
+          "widgetName": "tblFila",
+          "topRow": 10,
+          "bottomRow": 55,
+          "leftColumn": 0,
+          "rightColumn": 64,
+          "tableData": "{{getFilaValidacao.data}}",
+          "version": 1,
+          "isVisible": true,
+          "enableClientSideSearch": true,
+          "isVisibleSearch": true,
+          "isVisibleFilters": true,
+          "isVisibleDownload": false,
+          "isVisiblePagination": true,
+          "isSortable": true,
+          "primaryColumns": {
+            "produto_mencionado": { "columnType": "text", "alias": "Produto", "index": 0, "isVisible": true },
+            "resposta_detectada": { "columnType": "text", "alias": "Resposta Detectada", "index": 1, "isVisible": true },
+            "status_validacao": { "columnType": "text", "alias": "Status", "index": 2, "isVisible": true },
+            "confianca_automatica": { "columnType": "number", "alias": "Confiança (%)", "index": 3, "isVisible": true },
+            "criado_em": { "columnType": "date", "alias": "Recebido em", "index": 4, "isVisible": true }
+          },
+          "columnOrder": ["produto_mencionado", "resposta_detectada", "status_validacao", "confianca_automatica", "criado_em"],
+          "animateLoading": true
+        }
+      ]
+    }
+  }
+}

@@ -8,10 +8,16 @@ description: |
 domain: software-house
 author: "@dev (Dex)"
 created_at: "2026-04-03"
-updated_at: "2026-04-18"
+updated_at: "2026-04-22"
 aios_version: "2.1.0"
 
 changelog:
+  - version: "2.2.0"
+    date: "2026-04-22"
+    changes:
+      - "Adicionados todos os refs AIOX core: @architect, @qa, @sm, @po, @analyst"
+      - "Adicionado: icarus (Icarus) — Super Engenheiro de Prompt, agente global"
+      - "Squad passa a ser o hub central de todos os agentes AIOX + especialistas"
   - version: "2.1.0"
     date: "2026-04-21"
     changes:
@@ -60,6 +66,24 @@ agents:
     layer: management
     tier: 2
 
+  - id: sm
+    name: River
+    ref: "@sm"
+    layer: management
+    tier: 2
+
+  - id: po
+    name: Pax
+    ref: "@po"
+    layer: management
+    tier: 2
+
+  - id: analyst
+    name: Alex
+    ref: "@analyst"
+    layer: management
+    tier: 2
+
   # --- ARQUITETURA E ENGENHARIA ---
   - id: enterprise-architect
     name: Nova
@@ -80,11 +104,31 @@ agents:
     layer: engineering
     tier: 2
 
+  - id: architect
+    name: Aria
+    ref: "@architect"
+    layer: engineering
+    tier: 2
+
+  - id: qa
+    name: Quinn
+    ref: "@qa"
+    layer: engineering
+    tier: 2
+
   - id: data-engineer
     name: Dara
     ref: "@data-engineer"
     layer: engineering
     tier: 2
+
+  - id: icarus
+    name: Icarus
+    ref: "@icarus"
+    file: agents/icarus.md
+    layer: engineering
+    tier: 2
+    note: "Super Engenheiro de Prompt — megaprompts, personas de IA, otimização avançada"
 
   - id: n8n-dev
     name: Nix
@@ -200,9 +244,9 @@ config:
   source_tree: config/source-tree.md
 
 statistics:
-  total_agents: 20
-  reused_from_aios: 5
-  new_agents: 14
+  total_agents: 27
+  reused_from_aios: 12
+  new_agents: 15
   layers: [management, engineering, infrastructure, design]
   tasks_available: 10
-  last_audit: "2026-04-21"
+  last_audit: "2026-04-22"

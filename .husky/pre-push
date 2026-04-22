@@ -1,0 +1,4 @@
+#!/bin/sh
+# Quality gates are enforced by @devops (Gage) pre-push workflow.
+# Subpackage tests run inside packages/dashboard.
+exit 0
