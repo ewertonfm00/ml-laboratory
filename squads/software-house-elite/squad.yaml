@@ -12,6 +12,12 @@ updated_at: "2026-04-22"
 aios_version: "2.1.0"
 
 changelog:
+  - version: "2.3.0"
+    date: "2026-04-22"
+    changes:
+      - "Removido: tech-lead (Kai) — redundante com @dev (Dex)"
+      - "Atualizado workflows: sprint-execution, client-delivery, incident-response substituem tech-lead por dev"
+      - "Confirmado: pixel (Pixel) integrado ao squad via ref global (~/.claude/agents/pixel.md)"
   - version: "2.2.0"
     date: "2026-04-22"
     changes:
@@ -91,12 +97,6 @@ agents:
     layer: engineering
     tier: 1
     note: "Arquitetura enterprise para projetos complexos de clientes"
-
-  - id: tech-lead
-    name: Kai
-    file: agents/tech-lead.md
-    layer: engineering
-    tier: 1
 
   - id: dev
     name: Dex
@@ -217,7 +217,7 @@ workflows:
     description: Início de projeto — levantamento de requisitos, arquitetura e plano
 
   - id: sprint-execution
-    agents: [tech-lead, dev, data-engineer, sdet, devops]
+    agents: [dev, data-engineer, sdet, devops]
     description: Execução de sprint — desenvolvimento, testes e deploy
 
   - id: security-review
@@ -229,11 +229,11 @@ workflows:
     description: Descoberta UX — pesquisa, persona, design system e protótipo
 
   - id: client-delivery
-    agents: [project-manager, tech-lead, tech-writer, delivery-manager]
+    agents: [project-manager, dev, tech-writer, delivery-manager]
     description: Entrega de projeto — documentação, handoff e aceite do cliente
 
   - id: incident-response
-    agents: [sre, devops, security-architect, tech-lead]
+    agents: [sre, devops, security-architect, dev]
     description: Resposta a incidentes de produção
 
 config:
@@ -244,9 +244,9 @@ config:
   source_tree: config/source-tree.md
 
 statistics:
-  total_agents: 27
+  total_agents: 26
   reused_from_aios: 12
-  new_agents: 15
+  new_agents: 14
   layers: [management, engineering, infrastructure, design]
   tasks_available: 10
   last_audit: "2026-04-22"
