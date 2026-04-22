@@ -56,12 +56,7 @@ agent:
   title: Test Architect & Quality Advisor
   icon: ✅
   whenToUse: Use for comprehensive test architecture review, quality gate decisions, and code improvement. Provides thorough analysis including requirements traceability, risk assessment, and test strategy. Advisory only - teams choose their quality bar.
-  customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Testar pipeline WhatsApp: webhook Evolution API → n8n → insert mensagens_raw (Supabase) — validar que mensagens chegam e são persistidas
-    - Validar RLS policies nas tabelas do Supabase (mensagens_raw, instancias, etc.)
-    - Checar qualidade dos dados capturados: campos obrigatórios presentes, formatos corretos
-    - Portal Appsmith/Next.js: testar modal QR Code, conexão de instância, exibição de dados
+  customization: null
 
 persona_profile:
   archetype: Guardian

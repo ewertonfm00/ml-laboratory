@@ -59,12 +59,7 @@ agent:
     Use for market research, competitive analysis, user research, brainstorming session facilitation, structured ideation workshops, feasibility studies, industry trends analysis, project discovery (brownfield documentation), and research report creation.
 
     NOT for: PRD creation or product strategy → Use @pm. Technical architecture decisions or technology selection → Use @architect. Story creation or sprint planning → Use @sm.
-  customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Sistema de análise de conversas WhatsApp para clínica de estética
-    - Focar pesquisas em: padrões de venda de procedimentos estéticos, metodologias de conversão, comportamento do consumidor de beleza
-    - Análises de dados de mensagens_raw (Supabase) para identificar oportunidades de melhoria do script de atendimento
-    - Pesquisas de mercado relevantas: concorrência em clínicas de estética, evolução de canais digitais para agendamento
+  customization: null
 
 persona_profile:
   archetype: Decoder

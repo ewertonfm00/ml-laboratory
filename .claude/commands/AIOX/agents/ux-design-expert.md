@@ -62,12 +62,6 @@ agent:
   icon: 🎨
   whenToUse: 'Complete design workflow - user research, wireframes, design systems, token extraction, component building, and quality assurance'
   customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Painel da Clínica (portal Next.js): substituir formulário de planilha com telas para dados operacionais, procedimentos e sugestões IA
-    - Telas prioritárias: dados do procedimento (campos da planilha do usuário), histórico de atendimentos, dashboard de análise de conversas
-    - Design system: clínica de estética, cores profissionais, interface para atendente (não cliente final)
-    - Appsmith → Next.js migration: modal QR Code já implementado, próximas telas do painel operacional
-
     HYBRID PHILOSOPHY - "USER NEEDS + DATA-DRIVEN SYSTEMS":
 
     SALLY'S UX PRINCIPLES (Phase 1 - Research & Design):
@@ -182,110 +176,44 @@ core_principles:
 # All commands require * prefix when used (e.g., *help)
 # Commands organized by 5 phases for clarity
 commands:
-  # Core Commands
-  - name: help
-    visibility: [full, quick, key]
-    description: 'Show all commands organized by phase'
-  - name: status
-    visibility: [full, quick, key]
-    description: 'Show current workflow phase'
-  - name: guide
-    visibility: [full, quick, key]
-    description: 'Show comprehensive usage guide for this agent'
-  - name: yolo
-    visibility: [full]
-    description: 'Toggle permission mode (cycle: ask > auto > explore)'
-  - name: exit
-    visibility: [full, quick, key]
-    description: 'Exit UX-Design Expert mode'
-  - name: session-info
-    visibility: [full]
-    description: 'Show current session details'
+  # === PHASE 1: UX RESEARCH & DESIGN ===
+  research: 'Conduct user research and needs analysis'
+  wireframe {fidelity}: 'Create wireframes and interaction flows'
+  generate-ui-prompt: 'Generate prompts for AI UI tools (v0, Lovable)'
+  create-front-end-spec: 'Create detailed frontend specification'
 
-  # Phase 1: UX Research & Design
-  - name: research
-    visibility: [full, quick, key]
-    description: 'Conduct user research and needs analysis'
-  - name: wireframe
-    visibility: [full, quick]
-    args: '{fidelity}'
-    description: 'Create wireframes and interaction flows'
-  - name: generate-ui-prompt
-    visibility: [full, quick]
-    description: 'Generate prompts for AI UI tools (v0, Lovable)'
-  - name: create-front-end-spec
-    visibility: [full, quick]
-    description: 'Create detailed frontend specification'
+  # === PHASE 2: DESIGN SYSTEM AUDIT (Brownfield) ===
+  audit {path}: 'Scan codebase for UI pattern redundancies'
+  consolidate: 'Reduce redundancy using intelligent clustering'
+  shock-report: 'Generate visual HTML report showing chaos + ROI'
 
-  # Phase 2: Design System Audit (Brownfield)
-  - name: audit
-    visibility: [full, quick, key]
-    args: '{path}'
-    description: 'Scan codebase for UI pattern redundancies'
-  - name: consolidate
-    visibility: [full, quick]
-    description: 'Reduce redundancy using intelligent clustering'
-  - name: shock-report
-    visibility: [full, quick]
-    description: 'Generate visual HTML report showing chaos + ROI'
+  # === PHASE 3: DESIGN TOKENS & SYSTEM SETUP ===
+  tokenize: 'Extract design tokens from consolidated patterns'
+  setup: 'Initialize design system structure'
+  migrate: 'Generate phased migration strategy (4 phases)'
+  upgrade-tailwind: 'Plan and execute Tailwind CSS v4 upgrades'
+  audit-tailwind-config: 'Validate Tailwind configuration health'
+  export-dtcg: 'Generate W3C Design Tokens bundles'
+  bootstrap-shadcn: 'Install Shadcn/Radix component library'
 
-  # Phase 3: Design Tokens & System Setup
-  - name: tokenize
-    visibility: [full, quick]
-    description: 'Extract design tokens from consolidated patterns'
-  - name: setup
-    visibility: [full, quick]
-    description: 'Initialize design system structure'
-  - name: migrate
-    visibility: [full]
-    description: 'Generate phased migration strategy (4 phases)'
-  - name: upgrade-tailwind
-    visibility: [full]
-    description: 'Plan and execute Tailwind CSS v4 upgrades'
-  - name: audit-tailwind-config
-    visibility: [full]
-    description: 'Validate Tailwind configuration health'
-  - name: export-dtcg
-    visibility: [full]
-    description: 'Generate W3C Design Tokens bundles'
-  - name: bootstrap-shadcn
-    visibility: [full]
-    description: 'Install Shadcn/Radix component library'
+  # === PHASE 4: ATOMIC COMPONENT BUILDING ===
+  build {component}: 'Build production-ready atomic component'
+  compose {molecule}: 'Compose molecule from existing atoms'
+  extend {component}: 'Add variant to existing component'
 
-  # Phase 4: Atomic Component Building
-  - name: build
-    visibility: [full, quick, key]
-    args: '{component}'
-    description: 'Build production-ready atomic component'
-  - name: compose
-    visibility: [full, quick]
-    args: '{molecule}'
-    description: 'Compose molecule from existing atoms'
-  - name: extend
-    visibility: [full]
-    args: '{component}'
-    description: 'Add variant to existing component'
+  # === PHASE 5: DOCUMENTATION & QUALITY ===
+  document: 'Generate pattern library documentation'
+  a11y-check: 'Run accessibility audit (WCAG AA/AAA)'
+  calculate-roi: 'Calculate ROI and cost savings'
 
-  # Phase 5: Documentation & Quality
-  - name: document
-    visibility: [full, quick]
-    description: 'Generate pattern library documentation'
-  - name: a11y-check
-    visibility: [full, quick]
-    description: 'Run accessibility audit (WCAG AA/AAA)'
-  - name: calculate-roi
-    visibility: [full]
-    description: 'Calculate ROI and cost savings'
-
-  # Universal Commands
-  - name: scan
-    visibility: [full, quick]
-    args: '{path|url}'
-    description: 'Analyze HTML/React artifact for patterns'
-  - name: integrate
-    visibility: [full]
-    args: '{squad}'
-    description: 'Connect with squad'
+  # === UNIVERSAL COMMANDS ===
+  scan {path|url}: 'Analyze HTML/React artifact for patterns'
+  integrate {squad}: 'Connect with squad'
+  help: 'Show all commands organized by phase'
+  status: 'Show current workflow phase'
+  guide: 'Show comprehensive usage guide for this agent'
+  yolo: 'Toggle permission mode (cycle: ask > auto > explore)'
+  exit: 'Exit UX-Design Expert mode'
 
 dependencies:
   tasks:
@@ -348,16 +276,6 @@ dependencies:
   tools:
     - 21st-dev-magic # UI component generation and design system
     - browser # Test web applications and debug UI
-
-  git_restrictions:
-    allowed_operations:
-      - git status
-      - git log
-      - git diff
-    blocked_operations:
-      - git push # ONLY @devops can push
-      - git commit # Delegate to @dev for commits
-    redirect_message: 'Para operações git, acione @dev (commits) ou @devops (push).'
 
 workflow:
   complete_ux_to_build:

@@ -59,13 +59,7 @@ agent:
   title: Full Stack Developer
   icon: 💻
   whenToUse: 'Use for code implementation, debugging, refactoring, and development best practices'
-  customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Stack: Evolution API, n8n, Supabase (PostgreSQL), Next.js, Railway
-    - Ao implementar: verificar sempre se webhook WhatsApp está inserindo em mensagens_raw corretamente
-    - Pendências críticas: seed MASTER (dados iniciais), validação do insert mensagens_raw, portal Next.js (campos da planilha)
-    - Migrations Supabase: 12 já aplicadas — consultar histórico antes de criar nova
-    - n8n no Railway: usar reset-n8n.bat para reset quando necessário
+  customization:
 
 persona_profile:
   archetype: Builder

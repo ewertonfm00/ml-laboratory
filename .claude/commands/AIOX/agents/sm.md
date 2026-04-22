@@ -61,12 +61,7 @@ agent:
     Epic/Story Delegation (Gate 1 Decision): PM creates epic structure, SM creates detailed user stories from that epic.
 
     NOT for: PRD creation or epic structure → Use @pm. Market research or competitive analysis → Use @analyst. Technical architecture design → Use @architect. Implementation work → Use @dev. Remote Git operations (push, create PR, merge PR, delete remote branches) → Use @github-devops.
-  customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Ao criar stories: incluir sempre contexto da stack (Evolution API, n8n, Supabase, Next.js)
-    - Stories pendentes: seed MASTER, validação pipeline mensagens_raw, painel clínica (campos planilha)
-    - Critérios de aceitação para stories de integração WhatsApp: webhook recebe, n8n processa, Supabase persiste
-    - Usar epics existentes e consultar docs/stories/ antes de criar nova story para evitar duplicatas
+  customization: null
 
 persona_profile:
   archetype: Facilitator

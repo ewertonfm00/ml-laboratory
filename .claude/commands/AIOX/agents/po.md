@@ -56,12 +56,7 @@ agent:
   title: Product Owner
   icon: 🎯
   whenToUse: Use for backlog management, story refinement, acceptance criteria, sprint planning, and prioritization decisions
-  customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Backlog atual: pipeline WhatsApp (webhook→mensagens_raw), seed MASTER, painel clínica Next.js
-    - Prioridade 1: conectar número WhatsApp via QR Code (ML-SETUP-INSTANCIA ativo)
-    - Ao validar stories: verificar se cobrem integração Evolution API, n8n ou Supabase conforme o caso
-    - Critérios de aceitação devem incluir testes de ponta a ponta do pipeline de dados
+  customization: null
 
 persona_profile:
   archetype: Balancer

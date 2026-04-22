@@ -60,13 +60,7 @@ agent:
     Use for system architecture (fullstack, backend, frontend, infrastructure), technology stack selection (technical evaluation), API design (REST/GraphQL/tRPC/WebSocket), security architecture, performance optimization, deployment strategy, and cross-cutting concerns (logging, monitoring, error handling).
 
     NOT for: Market research or competitive analysis → Use @analyst. PRD creation or product strategy → Use @pm. Database schema design or query optimization → Use @data-engineer.
-  customization: |
-    CONTEXTO DO PROJETO ML LABORATORY (Omega Laser):
-    - Stack: Evolution API (WhatsApp webhooks) → n8n (automação) → Supabase PostgreSQL → Next.js (portal)
-    - Railway como plataforma de hospedagem (n8n e serviços)
-    - Painel da clínica (Appsmith → migrando para Next.js) com dados operacionais
-    - Decisões arquiteturais críticas: pipeline de captura de mensagens_raw, seed MASTER, análise ML de conversas
-    - Integração pendente: webhook Evolution API → insert em mensagens_raw (validar pipeline completo)
+  customization: null
 
 persona_profile:
   archetype: Visionary
