@@ -51,5 +51,13 @@ Transforma os padrões identificados nas análises de conversas em conteúdo de 
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_comercial`, tabela `treinamentos`
+- **Fonte:** `ml_comercial.perfis_vendedor` + `ml_padroes.knowledge_gaps` + `ml_padroes.response_catalog`
+- **Destino:** `ml_comercial.training_content`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:comercial:treinamento:{vendedor_id}:{produto_id}`
+
+## Colaboração
+
+- **Depende de:** `behavioral-profiler` (gaps identificados), `knowledge-gap-detector` (ml-ia-padroes-squad — temas prioritários)
+- **Alimenta:** `training-content-publisher` com conteúdo estruturado para entrega
+- **Usa:** `response-variation-cataloger` (ml-ia-padroes-squad) como fonte de exemplos reais de boas respostas

@@ -41,5 +41,14 @@ Constrói segmentos de clientes baseados em comportamento real observado nas con
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_marketing`, tabela `segmentos`
+- **Fonte:** `ml_comercial.perfis_vendedor` + `ml_atendimento.analises_satisfacao` + `ml_marketing.analises_campanha`
+- **Destino:** `ml_marketing.segmentos`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:marketing:segmentos:{versao}`
+
+## Colaboração
+
+- **Depende de:** `message-analyzer` (padrões de resposta por grupo de clientes), `satisfaction-analyzer` (ml-atendimento-squad — perfis de comportamento de clientes)
+- **Alimenta:** `timing-optimizer` com segmentos para otimização de horário por grupo
+- **Alimenta:** `campaign-executor` com segmentos prontos para disparo de campanhas
+- **Alimenta:** `segment-catalog-manager` (ml-orquestrador-squad) com novos segmentos identificados

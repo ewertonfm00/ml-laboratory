@@ -42,6 +42,8 @@ Ponto de entrada central do pipeline de captura: recebe payloads normalizados do
 - `*dedup-check` — Verifica se uma mensagem já foi processada pelo hash
 - `*pending-queue` — Lista mensagens coletadas ainda não processadas downstream
 - `*reprocess` — Reenvia mensagem para o agente de destino correto
+- `*verify-insert` — Confirma se insert de uma mensagem específica ocorreu em mensagens_raw (usa mensagem_id ou payload hash)
+- `*session-audit` — Audita integridade de uma sessão: mensagens recebidas vs persistidas vs roteadas
 
 ## Data
 
@@ -54,3 +56,4 @@ Ponto de entrada central do pipeline de captura: recebe payloads normalizados do
 
 - **Depende de:** webhook-manager (entrega dos payloads de eventos)
 - **Alimenta:** audio-transcriber (mensagens de áudio), privacy-filter (mensagens de texto)
+- **Aciona:** pipeline-debugger quando `*verify-insert` retorna inconsistência entre eventos recebidos e registros em mensagens_raw

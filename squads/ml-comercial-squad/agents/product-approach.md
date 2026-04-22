@@ -46,21 +46,18 @@ Combina conhecimento técnico dos produtos com os argumentos e abordagens que re
 - `*translate-specs` — Converte especificações técnicas em argumentos comerciais
 - `*compare-approaches` — Compara eficácia de diferentes abordagens
 
-## Outputs duais (reposicionado v2.0)
-
-Este agente gera dois tipos de output distintos:
-
-**Saída 1 — Scripts de nicho (conteúdo específico do segmento):**
-- Guias de abordagem específicos para os produtos/serviços do segmento piloto
-- Scripts e argumentos validados para cada tipo de venda (varejo, consultiva, despertar desejo)
-- Alimenta: `niche-content-extractor` com scripts de abordagem prontos para o agente de nicho
-
-**Saída 2 — Padrão de abordagem portável:**
-- Estrutura universal de abordagem independente do produto (como o vendedor apresenta qualquer coisa)
-- Metodologia natural identificada: SPIN, Challenger, Consultiva, Relacional
-- Alimenta: `profile-portability-evaluator` com dado sobre metodologia natural do perfil
-
 ## Data
 
-- **Fonte:** Postgres schema `ml_comercial`, tabela `abordagens_produto`
+- **Fonte:** `ml_comercial.conversas` (conversas de alta conversão por produto) + `ml_captura.materiais_tecnicos`
+- **Destino:** `ml_comercial.abordagens_produto`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:comercial:abordagem:{produto_id}:{tipo_venda}`
+
+## Colaboração
+
+- **Depende de:** `conversation-analyst` (conversas de alta conversão por produto), `technical-content-loader` (ml-captura-squad — especificações técnicas dos produtos)
+- **Alimenta:** `niche-content-extractor` com scripts de abordagem validados por produto para Saída 1
+- **Alimenta:** `training-generator` com guias de abordagem por produto para treinamento
+- **Alimenta:** `profile-segment-matcher` com metodologia natural de abordagem do vendedor para Saída 2
+- **Aciona:** `technical-content-loader` quando especificações técnicas desatualizadas são detectadas nos guias
+- **Colabora com:** `objection-handler` para integrar respostas a objeções nos guias de abordagem por produto

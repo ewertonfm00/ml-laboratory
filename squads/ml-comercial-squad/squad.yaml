@@ -58,6 +58,7 @@ components:
     - niche-content-extractor.md
     - profile-segment-matcher.md
     - training-content-publisher.md
+    - win-loss-analyzer.md
   tasks:
     - analyze-conversation.md
     - build-behavioral-profile.md

@@ -523,6 +523,63 @@ Lógica de resolução no n8n (captura):
 - [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)
 
 ---
+## Sessão 2026-04-21 (auditoria multi-projeto — reestruturação software-house-elite)
+
+### 1. Implementações
+- Nenhum arquivo criado ou modificado — sessão inteiramente de análise e planejamento arquitetural
+
+### 2. Decisões
+
+**Software-house-elite como squad base universal (APROVADO pelo usuário):**
+- O squad deve ser replicado em TODOS os projetos ao invés de cada projeto recriar agentes técnicos do zero
+- É o "template de time de desenvolvimento" reutilizável
+
+**3 agentes a MOVER para o software-house-elite (base sem contexto de produto):**
+- `@n8n-dev (Nix)` — está em esteticaia-produto mas é transversal (quase todo projeto usa n8n)
+- `@ai-engineer (Aiden)` — especialista em LLMs/prompts é transversal a qualquer projeto com IA
+- `@frontend-specialist (Arc)` — Next.js/UI é transversal
+
+**Omega Laser — dev-estetica-tools INTEIRO substituído pelo software-house-elite:**
+- 10 agentes são duplicatas de agentes AIOX/elite com nomes diferentes
+- backend-dev(Ben)→@dev, system-architect→@architect, database-engineer→@data-engineer, frontend-dev→@frontend-specialist, qa-dev→@qa, security-compliance→@security-architect+@lgpd-compliance, devops-engineer→@devops, health-monitor→@sre, ops-auditor→@qa, ux-design-expert(Ops)→@ux-design-expert
+
+**ML Laboratory — squads FORA DO ESCOPO (escopo = captura+análise de conversas+perfis comportamentais+skills IA):**
+- `ml-financeiro-squad` (4 agentes) — fluxo de caixa, cobranças: fora do escopo
+- `ml-operacional-squad` (3 agentes) — mapeamento de processos da clínica: fora do escopo
+- `ml-pessoas-squad` (3 agentes) — RH, onboarding de funcionários: fora do escopo
+
+**ML Laboratory — agentes individuais a REMOVER:**
+- `appointment-scheduler` (ml-atendimento) — sistema captura conversas, não atende clientes
+- `campaign-executor` (ml-marketing) — executar campanhas não é papel do laboratório
+- `crm-sync-agent` (ml-plataforma) — nenhum CRM no escopo
+
+**ML Laboratory — ml-plataforma-squad quase inteiro para software-house-elite:**
+- infra-manager → @sre, monitor-agent → @sre, deploy-coordinator → @devops, onboarding-orchestrator → @devops
+
+**ML Laboratory — ml-data-eng-squad simplificado:**
+- schema-designer → delegar ao @data-engineer (software-house-elite)
+- etl-engineer → delegar ao @data-engineer (software-house-elite)
+
+### 3. Todos Ativos
+
+**REESTRUTURAÇÃO MULTI-PROJETO (ordem de execução confirmada pelo usuário):**
+- [ ] **Passo 1 — Estetica.IA**: atualizar `software-house-elite/squad.yaml` adicionando Nix, Aiden, Arc como agentes base (sem contexto de produto)
+- [ ] **Passo 2 — Omega Laser**: substituir `dev-estetica-tools` pelo `software-house-elite` importado
+- [ ] **Passo 3 — ML Laboratory**:
+  - [ ] Remover squads fora do escopo: ml-financeiro, ml-operacional, ml-pessoas (10 agentes, 9 tasks)
+  - [ ] Remover agentes fora do escopo: appointment-scheduler, campaign-executor, crm-sync-agent
+  - [ ] Mover ml-plataforma para software-house-elite: infra-manager, monitor-agent, deploy-coordinator, onboarding-orchestrator
+  - [ ] Simplificar ml-data-eng: remover schema-designer, etl-engineer (delegados ao @data-engineer)
+  - [ ] Importar software-house-elite atualizado
+
+**Pendências anteriores (continuam ativas):**
+- [ ] Forçar redeploy portal-ml no Railway
+- [ ] Acessar `/api/diagnostico` e confirmar schema real do banco
+- [ ] Validar pipeline ML-CAPTURA end-to-end
+- [ ] Seed MASTER (aguarda e-mail + senha do usuário)
+- [ ] Story 1.1 tasks 2.6–2.8 / Story 1.2 tasks 3.1–3.2
+
+---
 ## Sessão 2026-04-21 (gap analysis — squads e agentes ML completos)
 
 ### 1. Implementações

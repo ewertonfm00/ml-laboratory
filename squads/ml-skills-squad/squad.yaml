@@ -26,6 +26,7 @@ components:
     - niche-agent-assembler.md
     - agent-performance-tracker.md
     - ab-test-manager.md
+    - skill-deprecator.md
   tasks:
     - generate-skill.md
     - validate-skill.md

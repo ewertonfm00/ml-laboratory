@@ -28,6 +28,7 @@ components:
     - knowledge-gap-detector.md
     - feedback-collector.md
     - benchmark-calibrator.md
+    - response-pre-validator.md
   tasks:
     - extract-patterns.md
     - analyze-behavior.md

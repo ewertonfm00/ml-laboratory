@@ -41,5 +41,13 @@ Analisa padrões históricos de engajamento para recomendar o melhor momento de 
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_marketing`, tabela `timing_insights`
+- **Fonte:** `ml_marketing.analises_campanha` (histórico de envios e respostas por horário)
+- **Destino:** `ml_marketing.timing_insights`
+- **Modelo:** Claude Haiku
 - **Cache:** Redis `ml:marketing:timing:{segmento}`
+
+## Colaboração
+
+- **Depende de:** `message-analyzer` (dados de engajamento histórico por horário), `segmentation-advisor` (segmentos para otimização específica)
+- **Alimenta:** `campaign-executor` com janelas de timing recomendadas por campanha
+- **Alimenta:** `insight-scheduler` (ml-orquestrador-squad) com configuração de horário ideal de entrega por destinatário

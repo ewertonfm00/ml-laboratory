@@ -42,5 +42,14 @@ Analisa o impacto real das mensagens de marketing medindo engajamento, resposta 
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_marketing`, tabela `analises_campanha`
+- **Fonte:** `ml_captura.mensagens_raw` (mensagens de campanha) + `ml_captura.sessoes_conversa` (respostas geradas)
+- **Destino:** `ml_marketing.analises_campanha`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:marketing:campanha:{id}`
+
+## Colaboração
+
+- **Depende de:** `data-quality-validator` (ml-data-eng-squad) — dados de resposta validados, `message-collector` (ml-captura-squad) — respostas capturadas após campanha
+- **Alimenta:** `segmentation-advisor` com padrões de resposta por segmento
+- **Alimenta:** `timing-optimizer` com dados de horário de maior engajamento
+- **Alimenta:** `executive-reporter` (ml-orquestrador-squad) com performance de marketing

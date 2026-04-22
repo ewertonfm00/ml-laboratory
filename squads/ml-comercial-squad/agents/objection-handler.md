@@ -49,21 +49,18 @@ Cataloga todas as objeções que aparecem nas conversas reais, classifica por fr
 - `*top-objections` — Lista top objeções por produto
 - `*gap-analysis` — Identifica objeções sem boa resposta catalogada
 
-## Outputs duais (reposicionado v2.0)
-
-Este agente gera dois tipos de output distintos:
-
-**Saída 1 — Objeções do segmento (conteúdo específico):**
-- Catálogo de objeções reais com contexto e respostas validadas para o segmento piloto
-- Segmentado por produto, tipo de venda e perfil de cliente
-- Alimenta: `niche-content-extractor` com pares objeção-resposta prontos para uso
-
-**Saída 2 — Padrões universais de objeção:**
-- Tipologia universal de objeções independente do nicho (preço, prazo, necessidade, confiança)
-- Padrões comportamentais de como o vendedor lida com objeções (evita, enfrenta, contorna)
-- Alimenta: `profile-portability-evaluator` com dado sobre capacidade de lidar com objeções
-
 ## Data
 
-- **Fonte:** Postgres schema `ml_comercial`, tabela `objecoes`
+- **Fonte:** `ml_comercial.conversas` (objeções extraídas pelo conversation-analyst)
+- **Destino:** `ml_comercial.objecoes`
+- **Modelo:** Claude Haiku (catalogação) / Claude Sonnet (análise de efetividade)
 - **Cache:** Redis `ml:comercial:objecao:{produto_id}:{tipo_objecao}`
+
+## Colaboração
+
+- **Depende de:** `conversation-analyst` (objeções identificadas nas conversas analisadas)
+- **Alimenta:** `niche-content-extractor` com pares objeção-resposta específicos do segmento para Saída 1
+- **Alimenta:** `training-generator` com catálogo de objeções e respostas validadas
+- **Alimenta:** `profile-segment-matcher` com padrão universal de tratamento de objeções para Saída 2
+- **Aciona:** `knowledge-gap-detector` (ml-ia-padroes-squad) quando objeções frequentes não têm boa resposta catalogada
+- **Colabora com:** `win-loss-analyzer` para correlacionar objeções não tratadas com conversas perdidas

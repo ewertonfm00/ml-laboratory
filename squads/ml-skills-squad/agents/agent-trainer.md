@@ -45,12 +45,14 @@ Fecha o ciclo de melhoria contínua do laboratório ML: analisa as métricas de 
 
 ## Data
 
-- **Fonte:** Postgres schemas ml-comercial (agent-performance-tracker, ab-test-manager)
-- **Destino:** Postgres `ml_skills.training_runs`
+- **Fonte:** `ml_skills.agent_performance` + `ml_skills.ab_tests`
+- **Destino:** `ml_skills.training_runs`
 - **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:skills:training:{agent_version}`
 
 ## Colaboração
 
-- **Depende de:** agent-performance-tracker do ml-comercial (métricas de performance em produção), ab-test-manager do ml-comercial (resultados de testes A/B)
-- **Alimenta:** niche-agent-assembler (com versões refinadas das skills para incorporação ao agente)
+- **Depende de:** `agent-performance-tracker` (métricas de performance em produção), `ab-test-manager` (resultados de testes A/B com significância estatística)
+- **Alimenta:** `skill-generator` com hipóteses de melhoria para skills de baixa performance
+- **Alimenta:** `niche-agent-assembler` com diretrizes de refinamento para incorporação ao agente
+- **Alimenta:** `skill-deprecator` com skills identificadas como ineficazes para deprecação formal

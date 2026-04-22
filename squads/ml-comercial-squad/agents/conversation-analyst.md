@@ -42,5 +42,15 @@ Analisa conversas reais de vendas capturadas via WhatsApp + Evolution API. Ident
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_comercial`, tabela `conversas`
+- **Fonte:** `ml_captura.sessoes_conversa` + `ml_captura.mensagens_raw`
+- **Destino:** `ml_comercial.conversas`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:comercial:analise:{conversa_id}`
+
+## Colaboração
+
+- **Depende de:** `data-classifier` (ml-data-eng-squad) — recebe conversas classificadas como comercial, `data-quality-validator` (ml-data-eng-squad) — apenas dados aprovados
+- **Alimenta:** `behavioral-profiler` com análises estruturadas por vendedor
+- **Alimenta:** `objection-handler` com objeções e respostas identificadas
+- **Alimenta:** `pattern-extractor` (ml-ia-padroes-squad) com fases e sequências da conversa
+- **Alimenta:** `win-loss-analyzer` com resultado da conversa (converteu ou perdeu)

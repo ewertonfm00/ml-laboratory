@@ -1,6 +1,6 @@
 name: ml-plataforma-squad
 version: 0.1.0
-description: Gerencia toda a infraestrutura do laboratório ML — Railway, Postgres, Redis, monitoramento e deploys isolados
+description: Gerencia o onboarding de clientes ML — orquestra a ativação de novas instâncias do laboratório. Infra, deploy e monitoramento são responsabilidade do @devops do software-house-elite.
 author: Synkra AIOX
 license: MIT
 slashPrefix: ml-plataforma
@@ -20,15 +20,9 @@ isolation:
 
 components:
   agents:
-    - infra-manager.md
-    - monitor-agent.md
-    - deploy-coordinator.md
     - onboarding-orchestrator.md
-    - crm-sync-agent.md
   tasks:
     - setup-infrastructure.md
-    - monitor-health.md
-    - deploy-update.md
   workflows: []
   checklists: []
   templates: []

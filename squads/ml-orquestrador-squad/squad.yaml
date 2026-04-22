@@ -35,6 +35,7 @@ components:
     - anomaly-detector.md
     - segment-catalog-manager.md
     - insight-scheduler.md
+    - pipeline-health-dashboard.md
   tasks:
     - synthesize-cross-area.md
     - generate-executive-report.md

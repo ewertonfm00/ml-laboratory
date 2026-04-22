@@ -19,15 +19,13 @@ isolation:
   railway_service: ml-data-eng
 
 components:
+  # NOTA: schema-designer e etl-engineer foram removidos — schema design e ETL
+  # são responsabilidade do @data-engineer do software-house-elite.
   agents:
-    - schema-designer.md
-    - etl-engineer.md
     - data-classifier.md
     - question-pattern-mapper.md
     - data-quality-validator.md
   tasks:
-    - design-schema.md
-    - build-etl-pipeline.md
     - classify-data.md
   workflows: []
   checklists: []

@@ -42,5 +42,14 @@ Lê conversas de atendimento para extrair sinais implícitos de satisfação ou 
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_atendimento`, tabela `analises_satisfacao`
+- **Fonte:** `ml_captura.sessoes_conversa` + `ml_captura.mensagens_raw`
+- **Destino:** `ml_atendimento.analises_satisfacao`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:atendimento:satisfacao:{conversa_id}`
+
+## Colaboração
+
+- **Depende de:** `data-quality-validator` (ml-data-eng-squad) — apenas conversas aprovadas
+- **Alimenta:** `churn-detector` com scores de satisfação por interação
+- **Alimenta:** `retention-advisor` com contexto emocional da conversa
+- **Alimenta:** `service-quality-monitor` com tom emocional por atendente

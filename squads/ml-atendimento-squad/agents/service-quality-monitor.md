@@ -42,5 +42,14 @@ Avalia a qualidade do atendimento prestado usando critérios objetivos extraído
 
 ## Data
 
-- **Fonte:** Postgres schema `ml_atendimento`, tabela `avaliacoes_qualidade`
+- **Fonte:** `ml_captura.sessoes_conversa` + `ml_captura.mensagens_raw`
+- **Destino:** `ml_atendimento.avaliacoes_qualidade`
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:atendimento:qualidade:{atendente_id}:{periodo}`
+
+## Colaboração
+
+- **Depende de:** `data-quality-validator` (ml-data-eng-squad) — dados validados antes da avaliação
+- **Alimenta:** `performance-reporter` (ml-comercial-squad) com métricas de qualidade por atendente
+- **Alimenta:** `knowledge-gap-detector` (ml-ia-padroes-squad) com padrões de qualidade de resposta
+- **Alimenta:** `talent-profiler` (ml-pessoas-squad) com dados de desempenho operacional

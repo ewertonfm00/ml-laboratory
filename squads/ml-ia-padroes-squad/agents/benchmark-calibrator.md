@@ -55,11 +55,14 @@ Os benchmarks gerados com 100 conversas são muito diferentes dos gerados com 10
 
 - **Fonte:** `ml_padroes.assertividade` + `ml_padroes.recommendation_feedback` + conversas processadas
 - **Destino:** `ml_padroes.benchmarks` (versões históricas dos benchmarks)
+- **Modelo:** Claude Sonnet
 - **Cache:** Redis `ml:padroes:benchmark:{tipo}:current`
 
 ## Colaboração
 
 - **Depende de:** `feedback-collector` (resultados reais) e `pattern-extractor` (padrões atualizados)
-- **Atualiza:** `benchmark-generator` com novos valores de referência
-- **Atualiza:** `data-quality-validator` (ml-data-eng-squad) com thresholds recalibrados
+- **Alimenta:** `benchmark-generator` com novos valores de referência para recalibração contínua
+- **Alimenta:** `data-quality-validator` (ml-data-eng-squad) com thresholds de qualidade recalibrados
+- **Aciona:** `anomaly-detector` (ml-orquestrador-squad) quando deriva significativa de benchmark é detectada
 - **Informa:** `executive-reporter` (ml-orquestrador-squad) quando deriva significativa é detectada
+- **Colabora com:** `feedback-collector` para alinhar efetividade real com os limiares calibrados

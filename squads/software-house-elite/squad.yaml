@@ -1,0 +1,208 @@
+name: software-house-elite
+version: 2.0.0
+description: |
+  Squad de entrega da software house — projetos de clientes externos.
+  Cobre análise de negócio, gestão de projetos, arquitetura enterprise,
+  liderança técnica, qualidade, SRE, segurança e UX research.
+  Projetado para times de entrega enxutos com alta especialização técnica.
+domain: software-house
+author: "@dev (Dex)"
+created_at: "2026-04-03"
+updated_at: "2026-04-18"
+aios_version: "2.1.0"
+
+changelog:
+  - version: "2.1.0"
+    date: "2026-04-21"
+    changes:
+      - "Adicionados: n8n-dev (Nix), ai-engineer (Aiden), frontend-specialist (Arc) — versões BASE sem contexto de produto"
+  - version: "2.0.0"
+    date: "2026-04-18"
+    changes:
+      - "Reorganização estrutural — separação de contextos por squad dedicado"
+      - "Removidos: pmo-director, risk-manager (prematuros para estágio atual)"
+      - "Movidos para esteticaia-produto: n8n-dev, ai-engineer, icarus"
+      - "Movidos para esteticaia-comercial: sales-engineer, tam, customer-success"
+      - "Adicionados: business-analyst, project-manager, tech-writer"
+  - version: "1.1.0"
+    date: "2026-04-06"
+    changes:
+      - "Adicionado agente @n8n-dev (Nix)"
+      - "Corrigido tech-stack.md"
+      - "Criados task files de engenharia"
+
+agents:
+  # --- ANÁLISE E GESTÃO ---
+  - id: business-analyst
+    name: Bex
+    file: agents/business-analyst.md
+    layer: management
+    tier: 1
+    note: "Levantamento de requisitos com clientes — bridge entre negócio e @architect"
+
+  - id: project-manager
+    name: Pira
+    file: agents/project-manager.md
+    layer: management
+    tier: 1
+    note: "Gestão operacional leve de projetos de clientes"
+
+  - id: delivery-manager
+    name: Vera
+    file: agents/delivery-manager.md
+    layer: management
+    tier: 2
+    note: "Gestão estratégica de entrega — múltiplos projetos simultâneos"
+
+  - id: pm
+    name: Morgan
+    ref: "@pm"
+    layer: management
+    tier: 2
+
+  # --- ARQUITETURA E ENGENHARIA ---
+  - id: enterprise-architect
+    name: Nova
+    file: agents/enterprise-architect.md
+    layer: engineering
+    tier: 1
+    note: "Arquitetura enterprise para projetos complexos de clientes"
+
+  - id: tech-lead
+    name: Kai
+    file: agents/tech-lead.md
+    layer: engineering
+    tier: 1
+
+  - id: dev
+    name: Dex
+    ref: "@dev"
+    layer: engineering
+    tier: 2
+
+  - id: data-engineer
+    name: Dara
+    ref: "@data-engineer"
+    layer: engineering
+    tier: 2
+
+  - id: n8n-dev
+    name: Nix
+    file: agents/n8n-dev.md
+    layer: engineering
+    tier: 2
+    note: "n8n workflows e integrações — debugging, criação e auditoria de workflows para projetos de clientes"
+
+  - id: ai-engineer
+    name: Aiden
+    file: agents/ai-engineer.md
+    layer: engineering
+    tier: 2
+    note: "LLM engineering — prompts, evals, RAG e seleção de modelo para features de IA"
+
+  - id: frontend-specialist
+    name: Arc
+    file: agents/frontend-specialist.md
+    layer: engineering
+    tier: 2
+    note: "Frontend especializado — Next.js 14, shadcn/ui, Core Web Vitals, WCAG 2.1 AA e design system"
+
+  - id: sdet
+    name: Sage
+    file: agents/sdet.md
+    layer: engineering
+    tier: 2
+
+  - id: tech-writer
+    name: Wren
+    file: agents/tech-writer.md
+    layer: engineering
+    tier: 2
+    note: "Documentação de entregáveis — README, manuais, API docs para clientes"
+
+  # --- INFRAESTRUTURA E SEGURANÇA ---
+  - id: sre
+    name: Orb
+    file: agents/sre.md
+    layer: infrastructure
+    tier: 1
+
+  - id: devops
+    name: Gage
+    ref: "@devops"
+    layer: infrastructure
+    tier: 1
+
+  - id: security-architect
+    name: Cipher
+    file: agents/security-architect.md
+    layer: infrastructure
+    tier: 1
+
+  # --- EXPERIÊNCIA E DESIGN ---
+  - id: ux-research-lead
+    name: Lena
+    file: agents/ux-research-lead.md
+    layer: design
+    tier: 1
+
+  - id: pixel
+    name: Pixel
+    ref: "@pixel"
+    file: ~/.claude/agents/pixel.md
+    layer: design
+    tier: 1
+    note: "Product Designer & Design System Architect — design systems, tokens, handoff, WCAG 2.2. Agente global."
+
+  - id: ux-design-expert
+    name: Uma
+    ref: "@ux-design-expert"
+    layer: design
+    tier: 2
+
+  - id: lgpd-compliance
+    name: Lex
+    file: agents/lgpd-compliance.md
+    layer: infrastructure
+    tier: 1
+    note: "LGPD, DPIA, consentimento, DPA com clínicas e protocolo de incidentes ANPD"
+
+workflows:
+  - id: project-kickoff
+    agents: [business-analyst, project-manager, enterprise-architect, delivery-manager]
+    description: Início de projeto — levantamento de requisitos, arquitetura e plano
+
+  - id: sprint-execution
+    agents: [tech-lead, dev, data-engineer, sdet, devops]
+    description: Execução de sprint — desenvolvimento, testes e deploy
+
+  - id: security-review
+    agents: [security-architect, sre, sdet]
+    description: Review de segurança e performance pré-release
+
+  - id: ux-discovery
+    agents: [ux-research-lead, pixel, ux-design-expert, pm]
+    description: Descoberta UX — pesquisa, persona, design system e protótipo
+
+  - id: client-delivery
+    agents: [project-manager, tech-lead, tech-writer, delivery-manager]
+    description: Entrega de projeto — documentação, handoff e aceite do cliente
+
+  - id: incident-response
+    agents: [sre, devops, security-architect, tech-lead]
+    description: Resposta a incidentes de produção
+
+config:
+  extends: true
+  base_config: .aios-core/
+  coding_standards: config/coding-standards.md
+  tech_stack: config/tech-stack.md
+  source_tree: config/source-tree.md
+
+statistics:
+  total_agents: 20
+  reused_from_aios: 5
+  new_agents: 14
+  layers: [management, engineering, infrastructure, design]
+  tasks_available: 10
+  last_audit: "2026-04-21"

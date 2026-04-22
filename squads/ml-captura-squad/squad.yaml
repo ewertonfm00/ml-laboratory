@@ -26,6 +26,7 @@ components:
     - technical-content-loader.md
     - privacy-filter.md
     - multi-source-collector.md
+    - pipeline-debugger.md
   tasks:
     - configure-webhook.md
     - transcribe-audio.md
