@@ -1,5 +1,5 @@
 name: software-house-elite
-version: 2.3.0
+version: 2.4.0
 description: |
   Squad de entrega da software house — projetos de clientes externos.
   Cobre análise de negócio, gestão de projetos, arquitetura enterprise,
@@ -12,6 +12,11 @@ updated_at: "2026-04-22"
 aios_version: "2.1.0"
 
 changelog:
+  - version: "2.4.0"
+    date: "2026-04-22"
+    changes:
+      - "icarus: removido ref global (@icarus) — arquivo local agents/icarus.md é a fonte de verdade"
+      - "Deletado ~/.claude/agents/icarus.md — icarus disponível exclusivamente via squad"
   - version: "2.3.0"
     date: "2026-04-22"
     changes:
@@ -124,7 +129,6 @@ agents:
 
   - id: icarus
     name: Icarus
-    ref: "@icarus"
     file: agents/icarus.md
     layer: engineering
     tier: 2
