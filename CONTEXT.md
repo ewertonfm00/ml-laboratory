@@ -1,45 +1,39 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-21 (auditoria de squads — 2 novos agentes + 1 task criados)
+**Última sessão:** 2026-04-23 (pipeline ML-CAPTURA validado, bugs n8n corrigidos)
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Conectar número WhatsApp via portal (ação manual — escanear QR Code).
+**PRIORIDADE 1:** Validar upsert `sessoes_conversa` — enviar mensagem de teste e confirmar que `total_mensagens` incrementa e `updated_at` atualiza.
 
-Acessar: `https://portal-ml-production.up.railway.app/numeros/conectar`
-Preencher: número (5516…), nome identificador, setor → escanear QR Code.
+Último fix aplicado: `INSERT ON CONFLICT DO UPDATE` + remoção de referência a `mr.agente_humano_id` — ainda não confirmado funcionando.
 
 ---
 
 ## Pendências
 
-### SQUADS ML — OPERACIONALIZAÇÃO
-- [ ] Implementar workflows n8n das tasks criadas (começar por ml-captura: configure-webhook → collect-messages → transcribe-audio)
-- [ ] Seed inicial do segment-catalog-manager (catálogo vazio inutiliza Saída 2)
-- [ ] Migrar 62 agentes dos squads para formato completo do template (sem persona_profile/autoClaude) — usar `@icarus *scan-agents all`
-
-### CONEXÃO WHATSAPP
-- [ ] Acessar `/numeros/conectar` e escanear QR Code
-- [ ] Enviar mensagem de teste e capturar payload bruto no n8n
-- [ ] Adaptar nó "Normalizar Payload" para formato real do payload
-- [ ] Validar inserção em `ml_captura.mensagens_raw`
+### PIPELINE DE CAPTURA
+- [ ] Confirmar que `sessoes_conversa` está sendo atualizado após último fix (`285b767`)
+- [ ] n8n workflow JSON tem encoding corrompido (curly quotes U+201C/U+201D + mojibake em-dash) — sanitização manual necessária a cada atualização via API
 
 ### SEED MASTER
 - [ ] Usuário passa e-mail + senha → gerar SQL → executar no Railway
 
-### TESTES (aguardam WhatsApp conectado)
+### TESTES
 - [ ] Story 1.1 tasks 2.6–2.8: testes mono/multi com WhatsApp real
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
 - [ ] Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador → após onboarding EsteticaIA
+- [ ] Avisar EsteticaIA: endpoint pronto em `/webhook/ml/external/esteticaia`
 
-### DASHBOARD
-- [ ] Forçar redeploy portal-ml no Railway (bloqueio do dashboard de conversas)
-- [ ] Confirmar schema real via `/api/diagnostico` e fazer fix definitivo
+### SQUADS ML — OPERACIONALIZAÇÃO
+- [ ] Implementar workflows n8n das tasks criadas (começar por ml-captura)
+- [ ] Seed inicial do segment-catalog-manager (Saída 2 inoperante sem catálogo)
+- [ ] Migrar 62 agentes para formato completo do template — `@icarus *scan-agents all`
 
 ### GIT
-- [ ] Push dos commits locais para origin/main (`@devops`) — branch está 8 commits à frente
+- [ ] Push dos commits locais para origin/main (`@devops`) — branch 10+ commits à frente
 
 ---
 
@@ -47,34 +41,25 @@ Preencher: número (5516…), nome identificador, setor → escanear QR Code.
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | 19 migrations executadas (001→019) |
-| n8n | ✅ Ativo | 20+ workflows, ML-CAPTURA publicado |
-| Evolution API | ✅ Ativo | Pronta, aguardando QR Code |
+| Postgres | ✅ Ativo | 19 migrations executadas |
+| n8n | ✅ Ativo | ML-CAPTURA ativo, 3 bugs corrigidos esta sessão |
+| Evolution API | ✅ Ativo | `ml-5516988456918` conectado, `state: open` |
 | Portal Next.js | ✅ HTTP 200 | `https://portal-ml-production.up.railway.app` |
 | Metabase | ✅ Ativo | — |
 
-## Squads ML — Estado Atual (pós-auditoria)
+## Pipeline ML-CAPTURA — Estado dos Nós
 
-| Squad | Agentes | Tasks | Status |
-|-------|---------|-------|--------|
-| ml-captura | 6 | 3 | ✅ |
-| ml-data-eng | 5 | 3 | ✅ |
-| ml-ia-padroes | 8 | 3 | ✅ |
-| ml-plataforma | 5 | 3 | ✅ |
-| ml-skills | 6 | 3 | ✅ |
-| ml-comercial | 9 | 6 | ✅ |
-| ml-atendimento | 4 | 3 | ✅ |
-| ml-financeiro | **4** | 4 | ✅ (+forecast-analyst) |
-| ml-marketing | **4** | **4** | ✅ (+campaign-executor +execute-campaign) |
-| ml-operacional | 3 | 3 | ✅ |
-| ml-pessoas | 3 | 3 | ✅ |
-| ml-orquestrador | 5 | 4 | ✅ |
+| Nó | Status | Observação |
+|----|--------|-----------|
+| Webhook Evolution API | ✅ | Recebendo `messages.upsert` |
+| Normalizar Payload | ✅ | `$json.body \|\| $json` — corrigido |
+| Lookup Setor | ✅ | `projeto_id` preenchido corretamente |
+| Inserir mensagens_raw | ✅ | Confirmado com dados reais |
+| Upsert sessoes_conversa | ⚠️ | Fix aplicado, aguarda validação |
 
 ## Contexto técnico
 
 - Portal: `https://portal-ml-production.up.railway.app`
 - Webhook ML-CAPTURA: `https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp`
-- n8n: `ewertonfm00@gmail.com` / `Senha1234`
-- Evolution API Key: `ml-evo-key-2026`
-- Postgres: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
-- Projeto no banco: `omega-laser-locacoes` (id: 7bd3cbf2-cb83-42fa-a6bf-f52a57d99ea5)
+- Postgres público: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
+- Projeto no banco: Machine Learning (id: 9c22ad6e-ca38-48d4-8dbb-51bbcadf67a2)

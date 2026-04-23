@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-21
+Última atualização: 2026-04-23
 
 ---
 
@@ -32,6 +32,15 @@
 - **Claude Sonnet** — análise profunda, geração de perfis e treinamentos
 - **Metabase** — dashboards analíticos (embed no portal)
 - **Portal Next.js** (`portal-next/`) — portal interativo de gestão (substituiu Appsmith em 2026-04-16; deployado em produção em 2026-04-17: `https://portal-ml-production.up.railway.app`)
+
+---
+
+## Instância de Testes ML Laboratory
+
+- **Número:** `ml-5516988456918` — instância conectada e ativa (`state: open`)
+- **Projeto no banco:** `9c22ad6e-ca38-48d4-8dbb-51bbcadf67a2` (Machine Learning)
+- **Finalidade:** captura de conversas reais para alimentar o laboratório
+- **Pipeline confirmado:** mensagens chegando em `ml_captura.mensagens_raw` com `projeto_id` preenchido
 
 ---
 
