@@ -5,7 +5,7 @@
 Antes de qualquer coisa, rodar no terminal Windows (PowerShell ou CMD):
 
 ```powershell
-cd "Z:\My Folders\Projetos - Claude Code\AIOX - Machine Learning\portal-next"
+cd "C:\Users\Ewerton\Projetos - Claude Code\AIOX - Machine Learning\portal-next"
 npm install
 npm run build   # verifica se compila
 npm run dev     # http://localhost:3000

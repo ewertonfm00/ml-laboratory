@@ -6,14 +6,14 @@ const fs = require('fs');
 const APPSMITH_URL = 'https://appsmith-production-f331.up.railway.app';
 const EMAIL = 'ewertonfm00@gmail.com';
 const PASSWORD = 'Mll031119';
-const JSON_FILE = path.resolve('Z:/My Folders/Projetos - Claude Code/AIOX - Machine Learning/portal/appsmith-import.json');
+const JSON_FILE = path.join(__dirname, '../portal/appsmith-import.json');
 
 async function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
 async function screenshot(page, name) {
-  const dir = 'Z:/My Folders/Projetos - Claude Code/AIOX - Machine Learning/scripts/screenshots';
+  const dir = path.join(__dirname, 'screenshots');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: true });
   console.log(`Screenshot saved: ${name}.png`);
