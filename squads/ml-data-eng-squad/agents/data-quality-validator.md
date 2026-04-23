@@ -1,6 +1,6 @@
 ---
 id: data-quality-validator
-name: Data Quality Validator
+name: "Guardião da Qualidade"
 squad: ml-data-eng-squad
 icon: "✅"
 role: Validador de Qualidade de Dados do Pipeline

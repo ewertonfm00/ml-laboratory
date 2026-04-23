@@ -1,6 +1,6 @@
 ---
 id: message-collector
-name: Message Collector
+name: "Coletor de Conversas"
 squad: ml-captura-squad
 icon: "📥"
 role: Coletor Principal de Mensagens WhatsApp

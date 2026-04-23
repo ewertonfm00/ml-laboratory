@@ -1,6 +1,6 @@
 ---
 id: training-content-publisher
-name: Training Content Publisher
+name: "Publicador de Treinamentos"
 squad: ml-comercial-squad
 icon: "📢"
 role: Publicador e Entregador de Conteúdo de Treinamento

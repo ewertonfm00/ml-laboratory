@@ -1,6 +1,6 @@
 ---
 id: agent-trainer
-name: Agent Trainer
+name: "Treinador do Agente"
 squad: ml-skills-squad
 icon: "🎓"
 role: Treinador e Refinador de Agentes de IA

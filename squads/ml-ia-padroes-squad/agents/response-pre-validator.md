@@ -1,6 +1,6 @@
 ---
 id: response-pre-validator
-name: Response Pre Validator
+name: "Pré-Validador de Respostas"
 squad: ml-ia-padroes-squad
 icon: "🛡️"
 role: Validador de Qualidade de Resposta Antes do Envio ao Cliente

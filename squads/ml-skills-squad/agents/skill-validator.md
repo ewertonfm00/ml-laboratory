@@ -1,6 +1,6 @@
 ---
 id: skill-validator
-name: Skill Validator
+name: "Validador de Skills"
 squad: ml-skills-squad
 icon: "✅"
 role: Validador de Skills Antes do Deploy

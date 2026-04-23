@@ -1,6 +1,6 @@
 ---
 id: pipeline-debugger
-name: Pipeline Debugger
+name: "Monitor de Pipeline"
 squad: ml-captura-squad
 icon: "🩺"
 role: Diagnóstico e Correção do Pipeline de Captura

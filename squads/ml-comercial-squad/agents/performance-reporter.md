@@ -1,6 +1,6 @@
 ---
 id: performance-reporter
-name: Performance Reporter
+name: "Relator de Performance"
 squad: ml-comercial-squad
 icon: "📊"
 role: Gerador de Relatórios de Performance Comercial

@@ -1,6 +1,6 @@
 ---
 id: agent-performance-tracker
-name: Agent Performance Tracker
+name: "Monitor de Performance do Agente"
 squad: ml-skills-squad
 icon: "📊"
 role: Monitor de Performance dos Agentes de IA Deployados

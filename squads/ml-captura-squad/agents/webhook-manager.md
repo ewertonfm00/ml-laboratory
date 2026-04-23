@@ -1,6 +1,6 @@
 ---
 id: webhook-manager
-name: Webhook Manager
+name: "Receptor de Mensagens"
 squad: ml-captura-squad
 icon: "🔗"
 role: Gerenciador de Webhooks do Evolution API

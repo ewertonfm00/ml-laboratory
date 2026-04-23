@@ -1,6 +1,6 @@
 ---
 id: service-quality-monitor
-name: Service Quality Monitor
+name: "Monitor de Qualidade do Atendimento"
 squad: ml-atendimento-squad
 icon: "📋"
 role: Monitor de Qualidade de Atendimento

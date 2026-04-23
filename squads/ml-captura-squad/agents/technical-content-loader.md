@@ -1,6 +1,6 @@
 ---
 id: technical-content-loader
-name: Technical Content Loader
+name: "Carregador de Material Técnico"
 squad: ml-captura-squad
 icon: "📄"
 role: Ingestor e Indexador de Materiais Técnicos

@@ -1,6 +1,6 @@
 ---
 id: product-approach
-name: Product Approach Agent
+name: "Especialista em Produto"
 squad: ml-comercial-squad
 icon: "🎯"
 role: Especialista em Abordagem por Produto

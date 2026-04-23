@@ -1,6 +1,6 @@
 ---
 id: benchmark-calibrator
-name: Benchmark Calibrator
+name: "Calibrador de Benchmarks"
 squad: ml-ia-padroes-squad
 icon: "⚖️"
 role: Calibrador Dinâmico de Benchmarks

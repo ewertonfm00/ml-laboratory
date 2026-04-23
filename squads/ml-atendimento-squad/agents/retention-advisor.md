@@ -1,6 +1,6 @@
 ---
 id: retention-advisor
-name: Retention Advisor
+name: "Consultor de Retenção"
 squad: ml-atendimento-squad
 icon: "🔒"
 role: Consultor de Retenção de Clientes

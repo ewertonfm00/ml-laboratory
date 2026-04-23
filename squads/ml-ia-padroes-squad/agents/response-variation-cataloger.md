@@ -1,6 +1,6 @@
 ---
 id: response-variation-cataloger
-name: Response Variation Cataloger
+name: "Catalogador de Variações"
 squad: ml-ia-padroes-squad
 icon: "📚"
 role: Catalogador de Variações de Resposta por Pergunta

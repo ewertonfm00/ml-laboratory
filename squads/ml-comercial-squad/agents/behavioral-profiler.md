@@ -1,6 +1,6 @@
 ---
 id: behavioral-profiler
-name: Behavioral Profiler
+name: "Perfilador do Vendedor"
 squad: ml-comercial-squad
 icon: "🧠"
 role: Perfilador Comportamental de Vendedores

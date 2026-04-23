@@ -1,6 +1,6 @@
 ---
 id: training-generator
-name: Training Generator
+name: "Gerador de Treinamentos"
 squad: ml-comercial-squad
 icon: "📚"
 role: Gerador de Conteúdo de Treinamento Comercial

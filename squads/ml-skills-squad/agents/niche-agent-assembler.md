@@ -1,6 +1,6 @@
 ---
 id: niche-agent-assembler
-name: Niche Agent Assembler
+name: "Montador do Agente IA"
 squad: ml-skills-squad
 icon: "🤖"
 role: Montador de Agente de IA de Nicho

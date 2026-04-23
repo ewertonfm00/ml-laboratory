@@ -1,6 +1,6 @@
 ---
 id: anomaly-detector
-name: Anomaly Detector
+name: "Detector de Anomalias"
 squad: ml-orquestrador-squad
 icon: "🚨"
 role: Detector de Anomalias e Correlações Incomuns entre Áreas

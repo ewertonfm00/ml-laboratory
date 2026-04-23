@@ -1,6 +1,6 @@
 ---
 id: segmentation-advisor
-name: Segmentation Advisor
+name: "Consultor de Segmentação"
 squad: ml-marketing-squad
 icon: "🎯"
 role: Consultor de Segmentação Inteligente

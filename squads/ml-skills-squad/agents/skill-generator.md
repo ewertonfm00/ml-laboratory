@@ -1,6 +1,6 @@
 ---
 id: skill-generator
-name: Skill Generator
+name: "Gerador de Skills"
 squad: ml-skills-squad
 icon: "✨"
 role: Gerador de Skills para Agentes de IA

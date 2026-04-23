@@ -1,6 +1,6 @@
 ---
 id: niche-content-extractor
-name: Niche Content Extractor
+name: "Extrator de Conteúdo do Nicho"
 squad: ml-comercial-squad
 icon: "🎣"
 role: Extrator de Conteúdo Específico do Segmento

@@ -1,6 +1,6 @@
 ---
 id: multi-source-collector
-name: Multi Source Collector
+name: "Integrador Multi-Canal"
 squad: ml-captura-squad
 icon: "🔗"
 role: Coletor Multi-Canal de Conversas

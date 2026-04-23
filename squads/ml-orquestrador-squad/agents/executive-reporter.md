@@ -1,6 +1,6 @@
 ---
 id: executive-reporter
-name: Executive Reporter
+name: "Relator Executivo"
 squad: ml-orquestrador-squad
 icon: "📋"
 role: Gerador de Relatórios Executivos Integrados

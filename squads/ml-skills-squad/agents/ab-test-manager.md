@@ -1,6 +1,6 @@
 ---
 id: ab-test-manager
-name: A/B Test Manager
+name: "Gerenciador de Testes A/B"
 squad: ml-skills-squad
 icon: "🧪"
 role: Gerenciador de Testes A/B do Agente de IA

@@ -1,6 +1,6 @@
 ---
 id: knowledge-gap-detector
-name: Knowledge Gap Detector
+name: "Detector de Lacunas"
 squad: ml-ia-padroes-squad
 icon: "🔍"
 role: Detector de Gaps de Conhecimento dos Atendentes

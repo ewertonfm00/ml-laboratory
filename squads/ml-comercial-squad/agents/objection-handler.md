@@ -1,6 +1,6 @@
 ---
 id: objection-handler
-name: Objection Handler
+name: "Especialista em Objeções"
 squad: ml-comercial-squad
 icon: "🛡️"
 role: Especialista em Objeções Comerciais

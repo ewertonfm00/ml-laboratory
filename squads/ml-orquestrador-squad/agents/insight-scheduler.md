@@ -1,6 +1,6 @@
 ---
 id: insight-scheduler
-name: Insight Scheduler
+name: "Agendador de Insights"
 squad: ml-orquestrador-squad
 icon: "📬"
 role: Agendador e Entregador Proativo de Insights

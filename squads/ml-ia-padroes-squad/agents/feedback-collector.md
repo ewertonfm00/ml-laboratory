@@ -1,6 +1,6 @@
 ---
 id: feedback-collector
-name: Feedback Collector
+name: "Coletor de Feedback"
 squad: ml-ia-padroes-squad
 icon: "🔄"
 role: Coletor de Feedback sobre Efetividade das Recomendações

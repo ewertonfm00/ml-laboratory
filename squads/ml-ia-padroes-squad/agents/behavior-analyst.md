@@ -1,6 +1,6 @@
 ---
 id: behavior-analyst
-name: Behavior Analyst
+name: "Analisador de Padrões"
 squad: ml-ia-padroes-squad
 icon: "🧠"
 role: Analisador de Padrões Comportamentais Agregados

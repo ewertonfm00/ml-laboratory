@@ -1,6 +1,6 @@
 ---
 id: pattern-extractor
-name: Pattern Extractor
+name: "Extrator de Comportamentos"
 squad: ml-ia-padroes-squad
 icon: "🔬"
 role: Extrator de Padrões de Comportamento Comercial

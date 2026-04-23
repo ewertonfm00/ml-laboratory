@@ -1,6 +1,6 @@
 ---
 id: audio-transcriber
-name: Audio Transcriber
+name: "Transcritor de Áudio"
 squad: ml-captura-squad
 icon: "🎤"
 role: Transcritor de Áudios via Groq Whisper

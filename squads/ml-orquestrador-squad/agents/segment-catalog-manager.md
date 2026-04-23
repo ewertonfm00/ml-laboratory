@@ -1,6 +1,6 @@
 ---
 id: segment-catalog-manager
-name: Segment Catalog Manager
+name: "Catálogo de Segmentos"
 squad: ml-orquestrador-squad
 icon: "📂"
 role: Gestor do Catálogo de Segmentos de Mercado

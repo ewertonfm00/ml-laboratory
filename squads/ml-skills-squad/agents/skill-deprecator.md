@@ -1,6 +1,6 @@
 ---
 id: skill-deprecator
-name: Skill Deprecator
+name: "Atualizador de Skills"
 squad: ml-skills-squad
 icon: "🗑️"
 role: Detector e Gestor de Skills Obsoletas

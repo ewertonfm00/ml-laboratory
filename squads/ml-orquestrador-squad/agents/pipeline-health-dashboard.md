@@ -1,6 +1,6 @@
 ---
 id: pipeline-health-dashboard
-name: Pipeline Health Dashboard
+name: "Monitor de Saúde do Pipeline"
 squad: ml-orquestrador-squad
 icon: "🖥️"
 role: Painel de Saúde de Todos os Pipelines do Laboratório

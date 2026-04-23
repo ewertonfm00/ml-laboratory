@@ -1,6 +1,6 @@
 ---
 id: win-loss-analyzer
-name: Win Loss Analyzer
+name: "Analisador de Resultados"
 squad: ml-comercial-squad
 icon: "⚖️"
 role: Analisador de Vitórias e Perdas em Vendas

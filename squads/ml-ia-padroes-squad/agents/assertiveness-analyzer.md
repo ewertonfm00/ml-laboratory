@@ -1,6 +1,6 @@
 ---
 id: assertiveness-analyzer
-name: Assertiveness Analyzer
+name: "Analisador de Assertividade"
 squad: ml-ia-padroes-squad
 icon: "🎯"
 role: Analisador de Assertividade das Respostas dos Atendentes

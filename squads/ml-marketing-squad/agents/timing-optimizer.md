@@ -1,6 +1,6 @@
 ---
 id: timing-optimizer
-name: Timing Optimizer
+name: "Otimizador de Timing"
 squad: ml-marketing-squad
 icon: "⏰"
 role: Otimizador de Timing de Campanhas

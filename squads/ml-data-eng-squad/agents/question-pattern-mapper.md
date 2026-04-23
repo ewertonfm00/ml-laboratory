@@ -1,6 +1,6 @@
 ---
 id: question-pattern-mapper
-name: Question Pattern Mapper
+name: "Mapeador de Perguntas"
 squad: ml-data-eng-squad
 icon: "🗺️"
 role: Mapeador e Agrupador de Perguntas por Padrão Semântico

@@ -1,4 +1,5 @@
 name: ml-plataforma-squad
+title: "Gestão da Plataforma"
 version: 0.1.0
 description: Gerencia o onboarding de clientes ML — orquestra a ativação de novas instâncias do laboratório. Infra, deploy e monitoramento são responsabilidade do @devops do software-house-elite.
 author: Synkra AIOX

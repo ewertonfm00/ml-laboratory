@@ -1,4 +1,5 @@
 name: ml-captura-squad
+title: "Esteira de Captura"
 version: 0.1.0
 description: Captura dados brutos de WhatsApp, áudio e eventos de todas as fontes do laboratório ML
 author: Synkra AIOX

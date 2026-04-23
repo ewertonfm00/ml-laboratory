@@ -1,6 +1,6 @@
 ---
 id: data-classifier
-name: Data Classifier
+name: "Classificador Inteligente"
 squad: ml-data-eng-squad
 icon: "🏷️"
 role: Classificador Automático de Conversas por Tipo

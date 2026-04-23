@@ -1,6 +1,6 @@
 ---
 id: satisfaction-analyzer
-name: Satisfaction Analyzer
+name: "Analisador de Satisfação"
 squad: ml-atendimento-squad
 icon: "😊"
 role: Analisador de Satisfação de Clientes

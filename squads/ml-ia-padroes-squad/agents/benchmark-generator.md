@@ -1,6 +1,6 @@
 ---
 id: benchmark-generator
-name: Benchmark Generator
+name: "Gerador de Benchmarks"
 squad: ml-ia-padroes-squad
 icon: "📐"
 role: Gerador de Benchmarks Iniciais do Laboratório

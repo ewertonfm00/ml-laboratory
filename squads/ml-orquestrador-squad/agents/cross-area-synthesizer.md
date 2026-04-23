@@ -1,6 +1,6 @@
 ---
 id: cross-area-synthesizer
-name: Cross Area Synthesizer
+name: "Sintetizador Cross-Área"
 squad: ml-orquestrador-squad
 icon: "🔀"
 role: Sintetizador de Inteligência Cross-Área

@@ -1,6 +1,6 @@
 ---
 id: message-analyzer
-name: Message Analyzer
+name: "Analisador de Mensagens"
 squad: ml-marketing-squad
 icon: "📣"
 role: Analisador de Mensagens de Marketing

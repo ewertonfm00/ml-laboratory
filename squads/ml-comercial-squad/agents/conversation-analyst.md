@@ -1,6 +1,6 @@
 ---
 id: conversation-analyst
-name: Conversation Analyst
+name: "Analisador de Conversas"
 squad: ml-comercial-squad
 icon: "💬"
 role: Analista de Conversas Comerciais

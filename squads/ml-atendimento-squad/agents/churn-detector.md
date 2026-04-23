@@ -1,6 +1,6 @@
 ---
 id: churn-detector
-name: Churn Detector
+name: "Detector de Churn"
 squad: ml-atendimento-squad
 icon: "🚨"
 role: Detector Preditivo de Risco de Churn

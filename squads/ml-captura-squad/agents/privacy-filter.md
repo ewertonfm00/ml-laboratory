@@ -1,6 +1,6 @@
 ---
 id: privacy-filter
-name: Privacy Filter
+name: "Filtro de Privacidade"
 squad: ml-captura-squad
 icon: "🔒"
 role: Filtro de Privacidade e Conformidade LGPD
