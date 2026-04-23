@@ -1,5 +1,5 @@
 name: software-house-elite
-version: 2.5.0
+version: 2.6.0
 description: |
   Squad de entrega da software house — projetos de clientes externos.
   Cobre análise de negócio, gestão de projetos, arquitetura enterprise,
@@ -12,6 +12,11 @@ updated_at: "2026-04-23"
 aios_version: "2.1.0"
 
 changelog:
+  - version: "2.6.0"
+    date: "2026-04-23"
+    changes:
+      - "Removido: delivery-manager (Vera) — papel redundante com @pm/@sm do core AIOX para projetos isolados"
+      - "Generalizado: project-manager e tech-writer — removidas referências específicas ao EsteticaIA"
   - version: "2.5.0"
     date: "2026-04-23"
     changes:
@@ -68,13 +73,6 @@ agents:
     layer: management
     tier: 1
     note: "Gestão operacional leve de projetos de clientes"
-
-  - id: delivery-manager
-    name: Vera
-    file: agents/delivery-manager.md
-    layer: management
-    tier: 2
-    note: "Gestão estratégica de entrega — múltiplos projetos simultâneos"
 
   - id: pm
     name: Morgan
@@ -229,7 +227,7 @@ agents:
 
 workflows:
   - id: project-kickoff
-    agents: [business-analyst, project-manager, enterprise-architect, delivery-manager]
+    agents: [business-analyst, project-manager, enterprise-architect]
     description: Início de projeto — levantamento de requisitos, arquitetura e plano
 
   - id: sprint-execution
@@ -245,7 +243,7 @@ workflows:
     description: Descoberta UX — pesquisa, persona, design system e protótipo
 
   - id: client-delivery
-    agents: [project-manager, dev, tech-writer, delivery-manager]
+    agents: [project-manager, dev, tech-writer]
     description: Entrega de projeto — documentação, handoff e aceite do cliente
 
   - id: incident-response
@@ -260,7 +258,7 @@ config:
   source_tree: config/source-tree.md
 
 statistics:
-  total_agents: 27
+  total_agents: 26
   reused_from_aios: 12
   new_agents: 15
   layers: [management, engineering, infrastructure, design]
