@@ -1,5 +1,18 @@
 {
   "language": "portuguese",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/squad-clickup-sync.py"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "deny": [
       "Edit(.aiox-core/core/code-intel/**)",

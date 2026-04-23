@@ -149,7 +149,35 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 - **Propósito maior:** Criar um exército de agentes de IA vendedores — os melhores do mundo
 - **Piloto B2C:** Clientes da Omega Laser = clínicas de estética (vendedora → consumidor final)
 - **Piloto B2B:** Vendedoras da Omega Laser → clínicas de estética (empresa → empresa)
-- **Não é nicho exclusivo:** Clínicas de estética são o piloto; o sistema é agnóstico de segmento
+- **Multi-segmento:** Além da Omega Laser, outros negócios de outros segmentos poderão conectar números. O segmento é dado obrigatório no cadastro do número.
+
+### Propriedade dos Dados e Padrões
+
+| Tipo de padrão | Pertence a |
+|----------------|-----------|
+| Padrões específicos do negócio | Cliente (ex: Omega Laser) |
+| Perfil intrínseco de venda (comportamental puro) | Cliente **e** plataforma ML Laboratory |
+
+- Os padrões extraídos das conversas de um cliente pertencem a esse cliente
+- O perfil intrínseco de venda (DISC, estilo, técnica — agnóstico de produto) tem **propriedade compartilhada** entre o cliente e a plataforma
+- A plataforma usa os perfis intrínsecos para enriquecer agentes de outros segmentos
+
+### Dois Outputs Obrigatórios por Segmento
+
+**Output 1 — Agente Específico (propriedade do cliente)**
+- Agente de IA treinado para vender exatamente os produtos/serviços do negócio monitorado
+- Usa linguagem, contexto e abordagem do segmento do cliente
+- Exemplo Omega Laser: agente que vende laser diodo, dermocosméticos e locação para clínicas de estética
+
+**Output 2 — Perfil Intrínseco de Venda (propriedade compartilhada)**
+- Padrões comportamentais profundos extraídos dos vendedores — agnóstico de produto
+- Captura estilo, técnica, DISC, abordagem relacional
+- Alimenta o banco de inteligência da plataforma para enriquecer agentes de outros segmentos
+
+### Segmento Obrigatório no Cadastro do Número
+- Ao cadastrar um número WhatsApp, o **segmento do negócio é campo obrigatório**
+- Exemplos: clínica de estética, imobiliária, escola de idiomas, e-commerce, SaaS B2B, etc.
+- Usado para: contextualizar análises, separar perfis específicos dos intrínsecos, benchmarks entre negócios do mesmo segmento
 
 ### Dois tipos de análise por conversa
 1. **Análise do Vendedor:** perfil de comunicação, comportamental, DISC, estilo de venda, pontos fortes/fracos, nota comercial

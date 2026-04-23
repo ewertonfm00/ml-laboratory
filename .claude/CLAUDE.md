@@ -281,4 +281,45 @@ await story.save();
 - Save important state before long-running operations
 
 ---
+
+## Protocolo Anti-Context-Overflow — REGRA OBRIGATÓRIA
+
+### Gatilhos automáticos (qualquer um ativa a ação)
+
+| Gatilho | Ação obrigatória |
+|---------|-----------------|
+| Após QUALQUER chamada do `Agent` tool | Invocar `/compact-preserve` antes de responder ao usuário |
+| Sessão com > 15 trocas de mensagens | Invocar `/compact-preserve` proativamente |
+| Task afeta > 5 arquivos | Usar subagente obrigatório (`Agent` tool) |
+| Mesmo problema tentado > 2 vezes | Criar briefing e disparar novo subagente com contexto zerado |
+| Após cada `git commit` | Atualizar memória e avaliar compact |
+
+### Regra de subagente obrigatório
+
+Antes de executar qualquer task diretamente na sessão principal, verificar:
+- Modifica > 5 arquivos? → subagente
+- Envolve schema + migration + API + frontend juntos? → subagente
+- Estimativa > 8 passos? → subagente
+- Bug abordado mais de 1 vez? → subagente com `isolation: "worktree"`
+
+### Formato de compactação
+
+Sempre usar `/compact-preserve` com os argumentos:
+- `implementações desta sessão, decisões tomadas, todos ativos`
+
+Nunca encerrar uma sessão longa sem compactar primeiro.
+
+## Session Plan Protocol — REGRA OBRIGATÓRIA
+
+Todo projeto possui `.claude/session-plan.md` criado automaticamente pelo hook `SessionStart`.
+Este documento é a **fonte de verdade de execução** — substitui depender do contexto para saber o que falta.
+
+### O agente DEVE obrigatoriamente
+
+1. **Ao iniciar qualquer task**: ler `.claude/session-plan.md` para saber o estado atual
+2. **Ao concluir qualquer task**: marcar `[x]` e atualizar o documento imediatamente
+3. **Ao tomar decisão técnica relevante**: registrar em `## Decisões` com o motivo
+4. **Ao identificar novas tarefas**: adicionar em `## Pendente` antes de executar
+
+---
 *Synkra AIOX Claude Code Configuration v2.0*

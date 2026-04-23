@@ -642,3 +642,99 @@ Lógica de resolução no n8n (captura):
 - [ ] Seed MASTER (aguarda e-mail + senha do usuário)
 - [ ] Story 1.1 tasks 2.6–2.8 (WhatsApp conectado — pode executar)
 - [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)
+
+---
+## Sessão 2026-04-22
+
+### 1. Implementações
+
+**`knowledge-base/negocio.md`** — ATUALIZADO
+- Seção "Visão Estratégica do Projeto" reescrita com modelo corrigido de propriedade e dois outputs
+- Tabela de propriedade dos dados: padrões específicos → cliente; perfil intrínseco → compartilhado (cliente + plataforma)
+- Dois outputs obrigatórios por segmento documentados (Output 1: agente específico; Output 2: perfil intrínseco)
+- Segmento como campo obrigatório no cadastro do número — regra formal registrada
+- Multi-segmento como design de produto (não exceção)
+
+**`memory/project_visao_escopo.md`** — REESCRITO
+- Visão e escopo completo corrigido com novo modelo de propriedade e dois outputs
+- PRINCÍPIO FUNDAMENTAL atualizado: padrões específicos pertencem ao cliente; intrínseco tem propriedade compartilhada
+
+**40 arquivos de agentes `.md`** — ATUALIZADOS
+- Campo `name:` atualizado de inglês para português amigável em todos os squads
+- IDs técnicos (`id:`) preservados intocados
+- Squads afetados: ml-captura(7), ml-data-eng(3), ml-ia-padroes(9), ml-comercial(10), ml-atendimento(4), ml-marketing(3), ml-skills(7), ml-plataforma(1), ml-orquestrador(6)
+
+**9 arquivos `squad.yaml`** — ATUALIZADOS
+- Campo `title:` adicionado com nome amigável em português (ex: `title: "Esteira de Captura"`)
+- Nome técnico (`name:`) preservado intocado
+
+**FigJam** — Fluxograma gerado: "ML Laboratory — Fluxo Completo de Agentes"
+- 7 fases coloridas com nomes amigáveis
+- 4 outputs mapeados
+- URL: gerado via Figma MCP
+
+### 2. Decisões
+
+- **Propriedade dos padrões:** padrões específicos pertencem ao cliente que gerou os dados; perfil intrínseco de venda tem propriedade compartilhada cliente + plataforma ML Laboratory
+- **Dois outputs obrigatórios por segmento:** Output 1 (agente específico, do cliente) + Output 2 (perfil intrínseco, compartilhado)
+- **Segmento obrigatório:** campo obrigatório no cadastro de número — sem segmento, análise não tem contexto
+- **Entrega do agente:** vai para o gestor do ML Laboratory (não para o cliente final diretamente)
+- **Nomes amigáveis:** display names atualizados para português; IDs técnicos preservados para não quebrar referências em código/n8n/banco
+- **Squads prematuros:** ml-atendimento, ml-marketing, ml-operacional, ml-financeiro, ml-pessoas — corretos como roadmap, sem prioridade agora
+
+**Lacunas arquiteturais identificadas por @architect (pendentes de implementação):**
+- `profile-segment-matcher` precisa de escopo ampliado para publicar perfil intrínseco como ativo da plataforma (ou criar `intrinsic-profile-publisher` em ml-skills-squad)
+- Gate de validação de segmento no `onboarding-orchestrator` antes de ativar número
+- `agent-delivery-manager` em ml-skills-squad para gerenciar versões e entrega ao gestor ML Lab
+
+### 3. Todos Ativos
+
+**Correções arquiteturais (novas — identificadas esta sessão):**
+- [ ] Ampliar escopo do `profile-segment-matcher` OU criar `intrinsic-profile-publisher` em ml-skills-squad
+- [ ] Adicionar gate de validação de segmento no `onboarding-orchestrator` (consultar segment-catalog-manager)
+- [ ] Criar `agent-delivery-manager` em ml-skills-squad (entrega ao gestor ML Lab, não ao cliente)
+
+**Pendências anteriores (continuam ativas):**
+- [x] Forçar redeploy portal-ml no Railway ✅ (commit `97f8f5a` enviado, aguardar 2-3min)
+- [ ] Acessar `/api/diagnostico` e confirmar schema real do banco
+- [ ] Validar pipeline ML-CAPTURA end-to-end (WhatsApp conectado)
+- [ ] Seed MASTER (aguarda e-mail + senha do usuário)
+- [ ] Story 1.1 tasks 2.6–2.8 (WhatsApp conectado — pode executar)
+- [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)
+
+---
+## Sessão 2026-04-22 (continuação — execuções por agentes)
+
+### 1. Implementações
+
+**@devops** — Redeploy portal-ml no Railway:
+- `railway redeploy --service portal-ml --yes` executado (Railway CLI v4.35.2)
+- Logs confirmam container reiniciado: `Starting Container` → `next start` → `Ready in 195ms`
+- Aguardar 2-3min e verificar `https://portal-ml-production.up.railway.app`
+
+**@dev** — Fix nó "Normalizar Payload" — commit `8877ecf`:
+- Arquivo: `infra/n8n/workflows/ML-CAPTURA-whatsapp-pipeline.json`
+- `body` corrigido para `$input.first().json` direto (sem tentativa de `.body` incorreta)
+- `push_name: data.pushName` adicionado (estava ausente)
+- Fallbacks incorretos para `body.message` e `body.key` removidos
+- Fallback de texto: `conversation || extendedTextMessage?.text`
+- Ambas as ocorrências no JSON corrigidas (`nodes[]` e `activeVersion.nodes[]`)
+
+**@dev** — Correções arquiteturais — commit `8b6232c`:
+- `squads/ml-skills-squad/agents/agent-delivery-manager.md` — CRIADO: gerencia versões e entrega do agente ao gestor ML Lab; outputs duais S1 (nicho, do cliente) + S2 (perfil intrínseco, compartilhado)
+- `squads/ml-skills-squad/squad.yaml` — version bump 0.1.0 → 0.2.0, changelog adicionado
+- `squads/ml-plataforma-squad/agents/onboarding-orchestrator.md` — gate de segmento obrigatório, valida contra `segment-catalog-manager` antes de ativar número
+- `squads/ml-comercial-squad/agents/profile-segment-matcher.md` — output `perfil_intrinseco_portavel` adicionado, tabela de propriedade (padrões nicho = cliente; DISC+scores = compartilhado), publicação via `segment-catalog-manager`
+
+### 2. Decisões
+- `push_name` nunca era capturado no n8n — bug silencioso (campo ficava null)
+- Redeploy Railway via `railway redeploy` (não `railway up`) é o comando correto para forçar rebuild do último commit
+- `agent-delivery-manager` gerencia apenas a entrega — não gera, não valida; recebe de `niche-agent-assembler`
+
+### 3. Todos Ativos
+- [ ] Acessar `/api/diagnostico` após redeploy confirmar (aguardar ~3min)
+- [ ] Validar pipeline ML-CAPTURA end-to-end (WhatsApp conectado — pode executar agora)
+- [ ] Importar workflow corrigido no n8n (arquivo JSON atualizado localmente — precisa ser importado/atualizado via n8n UI ou API)
+- [ ] Seed MASTER (aguarda e-mail + senha do usuário)
+- [ ] Story 1.1 tasks 2.6–2.8
+- [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)
