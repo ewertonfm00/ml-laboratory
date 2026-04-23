@@ -1,5 +1,5 @@
 name: software-house-elite
-version: 2.4.0
+version: 2.5.0
 description: |
   Squad de entrega da software house — projetos de clientes externos.
   Cobre análise de negócio, gestão de projetos, arquitetura enterprise,
@@ -8,10 +8,15 @@ description: |
 domain: software-house
 author: "@dev (Dex)"
 created_at: "2026-04-03"
-updated_at: "2026-04-22"
+updated_at: "2026-04-23"
 aios_version: "2.1.0"
 
 changelog:
+  - version: "2.5.0"
+    date: "2026-04-23"
+    changes:
+      - "Adicionado: prompt-engineer (Iris) — propagada do Omega Laser com escopo genérico"
+      - "Iris completa o par com Icarus: Icarus projeta prompts, Iris mantém em produção"
   - version: "2.4.0"
     date: "2026-04-22"
     changes:
@@ -134,6 +139,13 @@ agents:
     tier: 2
     note: "Super Engenheiro de Prompt — megaprompts, personas de IA, otimização avançada"
 
+  - id: prompt-engineer
+    name: Iris
+    file: agents/prompt-engineer.md
+    layer: engineering
+    tier: 2
+    note: "Engenheira de Prompts — mantém prompts em produção, KB, A/B tests e auditoria de agentes de IA"
+
   - id: n8n-dev
     name: Nix
     file: agents/n8n-dev.md
@@ -248,9 +260,9 @@ config:
   source_tree: config/source-tree.md
 
 statistics:
-  total_agents: 26
+  total_agents: 27
   reused_from_aios: 12
-  new_agents: 14
+  new_agents: 15
   layers: [management, engineering, infrastructure, design]
   tasks_available: 10
   last_audit: "2026-04-22"
