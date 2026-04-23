@@ -1,6 +1,6 @@
 ---
 id: onboarding-orchestrator
-name: Onboarding Orchestrator
+name: "Orquestrador de Onboarding"
 squad: ml-plataforma-squad
 icon: "🚀"
 role: Orquestrador de Onboarding de Novos Clientes
@@ -41,10 +41,32 @@ Hoje adicionar um novo cliente ao laboratório é um processo manual que envolve
 - `cliente_nome`: Nome da empresa do cliente
 - `email_master`: E-mail do usuário master
 - `senha_master`: Senha do usuário master
-- `numeros_whatsapp`: Lista de números a conectar com tipo (mono|multi) e identificadores
+- `numeros_whatsapp`: Lista de números a conectar com tipo (mono|multi), identificadores e **`segmento` obrigatório** (ex: `laser-estetica-b2b`)
 - `produtos_servicos`: Lista de produtos/serviços para seed inicial
 - `vendedores`: Lista de vendedores iniciais (nome + identificador_externo se multi)
 - `retomar_de`: Etapa onde reiniciar se onboarding anterior falhou (opcional)
+
+## Pré-condições e Gate de Segmento
+
+Antes de ativar qualquer número WhatsApp (etapa 5 do fluxo), o `onboarding-orchestrator` executa uma validação obrigatória de segmento:
+
+1. **Verificar campo `segmento`:** Todo número informado em `numeros_whatsapp` deve conter o campo `segmento` preenchido. Se ausente, o onboarding é bloqueado imediatamente com erro descritivo.
+2. **Consultar catálogo:** Consultar `segment-catalog-manager` (ml-orquestrador-squad) para confirmar que o segmento informado existe e está catalogado e ativo.
+3. **Gate de ativação:** Se o segmento **não existir** no catálogo, a ativação do número é bloqueada. O erro retornado deve especificar: segmento informado, lista de segmentos disponíveis, e instrução para criar o segmento via `segment-catalog-manager` antes de prosseguir.
+4. **Gate por número:** A validação ocorre individualmente por número — um número com segmento inválido bloqueia apenas ele, permitindo prosseguir com os números válidos (comportamento configurável via `strict_mode`).
+
+### Exemplo de erro de gate
+
+```json
+{
+  "etapa": "validacao_segmento",
+  "numero": "+5511999990000",
+  "segmento_informado": "clinica-dermatologia",
+  "status": "BLOQUEADO",
+  "motivo": "Segmento 'clinica-dermatologia' não encontrado no catálogo. Crie-o via segment-catalog-manager antes de prosseguir.",
+  "segmentos_disponiveis": ["laser-estetica-b2b", "laser-estetica-b2c", "odontologia-estetica"]
+}
+```
 
 ## Outputs gerados
 
@@ -72,5 +94,6 @@ Hoje adicionar um novo cliente ao laboratório é um processo manual que envolve
 ## Colaboração
 
 - **Orquestra:** Evolution API (instâncias), n8n (workflows), Postgres (seeds), Railway (configuração)
+- **Consulta (gate obrigatório):** `segment-catalog-manager` (ml-orquestrador-squad) — validação de segmento antes de ativar cada número WhatsApp
 - **Informa:** `monitor-agent` para começar monitoramento do novo cliente
 - **Informa:** `insight-scheduler` (ml-orquestrador-squad) para configurar preferências de entrega do novo cliente

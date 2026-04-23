@@ -1,5 +1,6 @@
 name: ml-skills-squad
-version: 0.1.0
+title: "Fábrica de Agentes IA"
+version: 0.2.0
 description: Transforma padrões refinados em skills de agentes de IA com alta precisão e contexto real
 author: Synkra AIOX
 license: MIT
@@ -24,6 +25,7 @@ components:
     - skill-validator.md
     - agent-trainer.md
     - niche-agent-assembler.md
+    - agent-delivery-manager.md
     - agent-performance-tracker.md
     - ab-test-manager.md
     - skill-deprecator.md
@@ -52,3 +54,9 @@ keywords:
   - treinamento
   - inteligencia
   - aiox
+
+changelog:
+  - version: 0.2.0
+    date: "2026-04-22"
+    changes:
+      - "Adiciona agent-delivery-manager: gerencia versões e entrega do agente treinado ao gestor, empacotando Saída 1 (agente de nicho) e Saída 2 (perfil intrínseco portável)"

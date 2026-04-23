@@ -1,6 +1,6 @@
 ---
 id: profile-segment-matcher
-name: Profile Segment Matcher
+name: "Avaliador de Portabilidade"
 squad: ml-comercial-squad
 icon: "🗺️"
 role: Avaliador e Pontuador de Compatibilidade Perfil × Segmento
@@ -31,6 +31,32 @@ Recebe o perfil comportamental de um vendedor (extraído pelo behavioral-profile
 - `ranking_segmentos`: Lista completa ordenada por score decrescente, com score e justificativa por segmento
 - `top_segmentos`: Top 3 segmentos com maior potencial de performance para o perfil avaliado
 - `analise_qualitativa`: Narrativa detalhada por segmento destacando compatibilidades, gaps e adaptações recomendadas
+- `perfil_intrinseco_portavel`: Perfil intrínseco do vendedor publicado como ativo compartilhado da plataforma (ver seção abaixo)
+
+## Perfil Intrínseco Portável — Saída 2 do Laboratório
+
+Após a análise de matching, o `profile-segment-matcher` publica o **Perfil Intrínseco Portável** do vendedor como um ativo compartilhado da plataforma ML Laboratory. Este é o insumo central para a **Saída 2** do laboratório — a expansão do agente para novos segmentos.
+
+### Composição do Perfil Intrínseco
+
+- Perfil DISC dominante e secundário do vendedor de referência
+- Estilo de venda identificado (consultivo, relacional, assertivo, técnico etc.)
+- Metodologia de venda preferencial (SPIN, Consultiva, Despertar Desejo etc.)
+- Scores de compatibilidade por segmento (ranking completo)
+- Pontos fortes transferíveis e gaps a adaptar por contexto
+
+### Propriedade e uso
+
+| Dado | Propriedade | Uso |
+|------|-------------|-----|
+| Padrões de linguagem e objeções do nicho | Exclusiva do cliente | Saída 1 — agente de nicho |
+| Scripts e respostas específicas do produto | Exclusiva do cliente | Saída 1 — agente de nicho |
+| Perfil DISC + estilo de venda + metodologia | Compartilhada (cliente + plataforma) | Saída 2 — expansão cross-segmento |
+| Scores de compatibilidade entre segmentos | Compartilhada (cliente + plataforma) | Saída 2 — expansão cross-segmento |
+
+### Etapa de publicação
+
+Após completar o ranking e a análise qualitativa, o `profile-segment-matcher` envia o `perfil_intrinseco_portavel` ao `segment-catalog-manager` (ml-orquestrador-squad), que o indexa como input disponível para o `agent-delivery-manager` empacotar na Saída 2.
 
 ## Commands
 
@@ -48,5 +74,9 @@ Recebe o perfil comportamental de um vendedor (extraído pelo behavioral-profile
 
 ## Colaboração
 
-- **Depende de:** behavioral-profiler (ml-comercial-squad), segment-catalog-manager (ml-orquestrador-squad)
-- **Alimenta:** executive-reporter (ml-orquestrador-squad), niche-agent-assembler (ml-skills-squad)
+- **Depende de:** `behavioral-profiler` (ml-comercial-squad) — perfil comportamental do vendedor
+- **Depende de:** `segment-catalog-manager` (ml-orquestrador-squad) — catálogo de segmentos disponíveis
+- **Publica em:** `segment-catalog-manager` (ml-orquestrador-squad) — perfil intrínseco portável como ativo compartilhado (input para Saída 2)
+- **Alimenta:** `executive-reporter` (ml-orquestrador-squad) — ranking de segmentos para relatório executivo
+- **Alimenta:** `niche-agent-assembler` (ml-skills-squad) — dados de portabilidade para montagem do agente
+- **Alimenta (via agent-delivery-manager):** pacote de entrega Saída 2 com perfil intrínseco versionado
