@@ -20,7 +20,7 @@ changelog:
   - version: "2.5.0"
     date: "2026-04-23"
     changes:
-      - "Adicionado: prompt-engineer (Iris) — propagada do Omega Laser com escopo genérico"
+      - "Adicionado: prompt-engineer (Iris) — migrada do vendas-consultivas-estetica com escopo genérico"
       - "Iris completa o par com Icarus: Icarus projeta prompts, Iris mantém em produção"
   - version: "2.4.0"
     date: "2026-04-22"

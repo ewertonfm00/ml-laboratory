@@ -167,7 +167,12 @@ commands:
     description: 'Sair do modo AI Engineer'
 
 dependencies:
-  tasks: []
+  tasks:
+    - improve-prompt.md
+    - design-evals.md
+    - audit-rag.md
+    - evaluate-responses.md
+    - model-selection.md
   tools:
     - git
 

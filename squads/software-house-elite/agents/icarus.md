@@ -230,6 +230,7 @@ commands:
     description: 'Sair do modo Icarus'
 
 dependencies:
+  tasks: []
   tools:
     - context7 # Pesquisar documentação e melhores práticas de prompt engineering
     - git # Somente leitura: status, log, diff

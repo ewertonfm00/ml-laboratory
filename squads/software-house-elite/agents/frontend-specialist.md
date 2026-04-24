@@ -164,7 +164,12 @@ commands:
     description: 'Sair do modo Frontend Specialist'
 
 dependencies:
-  tasks: []
+  tasks:
+    - component-design.md
+    - perf-audit.md
+    - accessibility-review.md
+    - design-system.md
+    - realtime-design.md
   tools:
     - git
 
