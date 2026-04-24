@@ -738,3 +738,52 @@ Lógica de resolução no n8n (captura):
 - [ ] Seed MASTER (aguarda e-mail + senha do usuário)
 - [ ] Story 1.1 tasks 2.6–2.8
 - [ ] Story 1.2 tasks 3.1–3.2 (aguarda EsteticaIA)
+
+---
+## Sessão 2026-04-24 — Auditoria Icarus: novos agentes e correção de nomenclatura
+
+### 1. Implementações
+
+**`squads/ml-plataforma-squad/agents/crm-sync-agent.md`** — CRIADO (commit `83d2181`)
+- Persona: Cleo — Sincronizadora de Insights para CRM
+- Sincroniza outputs de performance-reporter, churn-detector, retention-advisor, executive-reporter para HubSpot/RD Station/Salesforce/webhook genérico
+- Idempotente via external_id; dry-run obrigatório antes da primeira sync
+- `squads/ml-plataforma-squad/squad.yaml` atualizado
+
+**`squads/ml-plataforma-squad/agents/monitor-agent.md`** — CRIADO (commit `d865602`)
+- Persona: Vigil — Inspetor de Saúde da Plataforma (arquétipo Sentinel)
+- Monitora conectividade Postgres/Redis/n8n/Evolution API por projeto ativo
+- Registra em `ml_platform.health_log`; cache Redis `ml:platform:health:{projeto_id}`
+- Modelo: Claude Haiku
+- `squads/ml-plataforma-squad/squad.yaml` atualizado (5 agentes total)
+
+**`squads/ml-captura-squad/agents/whatsapp-webhook-validator.md`** — CRIADO (commit `d865602`)
+- Persona: Lex — Validador de Payloads WhatsApp (arquétipo Gatekeeper)
+- Segunda linha de defesa após webhook-manager: valida estrutura + HMAC + dedup de payloads Evolution API
+- Registra rejeições em `ml_captura.validation_log`; dedup via Redis `ml:captura:validated:{event_id}`
+- Modelo: Claude Haiku
+- `squads/ml-captura-squad/squad.yaml` atualizado (10 agentes total)
+
+**Nomenclatura `ai:sofia-*` corrigida** (commit `848e209`)
+- `ai:sofia-sdr` → `ai:sdr` | `ai:sofia-closer` → `ai:closer` | `ai:sofia-agendador` → `ai:agendamento`
+- Arquivos atualizados: `.claude/session-log.md`, `CONTEXT.md`, `database/migrations/017_mensagens_respondent_direction.sql`, `docs/onboarding.md`, `docs/stories/1.2.story.md`, `infra/n8n/workflows/ML-EXTERNAL-esteticaia.json`, `squads/ml-plataforma-squad/agents/seed-manager.md`
+- Comando `*seed-sofia` → `*seed-ai-agents` no seed-manager
+
+**Revertido** (commit `b9af8cf`): sofia-sdr.md, sofia-closer.md, sofia-scheduler.md criados incorretamente — são seeds de banco, não agentes YAML
+
+### 2. Decisões
+
+- **Sofia-* NÃO são agentes de squad YAML**: são registros em `_plataforma.agentes_humanos` — identidades IA para atribuição de conversas. O seed é executado via `seed-manager *seed-ai-agents {numero_id}` após onboarding EsteticaIA
+- **EsteticaIA é estrutura genérica**: sem persona embutida. A persona (nome, identidade) vem da clínica cliente que usa a estrutura. Identificadores de função devem ser agnósticos: `ai:sdr`, `ai:closer`, `ai:agendamento`
+- **monitor-agent e whatsapp-webhook-validator**: usam Claude Haiku (operações de alto volume, custo mínimo)
+- **Separação de responsabilidades captura**: webhook-manager configura endpoints; whatsapp-webhook-validator inspeciona cada payload individualmente (segunda linha de defesa)
+
+### 3. Todos Ativos
+
+**Pendentes desta sessão:**
+- [ ] **Gate de segmento onboarding-orchestrator** (item 9 da auditoria): definir `strict_mode: true` como default explícito — atualmente ambíguo
+- [ ] **autoClaude em todos os agentes** (item 4): migrar 70+ agentes do formato Markdown simples para formato YAML completo com autoClaude + customization
+- [ ] **customization por cliente** (item 5): adicionar seção customization contextualizada em cada agente
+
+**Bloqueados:**
+- [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** → aguardam onboarding instância EsteticaIA no portal (escaneamento QR Code)
