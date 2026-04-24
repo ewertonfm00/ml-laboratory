@@ -30,6 +30,7 @@ components:
     - pipeline-debugger.md
     - whatsapp-recovery-agent.md
     - n8n-encoding-sanitizer.md
+    - whatsapp-webhook-validator.md
   tasks:
     - configure-webhook.md
     - transcribe-audio.md

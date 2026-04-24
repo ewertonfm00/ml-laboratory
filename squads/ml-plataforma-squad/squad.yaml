@@ -25,6 +25,7 @@ components:
     - seed-manager.md
     - e2e-test-orchestrator.md
     - crm-sync-agent.md
+    - monitor-agent.md
   tasks:
     - setup-infrastructure.md
   workflows: []
