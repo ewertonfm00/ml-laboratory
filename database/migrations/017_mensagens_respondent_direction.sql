@@ -86,7 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_mensagens_respondent_type
 -- numero_id e projeto_id.
 --
 -- Agentes a serem cadastrados (identificadores_externos esperados):
---   - ai:sofia-sdr  | nome: "Sofia (IA)"   | SDR comercial
+--   - ai:sdr         | nome: "Agente IA"    | SDR comercial
 --   - ai:luna-sdr   | nome: "Luna (IA)"    | Qualificação de leads
 --   - ai:max-sdr    | nome: "Max (IA)"     | Agendamento e follow-up
 -- ----------------------------------------------------------------------------

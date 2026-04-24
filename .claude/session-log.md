@@ -133,9 +133,9 @@ Lógica de resolução no n8n (captura):
 
 - **Webhook em tempo real** preferido sobre Supabase compartilhado — evita acoplamento de schemas
 - **Endpoint dedicado** `/ml/external/esteticaia` — isolado do endpoint Evolution API para evitar colisão de formatos
-- **respondent_id padrão:** `{tipo}:{slug}` — ex: `ai:sofia-sdr`, `human:maria`, `specialist:dr-carlos`
+- **respondent_id padrão:** `{tipo}:{slug}` — ex: `ai:sdr`, `human:maria`, `specialist:dr-carlos`
 - **session_id format EsteticaIA:** `{instanceName}-{remoteJid}-{YYYYMMDD}`
-- **Seed dos agentes IA bloqueado:** `agentes_humanos.numero_id` é NOT NULL — seed de `ai:sofia-sdr`, `ai:sofia-closer`, `ai:sofia-agendador` só pode ser feito após onboarding da instância EsteticaIA no portal
+- **Seed dos agentes IA bloqueado:** `agentes_humanos.numero_id` é NOT NULL — seed de `ai:sdr`, `ai:closer`, `ai:agendamento` só pode ser feito após onboarding da instância EsteticaIA no portal
 - **@architect (Aria)** foi o agente responsável pela análise da proposta EsteticaIA e decisões de integração
 
 ### 3. Todos Ativos
@@ -144,7 +144,7 @@ Lógica de resolução no n8n (captura):
 - [ ] `1.8` Marcar migration 017 como aplicada na story (já aplicada no banco ✅)
 - [ ] `3.1` Testar payload completo EsteticaIA no endpoint (aguarda homologação deles)
 - [ ] `3.2` Verificar que respondent_type=ai não cria registro fantasma em agentes_humanos
-- [ ] Seed dos agentes IA (sofia-sdr, sofia-closer, sofia-agendador) → após cadastro da instância EsteticaIA via portal
+- [ ] Seed dos agentes IA (sdr, closer, agendamento) → após cadastro da instância EsteticaIA via portal
 
 **Comunicação pendente:**
 - [ ] Avisar EsteticaIA que endpoint está pronto: `POST https://n8n-production-47d0.up.railway.app/webhook/ml/external/esteticaia`
@@ -201,7 +201,7 @@ Lógica de resolução no n8n (captura):
 
 **Story 1.2 pendentes:**
 - [ ] Tasks 3.1–3.2: testes E2E (aguarda homologação EsteticaIA)
-- [ ] Seed `ai:sofia-sdr`, `ai:sofia-closer`, `ai:sofia-agendador` → após onboarding instância EsteticaIA
+- [ ] Seed `ai:sdr`, `ai:closer`, `ai:agendamento` → após onboarding instância EsteticaIA
 
 **Outros:**
 - [ ] Campo `responsavel` do onboarding: persistir ou remover
@@ -278,7 +278,7 @@ Lógica de resolução no n8n (captura):
 - [ ] Seed master: usuário passa e-mail + senha → gerar SQL → executar Railway
 - [ ] Story 1.1 tasks 2.6–2.8: testes mono/multi (aguarda WhatsApp conectado)
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E EsteticaIA (aguarda homologação)
-- [ ] Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador (aguarda onboarding EsteticaIA)
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento (aguarda onboarding EsteticaIA)
 
 ---
 ## Sessão 2026-04-20
@@ -327,7 +327,7 @@ Lógica de resolução no n8n (captura):
 - [ ] **Seed MASTER**: criar usuário master no banco (usuário precisa fornecer e-mail + senha)
 - [ ] **Story 1.1 tasks 2.6–2.8**: testes mono/multi (WhatsApp já conectado — pode executar agora)
 - [ ] **Story 1.2 tasks 3.1–3.2**: testes E2E EsteticaIA (aguarda homologação)
-- [ ] **Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador** (aguarda onboarding EsteticaIA)
+- [ ] **Seed ai:sdr, ai:closer, ai:agendamento** (aguarda onboarding EsteticaIA)
 
 ---
 ## Sessão 2026-04-20 (continuação — arquitetura de squads e agentes)

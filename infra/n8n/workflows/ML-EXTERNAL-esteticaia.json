@@ -30,7 +30,7 @@
         460,
         300
       ],
-      "notes": "Normaliza payload EsteticaIA para formato interno ML. Extrai respondentType e respondentSlug do campo respondent (ex: ai:sofia-sdr)."
+      "notes": "Normaliza payload EsteticaIA para formato interno ML. Extrai respondentType e respondentSlug do campo respondent (ex: ai:sdr)."
     },
     {
       "parameters": {

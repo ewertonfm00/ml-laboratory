@@ -24,7 +24,7 @@
 ### TESTES
 - [ ] Story 1.1 tasks 2.6–2.8: testes mono/multi com WhatsApp real
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
-- [ ] Seed ai:sofia-sdr, ai:sofia-closer, ai:sofia-agendador → após onboarding EsteticaIA
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
 - [ ] Avisar EsteticaIA: endpoint pronto em `/webhook/ml/external/esteticaia`
 
 ### SQUADS ML — OPERACIONALIZAÇÃO
