@@ -28,6 +28,8 @@ components:
     - privacy-filter.md
     - multi-source-collector.md
     - pipeline-debugger.md
+    - whatsapp-recovery-agent.md
+    - n8n-encoding-sanitizer.md
   tasks:
     - configure-webhook.md
     - transcribe-audio.md

@@ -22,6 +22,8 @@ isolation:
 components:
   agents:
     - onboarding-orchestrator.md
+    - seed-manager.md
+    - e2e-test-orchestrator.md
   tasks:
     - setup-infrastructure.md
   workflows: []
