@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-23
+Última atualização: 2026-04-24
 
 ---
 
@@ -107,6 +107,27 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 - Se `correcao_atualiza_base = true`: atualização automática após correção
 - Erros rastreados continuamente por produto até correção definitiva
 - Threshold de alerta: 5+ ocorrências sem correção
+
+---
+
+## Arquitetura de Agentes IA (EsteticaIA)
+
+- **EsteticaIA é uma estrutura genérica** — sem persona embutida. A persona (nome, identidade) vem da clínica cliente que usa a estrutura.
+- **Identificadores funcionais de agentes IA:** `ai:sdr`, `ai:closer`, `ai:agendamento` — sem nome de persona no identificador
+- **Padrão respondent_id:** `{tipo}:{slug}` — ex: `ai:sdr`, `human:maria`, `specialist:dr-carlos`
+- **Seeds de IA:** inseridos em `_plataforma.agentes_humanos` após onboarding da instância da clínica (requerem `numero_id` válido)
+- **Modelo de atribuição:** número `tipo=mono` → `agente_humano_id = agente_default_id` do número; `tipo=multi` → extrai `identificador_externo` do payload webhook → resolve `agente_humano_id`
+
+---
+
+## Sistema de Squads ML — Estado Atual (2026-04-24)
+
+**72 agentes ativos** em 10 squads, todos no formato YAML completo com autoClaude v3.0:
+- ml-atendimento (4), ml-captura (10), ml-comercial (10), ml-data-eng (3)
+- ml-ia-padroes (9), ml-marketing (3), ml-orquestrador (6), ml-plataforma (5)
+- ml-skills (8), software-house-elite (14)
+
+**Gate de segmento (onboarding):** `strict_mode: true` por padrão — segmento inválido bloqueia onboarding inteiro antes de criar instâncias Evolution API. `strict_mode: false` apenas para adição de números isolados em clientes já ativos.
 
 ### Documentos de Produto (3 fontes)
 - **Upload direto:** PDF, DOCX, TXT, CSV, XLSX, MD, JSON (máx 50MB) — indicado para pequenos clientes
