@@ -45,6 +45,7 @@ Hoje adicionar um novo cliente ao laboratório é um processo manual que envolve
 - `produtos_servicos`: Lista de produtos/serviços para seed inicial
 - `vendedores`: Lista de vendedores iniciais (nome + identificador_externo se multi)
 - `retomar_de`: Etapa onde reiniciar se onboarding anterior falhou (opcional)
+- `strict_mode`: `true` (default) — bloqueia onboarding inteiro se qualquer segmento for inválido. `false` — bloqueia apenas o número inválido, prossegue com os demais
 
 ## Pré-condições e Gate de Segmento
 
@@ -53,7 +54,7 @@ Antes de ativar qualquer número WhatsApp (etapa 5 do fluxo), o `onboarding-orch
 1. **Verificar campo `segmento`:** Todo número informado em `numeros_whatsapp` deve conter o campo `segmento` preenchido. Se ausente, o onboarding é bloqueado imediatamente com erro descritivo.
 2. **Consultar catálogo:** Consultar `segment-catalog-manager` (ml-orquestrador-squad) para confirmar que o segmento informado existe e está catalogado e ativo.
 3. **Gate de ativação:** Se o segmento **não existir** no catálogo, a ativação do número é bloqueada. O erro retornado deve especificar: segmento informado, lista de segmentos disponíveis, e instrução para criar o segmento via `segment-catalog-manager` antes de prosseguir.
-4. **Gate por número:** A validação ocorre individualmente por número — um número com segmento inválido bloqueia apenas ele, permitindo prosseguir com os números válidos (comportamento configurável via `strict_mode`).
+4. **Gate por número:** `strict_mode: true` (default) — qualquer número com segmento inválido bloqueia o onboarding inteiro antes de criar qualquer instância Evolution API. Com `strict_mode: false`, a validação é por número: o número inválido é bloqueado individualmente e os válidos prosseguem. **Use `strict_mode: false` apenas quando o cliente já tem instâncias ativas e está adicionando um número novo isoladamente.**
 
 ### Exemplo de erro de gate
 
