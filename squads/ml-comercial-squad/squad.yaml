@@ -60,6 +60,9 @@ components:
     - profile-segment-matcher.md
     - training-content-publisher.md
     - win-loss-analyzer.md
+    - sofia-sdr.md
+    - sofia-closer.md
+    - sofia-scheduler.md
   tasks:
     - analyze-conversation.md
     - build-behavioral-profile.md
