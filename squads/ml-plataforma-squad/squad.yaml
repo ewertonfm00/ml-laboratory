@@ -24,6 +24,7 @@ components:
     - onboarding-orchestrator.md
     - seed-manager.md
     - e2e-test-orchestrator.md
+    - crm-sync-agent.md
   tasks:
     - setup-infrastructure.md
   workflows: []
