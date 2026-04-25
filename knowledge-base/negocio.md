@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-24
+Última atualização: 2026-04-25
 
 ---
 
@@ -41,6 +41,8 @@
 - **Projeto no banco:** `9c22ad6e-ca38-48d4-8dbb-51bbcadf67a2` (Machine Learning)
 - **Finalidade:** captura de conversas reais para alimentar o laboratório
 - **Pipeline confirmado:** mensagens chegando em `ml_captura.mensagens_raw` com `projeto_id` preenchido
+- **Volume atual:** 1.229 mensagens, 90 sessões ativas, 1 agente vinculado (Kátia - Cosmobeauty, id: 55c1950e)
+- **Debug endpoint:** `POST /webhook/ml/captura/debug` (n8n id: ndNJ8wXr1xoN8ZAs) — retorna snapshot diagnóstico
 
 ---
 
@@ -241,7 +243,7 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 
 | Schema | Área | Migrations |
 |--------|------|-----------|
-| ml_captura | Dados brutos (WhatsApp, transcrições) | 002 |
+| ml_captura | Dados brutos (WhatsApp, transcrições, config webhooks) | 002, 019, 020 |
 | ml_comercial | Vendas (conversas, perfis, objeções, treinamentos) | 003 |
 | ml_operacional | Processos e falhas | 007 |
 | ml_financeiro | Risco e cobrança | 008 |
