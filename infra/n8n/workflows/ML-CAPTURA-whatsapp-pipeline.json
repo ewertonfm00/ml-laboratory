@@ -1,5 +1,5 @@
 ﻿{
-    "updatedAt":  "2026-04-25T13:56:57.325Z",
+    "updatedAt":  "2026-04-25T17:17:34.944Z",
     "createdAt":  "2026-04-14T03:52:05.207Z",
     "id":  "eM0qnKGXShlOuCsV",
     "name":  "[ML-CAPTURA] WhatsApp Pipeline",
@@ -17,7 +17,7 @@
                                                      }
                                      },
                       "id":  "webhook-trigger",
-                      "name":  "Webhook — Evolution API",
+                      "name":  "Webhook - Evolution API",
                       "type":  "n8n-nodes-base.webhook",
                       "typeVersion":  1.1,
                       "position":  [
@@ -77,7 +77,7 @@
                                        900,
                                        300
                                    ],
-                      "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolução do atendente."
+                      "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu��o do atendente."
                   },
                   {
                       "parameters":  {
@@ -98,7 +98,7 @@
                                        1120,
                                        180
                                    ],
-                      "notes":  "Baixa o arquivo de Ã¡udio do WhatsApp para transcriÃ§Ã£o"
+                      "notes":  "Baixa o arquivo de áudio do WhatsApp para transcrição"
                   },
                   {
                       "parameters":  {
@@ -141,18 +141,18 @@
                                                      }
                                      },
                       "id":  "groq-whisper",
-                      "name":  "Groq Whisper — Transcricao",
+                      "name":  "Groq Whisper - Transcricao",
                       "type":  "n8n-nodes-base.httpRequest",
                       "typeVersion":  4.2,
                       "position":  [
                                        1340,
                                        180
                                    ],
-                      "notes":  "[ML-CAPTURA] Transcreve Ã¡udio WhatsApp via Groq Whisper API"
+                      "notes":  "[ML-CAPTURA] Transcreve áudio WhatsApp via Groq Whisper API"
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// Prepara dados do Ã¡udio + transcriÃ§Ã£o para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
+                                         "jsCode":  "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
                                      },
                       "id":  "prepare-audio-data",
                       "name":  "Preparar Dados Audio",
@@ -198,12 +198,12 @@
                                                            "name":  "ML Postgres"
                                                        }
                                       },
-                      "notes":  "Salva mensagem bruta — ON CONFLICT para idempotÃªncia"
+                      "notes":  "Salva mensagem bruta - ON CONFLICT para idempotência"
                   },
                   {
                       "parameters":  {
                                          "operation":  "executeQuery",
-                                         "query":  "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nSELECT\n  \u0027{{ $(\u0027Inserir ml_captura.mensagens_raw\u0027).first().json.id }}\u0027,\n  \u0027{{ $json.transcricao }}\u0027,\n  \u0027{{ $json.idioma || \u0027pt\u0027 }}\u0027,\n  {{ $json.confianca || 0.9 }},\n  \u0027groq-whisper\u0027\nWHERE \u0027{{ $json.transcricao }}\u0027 IS NOT NULL\n  AND \u0027{{ $json.transcricao }}\u0027 != \u0027null\u0027;",
+                                         "query":  "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  \u0027{{ $(\u0027Inserir ml_captura.mensagens_raw\u0027).first().json.id }}\u0027::uuid,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.texto }}\u0027,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.idioma || \u0027pt\u0027 }}\u0027,\n  {{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.confianca }},\n  \u0027groq-whisper\u0027\n)",
                                          "additionalFields":  {
 
                                                               }
@@ -222,7 +222,8 @@
                                                            "name":  "ML Postgres"
                                                        }
                                       },
-                      "notes":  "Salva transcriÃ§Ã£o do Ã¡udio (sÃ³ executa se houver transcriÃ§Ã£o)"
+                      "notes":  "Salva transcrição do áudio (só executa se houver transcrição)",
+                      "continueOnFail":  true
                   },
                   {
                       "parameters":  {
@@ -243,11 +244,11 @@
                                                            "name":  "ML Postgres"
                                                        }
                                       },
-                      "notes":  "Cria ou atualiza sessÃ£o de conversa"
+                      "notes":  "Cria ou atualiza sessão de conversa"
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// Log de erro estruturado — nÃ£o quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
+                                         "jsCode":  "// Log de erro estruturado - não quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
                                      },
                       "id":  "error-handler",
                       "name":  "Error Handler",
@@ -326,7 +327,7 @@
                   }
               ],
     "connections":  {
-                        "Webhook — Evolution API":  {
+                        "Webhook - Evolution API":  {
                                                         "main":  [
                                                                      [
                                                                          {
@@ -374,24 +375,24 @@
                                                "main":  [
                                                             [
                                                                 {
-                                                                    "node":  "Groq Whisper — TranscriÃ§Ã£o",
+                                                                    "node":  "Groq Whisper - Transcrição",
                                                                     "type":  "main",
                                                                     "index":  0
                                                                 }
                                                             ]
                                                         ]
                                            },
-                        "Groq Whisper — TranscriÃ§Ã£o":  {
-                                                             "main":  [
-                                                                          [
-                                                                              {
-                                                                                  "node":  "Preparar Dados Audio",
-                                                                                  "type":  "main",
-                                                                                  "index":  0
-                                                                              }
-                                                                          ]
-                                                                      ]
-                                                         },
+                        "Groq Whisper - Transcrição":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Preparar Dados Audio",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
                         "Preparar Dados Audio":  {
                                                      "main":  [
                                                                   [
@@ -491,9 +492,9 @@
     "staticData":  null,
     "meta":  null,
     "pinData":  null,
-    "versionId":  "a6090f84-9f34-449b-884f-8c5c772b08ff",
-    "activeVersionId":  "a6090f84-9f34-449b-884f-8c5c772b08ff",
-    "versionCounter":  44,
+    "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
+    "activeVersionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
+    "versionCounter":  47,
     "triggerCount":  1,
     "shared":  [
                    {
@@ -518,9 +519,9 @@
 
              ],
     "activeVersion":  {
-                          "updatedAt":  "2026-04-25T13:56:57.328Z",
-                          "createdAt":  "2026-04-25T13:56:57.328Z",
-                          "versionId":  "a6090f84-9f34-449b-884f-8c5c772b08ff",
+                          "updatedAt":  "2026-04-25T17:17:34.949Z",
+                          "createdAt":  "2026-04-25T17:17:34.949Z",
+                          "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
                           "workflowId":  "eM0qnKGXShlOuCsV",
                           "nodes":  [
                                         {
@@ -533,7 +534,7 @@
                                                                            }
                                                            },
                                             "id":  "webhook-trigger",
-                                            "name":  "Webhook — Evolution API",
+                                            "name":  "Webhook - Evolution API",
                                             "type":  "n8n-nodes-base.webhook",
                                             "typeVersion":  1.1,
                                             "position":  [
@@ -593,7 +594,7 @@
                                                              900,
                                                              300
                                                          ],
-                                            "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolução do atendente."
+                                            "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu��o do atendente."
                                         },
                                         {
                                             "parameters":  {
@@ -614,7 +615,7 @@
                                                              1120,
                                                              180
                                                          ],
-                                            "notes":  "Baixa o arquivo de Ã¡udio do WhatsApp para transcriÃ§Ã£o"
+                                            "notes":  "Baixa o arquivo de áudio do WhatsApp para transcrição"
                                         },
                                         {
                                             "parameters":  {
@@ -657,18 +658,18 @@
                                                                            }
                                                            },
                                             "id":  "groq-whisper",
-                                            "name":  "Groq Whisper — Transcricao",
+                                            "name":  "Groq Whisper - Transcricao",
                                             "type":  "n8n-nodes-base.httpRequest",
                                             "typeVersion":  4.2,
                                             "position":  [
                                                              1340,
                                                              180
                                                          ],
-                                            "notes":  "[ML-CAPTURA] Transcreve Ã¡udio WhatsApp via Groq Whisper API"
+                                            "notes":  "[ML-CAPTURA] Transcreve áudio WhatsApp via Groq Whisper API"
                                         },
                                         {
                                             "parameters":  {
-                                                               "jsCode":  "// Prepara dados do Ã¡udio + transcriÃ§Ã£o para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
+                                                               "jsCode":  "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
                                                            },
                                             "id":  "prepare-audio-data",
                                             "name":  "Preparar Dados Audio",
@@ -714,12 +715,12 @@
                                                                                  "name":  "ML Postgres"
                                                                              }
                                                             },
-                                            "notes":  "Salva mensagem bruta — ON CONFLICT para idempotÃªncia"
+                                            "notes":  "Salva mensagem bruta - ON CONFLICT para idempotência"
                                         },
                                         {
                                             "parameters":  {
                                                                "operation":  "executeQuery",
-                                                               "query":  "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nSELECT\n  \u0027{{ $(\u0027Inserir ml_captura.mensagens_raw\u0027).first().json.id }}\u0027,\n  \u0027{{ $json.transcricao }}\u0027,\n  \u0027{{ $json.idioma || \u0027pt\u0027 }}\u0027,\n  {{ $json.confianca || 0.9 }},\n  \u0027groq-whisper\u0027\nWHERE \u0027{{ $json.transcricao }}\u0027 IS NOT NULL\n  AND \u0027{{ $json.transcricao }}\u0027 != \u0027null\u0027;",
+                                                               "query":  "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  \u0027{{ $(\u0027Inserir ml_captura.mensagens_raw\u0027).first().json.id }}\u0027::uuid,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.texto }}\u0027,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.idioma || \u0027pt\u0027 }}\u0027,\n  {{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.confianca }},\n  \u0027groq-whisper\u0027\n)",
                                                                "additionalFields":  {
 
                                                                                     }
@@ -738,7 +739,8 @@
                                                                                  "name":  "ML Postgres"
                                                                              }
                                                             },
-                                            "notes":  "Salva transcriÃ§Ã£o do Ã¡udio (sÃ³ executa se houver transcriÃ§Ã£o)"
+                                            "notes":  "Salva transcrição do áudio (só executa se houver transcrição)",
+                                            "continueOnFail":  true
                                         },
                                         {
                                             "parameters":  {
@@ -759,11 +761,11 @@
                                                                                  "name":  "ML Postgres"
                                                                              }
                                                             },
-                                            "notes":  "Cria ou atualiza sessÃ£o de conversa"
+                                            "notes":  "Cria ou atualiza sessão de conversa"
                                         },
                                         {
                                             "parameters":  {
-                                                               "jsCode":  "// Log de erro estruturado — nÃ£o quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
+                                                               "jsCode":  "// Log de erro estruturado - não quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
                                                            },
                                             "id":  "error-handler",
                                             "name":  "Error Handler",
@@ -842,7 +844,7 @@
                                         }
                                     ],
                           "connections":  {
-                                              "Webhook — Evolution API":  {
+                                              "Webhook - Evolution API":  {
                                                                               "main":  [
                                                                                            [
                                                                                                {
@@ -890,24 +892,24 @@
                                                                      "main":  [
                                                                                   [
                                                                                       {
-                                                                                          "node":  "Groq Whisper — TranscriÃ§Ã£o",
+                                                                                          "node":  "Groq Whisper - Transcrição",
                                                                                           "type":  "main",
                                                                                           "index":  0
                                                                                       }
                                                                                   ]
                                                                               ]
                                                                  },
-                                              "Groq Whisper — TranscriÃ§Ã£o":  {
-                                                                                   "main":  [
-                                                                                                [
-                                                                                                    {
-                                                                                                        "node":  "Preparar Dados Audio",
-                                                                                                        "type":  "main",
-                                                                                                        "index":  0
-                                                                                                    }
-                                                                                                ]
-                                                                                            ]
-                                                                               },
+                                              "Groq Whisper - Transcrição":  {
+                                                                                 "main":  [
+                                                                                              [
+                                                                                                  {
+                                                                                                      "node":  "Preparar Dados Audio",
+                                                                                                      "type":  "main",
+                                                                                                      "index":  0
+                                                                                                  }
+                                                                                              ]
+                                                                                          ]
+                                                                             },
                                               "Preparar Dados Audio":  {
                                                                            "main":  [
                                                                                         [
@@ -1002,18 +1004,18 @@
                           "autosaved":  false,
                           "workflowPublishHistory":  [
                                                          {
-                                                             "createdAt":  "2026-04-25T13:56:57.488Z",
-                                                             "id":  110,
+                                                             "createdAt":  "2026-04-25T17:17:35.049Z",
+                                                             "id":  116,
                                                              "workflowId":  "eM0qnKGXShlOuCsV",
-                                                             "versionId":  "a6090f84-9f34-449b-884f-8c5c772b08ff",
+                                                             "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
                                                              "event":  "deactivated",
                                                              "userId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
                                                          },
                                                          {
-                                                             "createdAt":  "2026-04-25T13:56:57.567Z",
-                                                             "id":  111,
+                                                             "createdAt":  "2026-04-25T17:17:35.100Z",
+                                                             "id":  117,
                                                              "workflowId":  "eM0qnKGXShlOuCsV",
-                                                             "versionId":  "a6090f84-9f34-449b-884f-8c5c772b08ff",
+                                                             "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
                                                              "event":  "activated",
                                                              "userId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
                                                          }
