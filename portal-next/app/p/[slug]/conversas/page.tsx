@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { query } from '@/lib/db';
 
 interface Props {
@@ -145,9 +146,10 @@ export default async function ConversasPage({ params }: Props) {
             const temAnalise = conv.nota_comercial !== null || conv.nota_tecnica !== null || conv.disc_identificado !== null;
 
             return (
-              <div
+              <Link
                 key={conv.sessao_id}
-                className="bg-[#1A1A2E] rounded-xl border border-[#2A2A3E] p-5 hover:border-violet-500/30 transition-colors"
+                href={`/p/${slug}/conversas/${conv.sessao_id}`}
+                className="block bg-[#1A1A2E] rounded-xl border border-[#2A2A3E] p-5 hover:border-violet-500/30 transition-colors cursor-pointer"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -211,7 +213,7 @@ export default async function ConversasPage({ params }: Props) {
                     )}
                   </div>
                 )}
-              </div>
+              </Link>
             );
           })}
         </div>
