@@ -241,6 +241,26 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 
 ## Schemas Postgres
 
+## Acesso aos Dados — Ferramentas
+
+| Ferramenta | URL | Uso |
+|-----------|-----|-----|
+| Metabase | `https://metabase-production-11a7.up.railway.app` | Dashboards, tabelas visuais, sem SQL |
+| Portal ML | `https://portal-ml-production.up.railway.app` | Gestão operacional, conversas, clínica |
+| Railway DB | railway.app → projeto → Postgres → aba "Data" | Query runner inline, sem instalar nada |
+
+**Para ver mensagens de uma conversa no Metabase:** tabela `ml_captura → mensagens_raw`, filtrar por `remote_jid` (número do contato no formato `551699XXXXXXX@s.whatsapp.net`).
+
+---
+
+## Particularidades Técnicas do Schema de Captura
+
+- `ml_captura.mensagens_raw.session_id` é **VARCHAR** com o nome da instância Evolution (`ml-5516988456918`), **não um UUID**. JOIN com `sessoes_conversa.id` (UUID) não funciona diretamente — usar `remote_jid + projeto_id` como chave de ligação.
+- `ml_captura.sessoes_conversa.contato_nome` é populado a partir do `push_name` do webhook (nome do contato no WhatsApp). Fix aplicado em 2026-04-25 — sessões criadas antes desta data têm `contato_nome = NULL`.
+- `ml_captura.sessoes_conversa.agente_humano_id` resolvido pela lógica mono/multi do n8n: mono → `agente_default_id` do número; multi → lookup por `identificador_externo`.
+
+---
+
 | Schema | Área | Migrations |
 |--------|------|-----------|
 | ml_captura | Dados brutos (WhatsApp, transcrições, config webhooks) | 002, 019, 020 |
