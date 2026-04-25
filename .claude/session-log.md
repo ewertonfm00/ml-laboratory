@@ -823,8 +823,129 @@ Lógica de resolução no n8n (captura):
 ### 3. Todos Ativos
 
 - [ ] Story 1.1 task 2.8: teste multi-agente com `identificador_externo` desconhecido — requer número `tipo='multi'`
-- [ ] Sincronizar JSON local `infra/n8n/workflows/ML-CAPTURA-whatsapp-pipeline.json` com versão em produção (mudanças foram feitas via API diretamente)
+- [x] Sincronizar JSON local `infra/n8n/workflows/ML-CAPTURA-whatsapp-pipeline.json` com versão em produção ✅
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E EsteticaIA (aguarda homologação deles)
 - [ ] Seed `ai:sdr`, `ai:closer`, `ai:agendamento` → após onboarding instância EsteticaIA
 - [ ] Implementar workflows n8n das tasks dos squads ML (começar por ml-captura)
 - [ ] Seed inicial do segment-catalog-manager (Saída 2 inoperante sem catálogo)
+
+---
+## Sessão 2026-04-25 (continuação — configure-webhook + fixes ML-CAPTURA)
+
+### 1. Implementações
+
+**`infra/n8n/workflows/ML-CONFIGURE-WEBHOOK.json`** — CRIADO (commit `fe9e8c6`)
+- Endpoint: `POST /ml/configure/webhook` body: `{"instancia_nome": "ml-{numero}"}`
+- 8 nós: Webhook Trigger → Validar Input → Configurar Webhook Evolution → Lookup Instancia DB → Upsert webhooks_config → Montar Resposta → Resposta HTTP + Resposta Erro
+- Importado no n8n (id: `kDtiUtT7tS9572mQ`), ativado via API
+- Testado: `ml-5516988456918` → `{"success":true, "status":"ativo", "webhooks_config_id":"ef8cb2c4-cb93-4475-b7c0-053ac7c85c80"}`
+- Upsert idempotente via `ON CONFLICT (instancia_id)` — pode ser chamado múltiplas vezes
+
+**ML-CAPTURA sincronizado** com produção (commit `651dd06`)
+- `infra/n8n/workflows/ML-CAPTURA-whatsapp-pipeline.json` atualizado após sync inicial
+- CONTEXT.md: configure-webhook marcado concluído, prioridades revisadas
+
+**Bug `transcricoes_audio` corrigido** (commit `6cce64b`)
+- Causa: query usava `$json.transcricao` (output do INSERT = `{id}`) → salvava `texto='undefined'`
+- Fix: query agora referencia `$('Preparar Dados Audio').item.json.transcricao.{texto,idioma,confianca}`
+- `continueOnFail: true` adicionado — skip gracioso quando path é texto (nó de áudio não executado)
+- Aplicado em produção via PUT API + JSON local re-sincronizado
+
+**Groq API key configurada** (commit `ea98c1e`)
+- `$vars.ML_GROQ_API_KEY` não funciona (plano n8n sem `feat:variables`)
+- Key aplicada diretamente no header `Authorization` do nó `Groq Whisper — Transcrição`
+- Salva em `.env` como `GROQ_API_KEY`
+- Transcrição de áudio agora operacional em produção
+
+### 2. Decisões
+
+- **`$vars` indisponível no plano n8n atual** → hardcode de credentials diretamente nos nós (padrão já existente: Evolution API key também hardcoded)
+- **`continueOnFail: true` no nó `transcricoes_audio`** → paths audio e texto compartilham o mesmo nó downstream; continueOnFail é o mecanismo correto para skip condicional
+- **ML-CONFIGURE-WEBHOOK como workflow separado** → endpoint próprio para re-registrar webhook sem precisar recriar a instância; idempotente via ON CONFLICT
+- **PUT API body mínimo** → n8n API v1 rejeita propriedades extras (`active`, `id`, `versionId`, `shared`, `tags`, etc.) — usar `{name, nodes, connections, settings}` apenas
+
+### 3. Todos Ativos
+
+- [ ] **Seed inicial do `segment-catalog-manager`** — Saída 2 inoperante sem catálogo (pronto para iniciar)
+- [ ] **`collect-messages` com Redis dedup** — Redis não está no Railway (bloqueado; dedup atual via `ON CONFLICT (message_id) DO NOTHING` no n8n)
+- [ ] **Story 1.1 task 2.8** — teste multi-agente com `identificador_externo` desconhecido (requer número `tipo='multi'`)
+- [ ] **Story 1.2 tasks 3.1–3.2** — testes E2E EsteticaIA (aguarda homologação)
+- [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** — aguarda onboarding instância EsteticaIA
+- [ ] **Push pendente** — 11 commits locais não enviados para `origin/main` (requer @devops)
+
+---
+## Sessão 2026-04-25 (continuação — segment-catalog-manager seed)
+
+### 1. Implementações
+
+**`database/migrations/021_orquestrador_segment_catalog.sql`** — CRIADO (commit `1c4fee4`)
+- Schema `ml_orquestrador` criado (orquestração cross-area)
+- Tabela `segment_catalog`: id(slug PK), nome, descricao, ciclo_venda, nivel_tecnico, decisao, relacionamento, disc_preferido[], metodologia[], ticket_medio, cases_validados(jsonb), dados_suficientes(bool), version, ativo
+- Trigger `set_updated_at`, índices em `ativo` e `dados_suficientes`, grants SELECT/INSERT/UPDATE para `ml_app`
+- Função `ml_orquestrador.set_updated_at()` criada
+
+**`database/migrations/rollbacks/021_orquestrador_segment_catalog_rollback.sql`** — CRIADO
+
+**`database/seeds/001_segment_catalog_inicial.sql`** — CRIADO (commit `1c4fee4`)
+- 4 segmentos inseridos e confirmados no banco Railway (INSERT 0 4):
+  - `estetica-equipamentos`: piloto Omega Laser, ciclo médio, decisão mista, ticket alto, D+I, SPIN+produto-abordagem
+  - `saude-clinicas-b2b`: comparação, ciclo médio, decisão racional, ticket alto, C+D, SPIN+Challenger
+  - `beleza-varejo-b2c`: comparação B2C, ciclo curto, decisão emocional, ticket médio, I+S
+  - `b2b-equipamentos-industria`: comparação industrial, ciclo longo, decisão racional, ticket alto, C+D
+
+### 2. Decisões
+
+- **`dados_suficientes=false` em todos os segmentos iniciais**: nenhum case de deploy real ainda — segment-match-scorer avisa baixa confiabilidade até `*enrich-segment` ser executado com deploys reais validados
+- **4 segmentos cobrindo dimensões opostas**: ciclo curto↔longo, decisão emocional↔racional↔mista, B2B↔B2C — base mínima para o scorer ter referências de comparação
+- **Schema isolado `ml_orquestrador`**: separado dos schemas operacionais (ml_captura, ml_comercial, etc.) — orquestração cross-area com acesso somente leitura por outros squads
+
+### 3. Todos Ativos
+
+- [ ] **Story 1.1 task 2.8** — teste multi-agente com `identificador_externo` desconhecido (bloqueado: requer número `tipo='multi'`)
+- [ ] **Story 1.2 tasks 3.1–3.2** — testes E2E EsteticaIA (aguarda homologação deles)
+- [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** — aguarda onboarding instância EsteticaIA
+- [ ] **Redis dedup `collect-messages`** — Redis não deployado no Railway (bloqueado)
+- [ ] **12 commits pendentes de push** para `origin/main` — requer `@devops`
+- [ ] **`*enrich-segment estetica-equipamentos`** — só executável após primeiro deploy real de agente validado
+
+---
+## Compactação 2026-04-25
+
+### 1. Implementações
+
+**`database/migrations/021_orquestrador_segment_catalog.sql`** — CRIADO (commit `1c4fee4`)
+- Schema `ml_orquestrador` + tabela `segment_catalog` com trigger `set_updated_at`, índices em `ativo`/`dados_suficientes`, grants para `ml_app`
+- Campos: id(slug PK), nome, descricao, ciclo_venda, nivel_tecnico, decisao, relacionamento, disc_preferido[], metodologia[], ticket_medio, cases_validados(jsonb), dados_suficientes(bool), version, ativo
+
+**`database/migrations/rollbacks/021_orquestrador_segment_catalog_rollback.sql`** — CRIADO
+
+**`database/seeds/001_segment_catalog_inicial.sql`** — CRIADO (commit `1c4fee4`)
+- 4 segmentos aplicados e confirmados no Railway (INSERT 0 4):
+  - `estetica-equipamentos` — piloto Omega Laser, ciclo médio, decisão mista, ticket alto, D+I, SPIN+produto-abordagem
+  - `saude-clinicas-b2b` — comparação, ciclo médio, decisão racional, ticket alto, C+D, SPIN+Challenger
+  - `beleza-varejo-b2c` — comparação B2C, ciclo curto, decisão emocional, ticket médio, I+S
+  - `b2b-equipamentos-industria` — comparação industrial, ciclo longo, decisão racional, ticket alto, C+D
+
+**Sessões anteriores (commits `ea98c1e`, `6cce64b`, `651dd06`, `fe9e8c6`):**
+- n8n Whisper com Groq API key operacional
+- ML-CONFIGURE-WEBHOOK workflow ativo (registra webhook Evolution + persiste em `webhooks_config`)
+- `transcricoes_audio` com `continueOnFail: true` (skip condicional paths áudio/texto)
+- Sincronização ML-CAPTURA local com produção
+
+### 2. Decisões
+
+- **`dados_suficientes=false` em todos os segmentos**: nenhum case real ainda — scorer avisa baixa confiabilidade até `*enrich-segment` executado
+- **4 segmentos cobrindo dimensões opostas**: base mínima para scorer ter referências (ciclo curto↔longo, emocional↔racional↔misto, B2B↔B2C)
+- **Schema isolado `ml_orquestrador`**: orquestração cross-area; outros squads têm acesso somente leitura
+- **`$vars` indisponível no plano n8n** → credenciais hardcoded nos nós (padrão existente no projeto)
+- **PUT API body mínimo no n8n**: apenas `{name, nodes, connections, settings}` — API v1 rejeita propriedades extras
+- **ML-CONFIGURE-WEBHOOK como workflow separado**: idempotente via ON CONFLICT; re-registra sem recriar instância
+
+### 3. Todos Ativos
+
+- [ ] **Story 1.1 task 2.8** — teste multi-agente com `identificador_externo` desconhecido (requer número `tipo='multi'`)
+- [ ] **Story 1.2 tasks 3.1–3.2** — testes E2E EsteticaIA (aguarda homologação)
+- [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** — aguarda onboarding instância EsteticaIA
+- [ ] **Redis dedup `collect-messages`** — Redis não deployado no Railway (bloqueado)
+- [ ] **12 commits pendentes de push** para `origin/main` — requer `@devops`
+- [ ] **`*enrich-segment estetica-equipamentos`** — executável só após primeiro deploy real de agente validado

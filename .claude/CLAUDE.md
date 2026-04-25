@@ -289,7 +289,7 @@ await story.save();
 | Gatilho | Ação obrigatória |
 |---------|-----------------|
 | Após QUALQUER chamada do `Agent` tool | Invocar `/compact-preserve` antes de responder ao usuário |
-| Sessão com > 15 trocas de mensagens | Invocar `/compact-preserve` proativamente |
+| Sessão com > 10 trocas de mensagens | Invocar `/compact-preserve` proativamente |
 | Task afeta > 5 arquivos | Usar subagente obrigatório (`Agent` tool) |
 | Mesmo problema tentado > 2 vezes | Criar briefing e disparar novo subagente com contexto zerado |
 | Após cada `git commit` | Atualizar memória e avaliar compact |
