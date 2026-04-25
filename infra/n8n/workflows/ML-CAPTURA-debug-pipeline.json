@@ -1,0 +1,109 @@
+{
+  "name": "[ML-CAPTURA] Debug Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/captura/debug",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-debug",
+      "name": "Webhook Debug",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "[ML-CAPTURA] Endpoint manual: POST /ml/captura/debug. Body opcional: { janela_horas: 2, numero_whatsapp: '551699...' }"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COUNT(*) AS total_mensagens,\n  COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '{{ $json.body.janela_horas || 2 }} hours') AS mensagens_recentes,\n  MAX(created_at) AS ultima_mensagem,\n  COUNT(DISTINCT remote_jid) AS contatos_unicos,\n  COUNT(*) FILTER (WHERE tipo = 'audio') AS audios,\n  COUNT(*) FILTER (WHERE tipo = 'text') AS textos\nFROM ml_captura.mensagens_raw\nWHERE ('{{ $('Webhook Debug').first().json.body.numero_whatsapp || '' }}' = '' OR session_id LIKE '%{{ $('Webhook Debug').first().json.body.numero_whatsapp || '' }}%')",
+        "additionalFields": {}
+      },
+      "id": "stats-mensagens",
+      "name": "Stats Mensagens",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": { "postgres": { "id": "FO9GgjXtERNuCglX", "name": "ML Postgres" } },
+      "notes": "Contagens de mensagens_raw — total, recentes, por tipo"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COUNT(*) AS total_sessoes,\n  COUNT(*) FILTER (WHERE status = 'ativa') AS sessoes_ativas,\n  COUNT(*) FILTER (WHERE agente_humano_id IS NULL) AS sem_agente,\n  COUNT(*) FILTER (WHERE agente_humano_id IS NOT NULL) AS com_agente,\n  MAX(updated_at) AS ultima_atualizacao\nFROM ml_captura.sessoes_conversa",
+        "additionalFields": {}
+      },
+      "id": "stats-sessoes",
+      "name": "Stats Sessoes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [680, 300],
+      "credentials": { "postgres": { "id": "FO9GgjXtERNuCglX", "name": "ML Postgres" } },
+      "notes": "Contagens de sessoes_conversa — total, ativas, vinculo com agente"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  a.nome AS agente_nome,\n  COUNT(s.id) AS total_sessoes,\n  MAX(s.updated_at) AS ultima_atividade\nFROM _plataforma.agentes_humanos a\nLEFT JOIN ml_captura.sessoes_conversa s ON s.agente_humano_id = a.id\nGROUP BY a.id, a.nome\nORDER BY total_sessoes DESC",
+        "additionalFields": {}
+      },
+      "id": "stats-agentes",
+      "name": "Stats Agentes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 300],
+      "credentials": { "postgres": { "id": "FO9GgjXtERNuCglX", "name": "ML Postgres" } },
+      "notes": "Sessoes por agente humano — identifica numeros sem vinculo"
+    },
+    {
+      "parameters": {
+        "jsCode": "const req = $('Webhook Debug').first().json.body || {};\nconst msgs = $('Stats Mensagens').first().json;\nconst sess = $('Stats Sessoes').first().json;\nconst agentes = $('Stats Agentes').all().map(i => i.json);\n\nconst agora = new Date().toISOString();\nconst janela = req.janela_horas || 2;\n\nconst alertas = [];\nif (parseInt(msgs.mensagens_recentes) === 0) {\n  alertas.push({ nivel: 'WARN', msg: `Nenhuma mensagem nas ultimas ${janela}h — pipeline pode estar inativo` });\n}\nif (parseInt(sess.sem_agente) > 0) {\n  alertas.push({ nivel: 'WARN', msg: `${sess.sem_agente} sessoes sem agente_humano_id — numeros sem agente vinculado` });\n}\nif (msgs.ultima_mensagem) {\n  const diff = (Date.now() - new Date(msgs.ultima_mensagem).getTime()) / 60000;\n  if (diff > 60) alertas.push({ nivel: 'INFO', msg: `Ultima mensagem ha ${Math.round(diff)} minutos` });\n}\n\nreturn [{ json: {\n  gerado_em: agora,\n  janela_horas: janela,\n  filtro_numero: req.numero_whatsapp || null,\n  status_pipeline: alertas.some(a => a.nivel === 'WARN') ? 'ATENCAO' : 'OK',\n  alertas,\n  mensagens: {\n    total: parseInt(msgs.total_mensagens),\n    recentes: parseInt(msgs.mensagens_recentes),\n    ultima: msgs.ultima_mensagem,\n    audios: parseInt(msgs.audios),\n    textos: parseInt(msgs.textos),\n    contatos_unicos: parseInt(msgs.contatos_unicos)\n  },\n  sessoes: {\n    total: parseInt(sess.total_sessoes),\n    ativas: parseInt(sess.sessoes_ativas),\n    sem_agente: parseInt(sess.sem_agente),\n    com_agente: parseInt(sess.com_agente),\n    ultima_atualizacao: sess.ultima_atualizacao\n  },\n  agentes\n}}];"
+      },
+      "id": "gerar-diagnostico",
+      "name": "Gerar Diagnostico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "notes": "Consolida stats e gera diagnostico com alertas automaticos"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-diagnostico",
+      "name": "Respond Diagnostico",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 300],
+      "notes": "Retorna JSON formatado com diagnostico completo"
+    }
+  ],
+  "connections": {
+    "Webhook Debug": {
+      "main": [[{ "node": "Stats Mensagens", "type": "main", "index": 0 }]]
+    },
+    "Stats Mensagens": {
+      "main": [[{ "node": "Stats Sessoes", "type": "main", "index": 0 }]]
+    },
+    "Stats Sessoes": {
+      "main": [[{ "node": "Stats Agentes", "type": "main", "index": 0 }]]
+    },
+    "Stats Agentes": {
+      "main": [[{ "node": "Gerar Diagnostico", "type": "main", "index": 0 }]]
+    },
+    "Gerar Diagnostico": {
+      "main": [[{ "node": "Respond Diagnostico", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/Sao_Paulo"
+  },
+  "staticData": null,
+  "meta": { "version": "1.1.0", "squad": "ml-captura-squad", "task": "debug-pipeline" }
+}
