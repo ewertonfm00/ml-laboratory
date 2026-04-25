@@ -1,1024 +1,1052 @@
-﻿{
-    "updatedAt":  "2026-04-25T17:24:05.998Z",
-    "createdAt":  "2026-04-14T03:52:05.207Z",
-    "id":  "eM0qnKGXShlOuCsV",
-    "name":  "[ML-CAPTURA] WhatsApp Pipeline",
-    "description":  null,
-    "active":  true,
-    "isArchived":  false,
-    "nodes":  [
-                  {
-                      "parameters":  {
-                                         "httpMethod":  "POST",
-                                         "path":  "ml/webhook/whatsapp",
-                                         "responseMode":  "onReceived",
-                                         "options":  {
-
-                                                     }
-                                     },
-                      "id":  "webhook-trigger",
-                      "name":  "Webhook - Evolution API",
-                      "type":  "n8n-nodes-base.webhook",
-                      "typeVersion":  1.1,
-                      "position":  [
-                                       240,
-                                       300
-                                   ],
-                      "notes":  "[ML-CAPTURA] Recebe eventos da Evolution API. Endpoint: /ml/webhook/whatsapp",
-                      "webhookId":  "44d24057-2aad-4db1-a4cb-377834273ea9"
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "// Evolution API real format: payload root contains event, instance, data\n// data.key: { remoteJid, fromMe, id? }\n// data.pushName: nome do contato\n// data.message: { conversation, extendedTextMessage?, audioMessage?, imageMessage?, documentMessage? }\nconst body = $input.first().json.body || $input.first().json;\nconst eventRaw = body.event || body.type || \u0027\u0027;\nconst event = eventRaw.toLowerCase().replace(/_/g, \u0027.\u0027);\n\nconst messageEvents = [\u0027messages.upsert\u0027, \u0027messages.update\u0027];\nif (!messageEvents.includes(event)) return [];\n\nconst data = body.data || {};\nconst message = data.message || {};\nconst key = data.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === \u0027messages.update\u0027 \u0026\u0026 !message.conversation \u0026\u0026 !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? \u0027audio\u0027\n           : message.imageMessage ? \u0027image\u0027\n           : message.documentMessage ? \u0027document\u0027\n           : \u0027text\u0027;\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me:      key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    push_name:    data.pushName || null,\n    message_id:   key.id || null,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
-                                     },
-                      "id":  "normalize-payload",
-                      "name":  "Normalizar Payload",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       460,
-                                       300
-                                   ],
-                      "notes":  "Normaliza payload da Evolution API (formato real: event+instance+data). data.key.remoteJid, data.pushName, data.message.conversation"
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "executeQuery",
-                                         "query":  "SELECT\n  COALESCE(np.setor::text, \u0027comercial\u0027) AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = \u0027{{ $json.session_id }}\u0027\n  AND np.ativo = true\nLIMIT 1",
-                                         "additionalFields":  {
-
-                                                              }
-                                     },
-                      "id":  "lookup-setor",
-                      "name":  "Lookup Setor",
-                      "type":  "n8n-nodes-base.postgres",
-                      "typeVersion":  2.5,
-                      "position":  [
-                                       680,
-                                       300
-                                   ],
-                      "credentials":  {
-                                          "postgres":  {
-                                                           "id":  "FO9GgjXtERNuCglX",
-                                                           "name":  "ML Postgres"
-                                                       }
-                                      },
-                      "notes":  "Busca setor, tipo e agente_default_id do numero. Fallback: \u0027comercial\u0027"
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const payload = $(\u0027Normalizar Payload\u0027).first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || \u0027comercial\u0027;\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || \u0027mono\u0027;\nconst agente_default_id = lookup.agente_default_id || null;\nconst numero_id = lookup.numero_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id, numero_id } }];"
-                                     },
-                      "id":  "enrich-setor",
-                      "name":  "Enriquecer com Setor",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       900,
-                                       300
-                                   ],
-                      "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu??o do atendente."
-                  },
-                  {
-                      "parameters":  {
-                                         "url":  "={{ $json.audio_url }}",
-                                         "options":  {
-                                                         "response":  {
-                                                                          "response":  {
-                                                                                           "responseFormat":  "file"
-                                                                                       }
-                                                                      }
-                                                     }
-                                     },
-                      "id":  "download-audio",
-                      "name":  "Download Audio",
-                      "type":  "n8n-nodes-base.httpRequest",
-                      "typeVersion":  4.2,
-                      "position":  [
-                                       1120,
-                                       180
-                                   ],
-                      "notes":  "Baixa o arquivo de �udio do WhatsApp para transcri��o"
-                  },
-                  {
-                      "parameters":  {
-                                         "url":  "https://api.groq.com/openai/v1/audio/transcriptions",
-                                         "authentication":  "none",
-                                         "sendHeaders":  true,
-                                         "headerParameters":  {
-                                                                  "parameters":  [
-                                                                                     {
-                                                                                         "name":  "Authorization",
-                                                                                         "value":  "Bearer GROQ_API_KEY_PLACEHOLDER"
-                                                                                     }
-                                                                                 ]
-                                                              },
-                                         "sendBody":  true,
-                                         "contentType":  "multipart-form-data",
-                                         "bodyParameters":  {
-                                                                "parameters":  [
-                                                                                   {
-                                                                                       "name":  "file",
-                                                                                       "value":  "={{ $binary.data }}",
-                                                                                       "parameterType":  "formBinaryData"
-                                                                                   },
-                                                                                   {
-                                                                                       "name":  "model",
-                                                                                       "value":  "={{ $vars.ML_GROQ_WHISPER_MODEL || \u0027whisper-large-v3\u0027 }}"
-                                                                                   },
-                                                                                   {
-                                                                                       "name":  "language",
-                                                                                       "value":  "={{ $vars.ML_GROQ_WHISPER_LANGUAGE || \u0027pt\u0027 }}"
-                                                                                   },
-                                                                                   {
-                                                                                       "name":  "response_format",
-                                                                                       "value":  "verbose_json"
-                                                                                   }
-                                                                               ]
-                                                            },
-                                         "options":  {
-                                                         "timeout":  60000
-                                                     }
-                                     },
-                      "id":  "groq-whisper",
-                      "name":  "Groq Whisper - Transcricao",
-                      "type":  "n8n-nodes-base.httpRequest",
-                      "typeVersion":  4.2,
-                      "position":  [
-                                       1340,
-                                       180
-                                   ],
-                      "notes":  "[ML-CAPTURA] Transcreve �udio WhatsApp via Groq Whisper API"
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "// Prepara dados do �udio + transcri��o para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
-                                     },
-                      "id":  "prepare-audio-data",
-                      "name":  "Preparar Dados Audio",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1560,
-                                       180
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027text\u0027,\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
-                                     },
-                      "id":  "prepare-text-data",
-                      "name":  "Preparar Dados Texto",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1120,
-                                       420
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "executeQuery",
-                                         "query":  "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  \u0027{{ $json.mensagem.projeto_id }}\u0027::uuid,\n  \u0027{{ $json.mensagem.area }}\u0027,\n  \u0027{{ $json.mensagem.fonte }}\u0027,\n  \u0027{{ $json.mensagem.session_id }}\u0027,\n  \u0027{{ $json.mensagem.remote_jid }}\u0027,\n  \u0027{{ $json.mensagem.message_id }}\u0027,\n  \u0027{{ $json.mensagem.tipo }}\u0027,\n  \u0027{{ $json.mensagem.conteudo_raw }}\u0027,\n  {{ $json.mensagem.audio_url ? \"\u0027\" + $json.mensagem.audio_url + \"\u0027\" : \u0027NULL\u0027 }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : \u0027NULL\u0027 }},\n  \u0027{{ $json.mensagem.status }}\u0027,\n  \u0027{{ JSON.stringify($json.mensagem.metadados) }}\u0027::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
-                                         "additionalFields":  {
-
-                                                              }
-                                     },
-                      "id":  "insert-mensagem-raw",
-                      "name":  "Inserir ml_captura.mensagens_raw",
-                      "type":  "n8n-nodes-base.postgres",
-                      "typeVersion":  2.5,
-                      "position":  [
-                                       1780,
-                                       300
-                                   ],
-                      "credentials":  {
-                                          "postgres":  {
-                                                           "id":  "FO9GgjXtERNuCglX",
-                                                           "name":  "ML Postgres"
-                                                       }
-                                      },
-                      "notes":  "Salva mensagem bruta - ON CONFLICT para idempot�ncia"
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "executeQuery",
-                                         "query":  "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  \u0027{{ $(\u0027Inserir ml_captura.mensagens_raw\u0027).first().json.id }}\u0027::uuid,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.texto }}\u0027,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.idioma || \u0027pt\u0027 }}\u0027,\n  {{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.confianca }},\n  \u0027groq-whisper\u0027\n)",
-                                         "additionalFields":  {
-
-                                                              }
-                                     },
-                      "id":  "insert-transcricao",
-                      "name":  "Inserir ml_captura.transcricoes_audio",
-                      "type":  "n8n-nodes-base.postgres",
-                      "typeVersion":  2.5,
-                      "position":  [
-                                       2000,
-                                       180
-                                   ],
-                      "credentials":  {
-                                          "postgres":  {
-                                                           "id":  "FO9GgjXtERNuCglX",
-                                                           "name":  "ML Postgres"
-                                                       }
-                                      },
-                      "notes":  "Salva transcri��o do �udio (s� executa se houver transcri��o)",
-                      "continueOnFail":  true
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "executeQuery",
-                                         "query":  "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status, agente_humano_id)\nVALUES (\n  \u0027{{ $(\"Resolver Atendente\").first().json.projeto_id }}\u0027::uuid,\n  \u0027{{ $(\"Resolver Atendente\").first().json.area }}\u0027,\n  \u0027{{ $(\"Resolver Atendente\").first().json.remote_jid }}\u0027,\n  \u0027ativa\u0027,\n  {{ $(\"Resolver Atendente\").first().json.agente_humano_id ? \"\u0027\" + $(\"Resolver Atendente\").first().json.agente_humano_id + \"\u0027::uuid\" : \u0027NULL\u0027 }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO UPDATE\nSET total_mensagens = ml_captura.sessoes_conversa.total_mensagens + 1,\n    updated_at      = NOW(),\n    agente_humano_id = COALESCE(ml_captura.sessoes_conversa.agente_humano_id, EXCLUDED.agente_humano_id);"
-                                     },
-                      "id":  "upsert-sessao",
-                      "name":  "Upsert ml_captura.sessoes_conversa",
-                      "type":  "n8n-nodes-base.postgres",
-                      "typeVersion":  2.5,
-                      "position":  [
-                                       2000,
-                                       420
-                                   ],
-                      "credentials":  {
-                                          "postgres":  {
-                                                           "id":  "FO9GgjXtERNuCglX",
-                                                           "name":  "ML Postgres"
-                                                       }
-                                      },
-                      "notes":  "Cria ou atualiza sess�o de conversa"
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "// Log de erro estruturado - n�o quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
-                                     },
-                      "id":  "error-handler",
-                      "name":  "Error Handler",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1560,
-                                       560
-                                   ],
-                      "notes":  "Captura erros sem derrubar o workflow"
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const items = $input.all();\nreturn items.filter(item =\u003e item.json.tipo === \u0027audio\u0027);"
-                                     },
-                      "id":  "filter-audio",
-                      "name":  "Filtro Audio",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1120,
-                                       180
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const items = $input.all();\nreturn items.filter(item =\u003e item.json.tipo === \u0027text\u0027);"
-                                     },
-                      "id":  "filter-text",
-                      "name":  "Filtro Texto",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1120,
-                                       420
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "executeQuery",
-                                         "query":  "SELECT\n  \u0027{{ $json.numero_tipo }}\u0027 AS numero_tipo,\n  (\n    SELECT id::text\n    FROM _plataforma.agentes_humanos\n    WHERE identificador_externo = \u0027{{ $json.identificador_externo }}\u0027\n      AND numero_id = \u0027{{ $json.numero_id }}\u0027::uuid\n      AND ativo = true\n    LIMIT 1\n  ) AS agente_multi_id",
-                                         "additionalFields":  {
-
-                                                              }
-                                     },
-                      "id":  "lookup-agente-multi",
-                      "name":  "Lookup Agente Multi",
-                      "type":  "n8n-nodes-base.postgres",
-                      "typeVersion":  2.5,
-                      "position":  [
-                                       1120,
-                                       300
-                                   ],
-                      "credentials":  {
-                                          "postgres":  {
-                                                           "id":  "FO9GgjXtERNuCglX",
-                                                           "name":  "ML Postgres"
-                                                       }
-                                      },
-                      "continueOnFail":  true,
-                      "notes":  "Sempre retorna 1 linha. agente_multi_id=NULL se nao encontrar (mono ou identificador desconhecido)."
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const dados = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst tipo = dados.numero_tipo || \u0027mono\u0027;\n\nlet agente_humano_id = null;\n\nif (tipo === \u0027mono\u0027) {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  // multi: pega agente_multi_id do Lookup Agente Multi\n  try {\n    const r = $(\u0027Lookup Agente Multi\u0027).first().json;\n    agente_humano_id = r.agente_multi_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\n\nreturn [{ json: { ...dados, agente_humano_id } }];"
-                                     },
-                      "id":  "resolver-atendente",
-                      "name":  "Resolver Atendente",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1340,
-                                       300
-                                   ],
-                      "notes":  "Resolve agente_humano_id: mono -\u003e agente_default_id; multi -\u003e lookup result. Null se nao encontrado."
-                  }
-              ],
-    "connections":  {
-                        "Webhook - Evolution API":  {
-                                                        "main":  [
-                                                                     [
-                                                                         {
-                                                                             "node":  "Normalizar Payload",
-                                                                             "type":  "main",
-                                                                             "index":  0
-                                                                         }
-                                                                     ]
-                                                                 ]
-                                                    },
-                        "Normalizar Payload":  {
-                                                   "main":  [
-                                                                [
-                                                                    {
-                                                                        "node":  "Lookup Setor",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ]
-                                                            ]
-                                               },
-                        "Lookup Setor":  {
-                                             "main":  [
-                                                          [
-                                                              {
-                                                                  "node":  "Enriquecer com Setor",
-                                                                  "type":  "main",
-                                                                  "index":  0
-                                                              }
-                                                          ]
-                                                      ]
-                                         },
-                        "Enriquecer com Setor":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Lookup Agente Multi",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "Download Audio":  {
-                                               "main":  [
-                                                            [
-                                                                {
-                                                                    "node":  "Groq Whisper - Transcri��o",
-                                                                    "type":  "main",
-                                                                    "index":  0
-                                                                }
-                                                            ]
-                                                        ]
-                                           },
-                        "Groq Whisper - Transcri��o":  {
-                                                           "main":  [
-                                                                        [
-                                                                            {
-                                                                                "node":  "Preparar Dados Audio",
-                                                                                "type":  "main",
-                                                                                "index":  0
-                                                                            }
-                                                                        ]
-                                                                    ]
-                                                       },
-                        "Preparar Dados Audio":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Inserir ml_captura.mensagens_raw",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "Preparar Dados Texto":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Inserir ml_captura.mensagens_raw",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "Inserir ml_captura.mensagens_raw":  {
-                                                                 "main":  [
-                                                                              [
-                                                                                  {
-                                                                                      "node":  "Inserir ml_captura.transcricoes_audio",
-                                                                                      "type":  "main",
-                                                                                      "index":  0
-                                                                                  },
-                                                                                  {
-                                                                                      "node":  "Upsert ml_captura.sessoes_conversa",
-                                                                                      "type":  "main",
-                                                                                      "index":  0
-                                                                                  }
-                                                                              ]
-                                                                          ]
-                                                             },
-                        "Filtro Audio":  {
-                                             "main":  [
-                                                          [
-                                                              {
-                                                                  "node":  "Download Audio",
-                                                                  "type":  "main",
-                                                                  "index":  0
-                                                              }
-                                                          ]
-                                                      ]
-                                         },
-                        "Filtro Texto":  {
-                                             "main":  [
-                                                          [
-                                                              {
-                                                                  "node":  "Preparar Dados Texto",
-                                                                  "type":  "main",
-                                                                  "index":  0
-                                                              }
-                                                          ]
-                                                      ]
-                                         },
-                        "Lookup Agente Multi":  {
-                                                    "main":  [
-                                                                 [
-                                                                     {
-                                                                         "node":  "Resolver Atendente",
-                                                                         "type":  "main",
-                                                                         "index":  0
-                                                                     }
-                                                                 ]
-                                                             ]
-                                                },
-                        "Resolver Atendente":  {
-                                                   "main":  [
-                                                                [
-                                                                    {
-                                                                        "node":  "Filtro Audio",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    },
-                                                                    {
-                                                                        "node":  "Filtro Texto",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ]
-                                                            ]
-                                               }
+{
+    "updatedAt": "2026-04-25T18:21:28.280Z",
+    "createdAt": "2026-04-14T03:52:05.207Z",
+    "id": "eM0qnKGXShlOuCsV",
+    "name": "[ML-CAPTURA] WhatsApp Pipeline",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "ml/webhook/whatsapp",
+                "responseMode": "onReceived",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook - Evolution API",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1.1,
+            "position": [
+                240,
+                300
+            ],
+            "notes": "[ML-CAPTURA] Recebe eventos da Evolution API. Endpoint: /ml/webhook/whatsapp",
+            "webhookId": "44d24057-2aad-4db1-a4cb-377834273ea9"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Evolution API real format: payload root contains event, instance, data\n// data.key: { remoteJid, fromMe, id? }\n// data.pushName: nome do contato\n// data.message: { conversation, extendedTextMessage?, audioMessage?, imageMessage?, documentMessage? }\nconst body = $input.first().json.body || $input.first().json;\nconst eventRaw = body.event || body.type || '';\nconst event = eventRaw.toLowerCase().replace(/_/g, '.');\n\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\n\nconst data = body.data || {};\nconst message = data.message || {};\nconst key = data.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? 'audio'\n           : message.imageMessage ? 'image'\n           : message.documentMessage ? 'document'\n           : 'text';\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me:      key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    push_name:    data.pushName || null,\n    message_id:   key.id || null,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
+            },
+            "id": "normalize-payload",
+            "name": "Normalizar Payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ],
+            "notes": "Normaliza payload da Evolution API (formato real: event+instance+data). data.key.remoteJid, data.pushName, data.message.conversation"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
+                "additionalFields": {}
+            },
+            "id": "lookup-setor",
+            "name": "Lookup Setor",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                900,
+                300
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "FO9GgjXtERNuCglX",
+                    "name": "ML Postgres"
+                }
+            },
+            "notes": "Busca setor, tipo e agente_default_id do numero. Fallback: 'comercial'"
+        },
+        {
+            "parameters": {
+                "jsCode": "const payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || 'mono';\nconst agente_default_id = lookup.agente_default_id || null;\nconst numero_id = lookup.numero_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id, numero_id } }];"
+            },
+            "id": "enrich-setor",
+            "name": "Enriquecer com Setor",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1120,
+                300
+            ],
+            "notes": "Propaga setor, tipo, agente_default_id e numero_id para resolu??o do atendente."
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.audio_url }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "file"
+                        }
+                    }
+                }
+            },
+            "id": "download-audio",
+            "name": "Download Audio",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1340,
+                180
+            ],
+            "notes": "Baixa o arquivo de Ã¯Â¿Â½udio do WhatsApp para transcriÃ¯Â¿Â½Ã¯Â¿Â½o"
+        },
+        {
+            "parameters": {
+                "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+                "authentication": "none",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer GROQ_API_KEY_PLACEHOLDER"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "contentType": "multipart-form-data",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "file",
+                            "value": "={{ $binary.data }}",
+                            "parameterType": "formBinaryData"
+                        },
+                        {
+                            "name": "model",
+                            "value": "={{ $vars.ML_GROQ_WHISPER_MODEL || 'whisper-large-v3' }}"
+                        },
+                        {
+                            "name": "language",
+                            "value": "={{ $vars.ML_GROQ_WHISPER_LANGUAGE || 'pt' }}"
+                        },
+                        {
+                            "name": "response_format",
+                            "value": "verbose_json"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 60000
+                }
+            },
+            "id": "groq-whisper",
+            "name": "Groq Whisper - Transcricao",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1560,
+                180
+            ],
+            "notes": "[ML-CAPTURA] Transcreve Ã¯Â¿Â½udio WhatsApp via Groq Whisper API"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Prepara dados do Ã¯Â¿Â½udio + transcriÃ¯Â¿Â½Ã¯Â¿Â½o para inserir no Postgres\nconst payload = $('Enriquecer com Setor').first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'audio',\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || 'pt',\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  'groq-whisper'\n    }\n  }\n}];"
+            },
+            "id": "prepare-audio-data",
+            "name": "Preparar Dados Audio",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1780,
+                180
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'text',\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
+            },
+            "id": "prepare-text-data",
+            "name": "Preparar Dados Texto",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                420
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : 'NULL' }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : 'NULL' }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
+                "additionalFields": {}
+            },
+            "id": "insert-mensagem-raw",
+            "name": "Inserir ml_captura.mensagens_raw",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2000,
+                300
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "FO9GgjXtERNuCglX",
+                    "name": "ML Postgres"
+                }
+            },
+            "notes": "Salva mensagem bruta - ON CONFLICT para idempotÃ¯Â¿Â½ncia"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  '{{ $('Inserir ml_captura.mensagens_raw').first().json.id }}'::uuid,\n  '{{ $('Preparar Dados Audio').item.json.transcricao.texto }}',\n  '{{ $('Preparar Dados Audio').item.json.transcricao.idioma || 'pt' }}',\n  {{ $('Preparar Dados Audio').item.json.transcricao.confianca }},\n  'groq-whisper'\n)",
+                "additionalFields": {}
+            },
+            "id": "insert-transcricao",
+            "name": "Inserir ml_captura.transcricoes_audio",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2220,
+                180
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "FO9GgjXtERNuCglX",
+                    "name": "ML Postgres"
+                }
+            },
+            "notes": "Salva transcriÃ¯Â¿Â½Ã¯Â¿Â½o do Ã¯Â¿Â½udio (sÃ¯Â¿Â½ executa se houver transcriÃ¯Â¿Â½Ã¯Â¿Â½o)",
+            "continueOnFail": true
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status, agente_humano_id)\nVALUES (\n  '{{ $(\"Resolver Atendente\").first().json.projeto_id }}'::uuid,\n  '{{ $(\"Resolver Atendente\").first().json.area }}',\n  '{{ $(\"Resolver Atendente\").first().json.remote_jid }}',\n  'ativa',\n  {{ $(\"Resolver Atendente\").first().json.agente_humano_id ? \"'\" + $(\"Resolver Atendente\").first().json.agente_humano_id + \"'::uuid\" : 'NULL' }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO UPDATE\nSET total_mensagens = ml_captura.sessoes_conversa.total_mensagens + 1,\n    updated_at      = NOW(),\n    agente_humano_id = COALESCE(ml_captura.sessoes_conversa.agente_humano_id, EXCLUDED.agente_humano_id);"
+            },
+            "id": "upsert-sessao",
+            "name": "Upsert ml_captura.sessoes_conversa",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                2220,
+                420
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "FO9GgjXtERNuCglX",
+                    "name": "ML Postgres"
+                }
+            },
+            "notes": "Cria ou atualiza sessÃ¯Â¿Â½o de conversa"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Log de erro estruturado - nÃ¯Â¿Â½o quebra o pipeline\nconst error = $input.first().json;\nconsole.error('[ML-CAPTURA] Erro no pipeline:', JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || 'Erro desconhecido',\n  node: $runIndex\n}));\nreturn [{ json: { status: 'error_logged', error: error.message } }];"
+            },
+            "id": "error-handler",
+            "name": "Error Handler",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1560,
+                560
+            ],
+            "notes": "Captura erros sem derrubar o workflow"
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'audio');"
+            },
+            "id": "filter-audio",
+            "name": "Filtro Audio",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                180
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'text');"
+            },
+            "id": "filter-text",
+            "name": "Filtro Texto",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1340,
+                420
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT\n  '{{ $json.numero_tipo }}' AS numero_tipo,\n  (\n    SELECT id::text\n    FROM _plataforma.agentes_humanos\n    WHERE identificador_externo = '{{ $json.identificador_externo }}'\n      AND numero_id = '{{ $json.numero_id }}'::uuid\n      AND ativo = true\n    LIMIT 1\n  ) AS agente_multi_id",
+                "additionalFields": {}
+            },
+            "id": "lookup-agente-multi",
+            "name": "Lookup Agente Multi",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.5,
+            "position": [
+                1340,
+                300
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "FO9GgjXtERNuCglX",
+                    "name": "ML Postgres"
+                }
+            },
+            "continueOnFail": true,
+            "notes": "Sempre retorna 1 linha. agente_multi_id=NULL se nao encontrar (mono ou identificador desconhecido)."
+        },
+        {
+            "parameters": {
+                "jsCode": "const dados = $('Enriquecer com Setor').first().json;\nconst tipo = dados.numero_tipo || 'mono';\n\nlet agente_humano_id = null;\n\nif (tipo === 'mono') {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  // multi: pega agente_multi_id do Lookup Agente Multi\n  try {\n    const r = $('Lookup Agente Multi').first().json;\n    agente_humano_id = r.agente_multi_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\n\nreturn [{ json: { ...dados, agente_humano_id } }];"
+            },
+            "id": "resolver-atendente",
+            "name": "Resolver Atendente",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1560,
+                300
+            ],
+            "notes": "Resolve agente_humano_id: mono -> agente_default_id; multi -> lookup result. Null se nao encontrado."
+        },
+        {
+            "id": "redis-dedup-check",
+            "name": "Redis Dedup Check",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                680,
+                300
+            ],
+            "parameters": {
+                "jsCode": "// Redis dedup via RESP protocol (TCP direto — sem credencial n8n)\nconst net = require('net');\n\nfunction redisSetNX(host, port, key, ttlSeconds) {\n  return new Promise((resolve) => {\n    const client = new net.Socket();\n    let buf = '';\n    const cmd = '*5\r\n$3\r\nSET\r\n$' + key.length + '\r\n' + key + '\r\n$1\r\n1\r\n$2\r\nNX\r\n$2\r\nEX\r\n$' + String(ttlSeconds).length + '\r\n' + ttlSeconds + '\r\n';\n    const timer = setTimeout(() => { client.destroy(); resolve(null); }, 3000);\n    client.connect(port, host, () => { client.write(cmd); });\n    client.on('data', (chunk) => {\n      buf += chunk.toString();\n      if (buf.includes('\r\n')) {\n        clearTimeout(timer);\n        client.destroy();\n        resolve(buf.trim());\n      }\n    });\n    client.on('error', () => { clearTimeout(timer); resolve(null); });\n  });\n}\n\nconst messageId = .message_id;\nif (!messageId) return [{ json:  }];\n\nconst key = 'ml:dedup:' + messageId;\nconst result = await redisSetNX('redis.railway.internal', 6379, key, 86400);\n\n// +OK = nova mensagem, null = timeout (deixa passar), outro = duplicata\nif (result !== null && result !== '+OK') return [];\nreturn [{ json:  }];"
+            },
+            "notes": "Dedup Redis: SET NX com TTL 24h. Retorna [] se duplicata (para workflow). Timeout 3s = deixa passar (fail-open)."
+        }
+    ],
+    "connections": {
+        "Webhook - Evolution API": {
+            "main": [
+                [
+                    {
+                        "node": "Normalizar Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Normalizar Payload": {
+            "main": [
+                [
+                    {
+                        "node": "Redis Dedup Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Setor": {
+            "main": [
+                [
+                    {
+                        "node": "Enriquecer com Setor",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Enriquecer com Setor": {
+            "main": [
+                [
+                    {
+                        "node": "Lookup Agente Multi",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download Audio": {
+            "main": [
+                [
+                    {
+                        "node": "Groq Whisper - TranscriÃ¯Â¿Â½Ã¯Â¿Â½o",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Groq Whisper - TranscriÃ¯Â¿Â½Ã¯Â¿Â½o": {
+            "main": [
+                [
+                    {
+                        "node": "Preparar Dados Audio",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Preparar Dados Audio": {
+            "main": [
+                [
+                    {
+                        "node": "Inserir ml_captura.mensagens_raw",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Preparar Dados Texto": {
+            "main": [
+                [
+                    {
+                        "node": "Inserir ml_captura.mensagens_raw",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Inserir ml_captura.mensagens_raw": {
+            "main": [
+                [
+                    {
+                        "node": "Inserir ml_captura.transcricoes_audio",
+                        "type": "main",
+                        "index": 0
                     },
-    "settings":  {
-                     "executionOrder":  "v1",
-                     "saveManualExecutions":  true,
-                     "callerPolicy":  "workflowsFromSameOwner",
-                     "errorWorkflow":  "",
-                     "timezone":  "America/Sao_Paulo",
-                     "availableInMCP":  false
-                 },
-    "staticData":  null,
-    "meta":  null,
-    "pinData":  null,
-    "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
-    "activeVersionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
-    "versionCounter":  50,
-    "triggerCount":  1,
-    "shared":  [
-                   {
-                       "updatedAt":  "2026-04-14T03:52:05.207Z",
-                       "createdAt":  "2026-04-14T03:52:05.207Z",
-                       "role":  "workflow:owner",
-                       "workflowId":  "eM0qnKGXShlOuCsV",
-                       "projectId":  "VTEL9tW4c5DUE6pG",
-                       "project":  {
-                                       "updatedAt":  "2026-04-10T16:05:13.498Z",
-                                       "createdAt":  "2026-04-09T20:59:27.605Z",
-                                       "id":  "VTEL9tW4c5DUE6pG",
-                                       "name":  "Ewerton ML \u003cewertonfm00@gmail.com\u003e",
-                                       "type":  "personal",
-                                       "icon":  null,
-                                       "description":  null,
-                                       "creatorId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
-                                   }
-                   }
-               ],
-    "tags":  [
-
-             ],
-    "activeVersion":  {
-                          "updatedAt":  "2026-04-25T17:24:06.003Z",
-                          "createdAt":  "2026-04-25T17:24:06.003Z",
-                          "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
-                          "workflowId":  "eM0qnKGXShlOuCsV",
-                          "nodes":  [
-                                        {
-                                            "parameters":  {
-                                                               "httpMethod":  "POST",
-                                                               "path":  "ml/webhook/whatsapp",
-                                                               "responseMode":  "onReceived",
-                                                               "options":  {
-
-                                                                           }
-                                                           },
-                                            "id":  "webhook-trigger",
-                                            "name":  "Webhook - Evolution API",
-                                            "type":  "n8n-nodes-base.webhook",
-                                            "typeVersion":  1.1,
-                                            "position":  [
-                                                             240,
-                                                             300
-                                                         ],
-                                            "notes":  "[ML-CAPTURA] Recebe eventos da Evolution API. Endpoint: /ml/webhook/whatsapp",
-                                            "webhookId":  "44d24057-2aad-4db1-a4cb-377834273ea9"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "// Evolution API real format: payload root contains event, instance, data\n// data.key: { remoteJid, fromMe, id? }\n// data.pushName: nome do contato\n// data.message: { conversation, extendedTextMessage?, audioMessage?, imageMessage?, documentMessage? }\nconst body = $input.first().json.body || $input.first().json;\nconst eventRaw = body.event || body.type || \u0027\u0027;\nconst event = eventRaw.toLowerCase().replace(/_/g, \u0027.\u0027);\n\nconst messageEvents = [\u0027messages.upsert\u0027, \u0027messages.update\u0027];\nif (!messageEvents.includes(event)) return [];\n\nconst data = body.data || {};\nconst message = data.message || {};\nconst key = data.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === \u0027messages.update\u0027 \u0026\u0026 !message.conversation \u0026\u0026 !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? \u0027audio\u0027\n           : message.imageMessage ? \u0027image\u0027\n           : message.documentMessage ? \u0027document\u0027\n           : \u0027text\u0027;\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me:      key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    push_name:    data.pushName || null,\n    message_id:   key.id || null,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
-                                                           },
-                                            "id":  "normalize-payload",
-                                            "name":  "Normalizar Payload",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             460,
-                                                             300
-                                                         ],
-                                            "notes":  "Normaliza payload da Evolution API (formato real: event+instance+data). data.key.remoteJid, data.pushName, data.message.conversation"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "operation":  "executeQuery",
-                                                               "query":  "SELECT\n  COALESCE(np.setor::text, \u0027comercial\u0027) AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = \u0027{{ $json.session_id }}\u0027\n  AND np.ativo = true\nLIMIT 1",
-                                                               "additionalFields":  {
-
-                                                                                    }
-                                                           },
-                                            "id":  "lookup-setor",
-                                            "name":  "Lookup Setor",
-                                            "type":  "n8n-nodes-base.postgres",
-                                            "typeVersion":  2.5,
-                                            "position":  [
-                                                             680,
-                                                             300
-                                                         ],
-                                            "credentials":  {
-                                                                "postgres":  {
-                                                                                 "id":  "FO9GgjXtERNuCglX",
-                                                                                 "name":  "ML Postgres"
-                                                                             }
-                                                            },
-                                            "notes":  "Busca setor, tipo e agente_default_id do numero. Fallback: \u0027comercial\u0027"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "const payload = $(\u0027Normalizar Payload\u0027).first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || \u0027comercial\u0027;\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || \u0027mono\u0027;\nconst agente_default_id = lookup.agente_default_id || null;\nconst numero_id = lookup.numero_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id, numero_id } }];"
-                                                           },
-                                            "id":  "enrich-setor",
-                                            "name":  "Enriquecer com Setor",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             900,
-                                                             300
-                                                         ],
-                                            "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu??o do atendente."
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "url":  "={{ $json.audio_url }}",
-                                                               "options":  {
-                                                                               "response":  {
-                                                                                                "response":  {
-                                                                                                                 "responseFormat":  "file"
-                                                                                                             }
-                                                                                            }
-                                                                           }
-                                                           },
-                                            "id":  "download-audio",
-                                            "name":  "Download Audio",
-                                            "type":  "n8n-nodes-base.httpRequest",
-                                            "typeVersion":  4.2,
-                                            "position":  [
-                                                             1120,
-                                                             180
-                                                         ],
-                                            "notes":  "Baixa o arquivo de �udio do WhatsApp para transcri��o"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "url":  "https://api.groq.com/openai/v1/audio/transcriptions",
-                                                               "authentication":  "none",
-                                                               "sendHeaders":  true,
-                                                               "headerParameters":  {
-                                                                                        "parameters":  [
-                                                                                                           {
-                                                                                                               "name":  "Authorization",
-                                                                                                               "value":  "Bearer GROQ_API_KEY_PLACEHOLDER"
-                                                                                                           }
-                                                                                                       ]
-                                                                                    },
-                                                               "sendBody":  true,
-                                                               "contentType":  "multipart-form-data",
-                                                               "bodyParameters":  {
-                                                                                      "parameters":  [
-                                                                                                         {
-                                                                                                             "name":  "file",
-                                                                                                             "value":  "={{ $binary.data }}",
-                                                                                                             "parameterType":  "formBinaryData"
-                                                                                                         },
-                                                                                                         {
-                                                                                                             "name":  "model",
-                                                                                                             "value":  "={{ $vars.ML_GROQ_WHISPER_MODEL || \u0027whisper-large-v3\u0027 }}"
-                                                                                                         },
-                                                                                                         {
-                                                                                                             "name":  "language",
-                                                                                                             "value":  "={{ $vars.ML_GROQ_WHISPER_LANGUAGE || \u0027pt\u0027 }}"
-                                                                                                         },
-                                                                                                         {
-                                                                                                             "name":  "response_format",
-                                                                                                             "value":  "verbose_json"
-                                                                                                         }
-                                                                                                     ]
-                                                                                  },
-                                                               "options":  {
-                                                                               "timeout":  60000
-                                                                           }
-                                                           },
-                                            "id":  "groq-whisper",
-                                            "name":  "Groq Whisper - Transcricao",
-                                            "type":  "n8n-nodes-base.httpRequest",
-                                            "typeVersion":  4.2,
-                                            "position":  [
-                                                             1340,
-                                                             180
-                                                         ],
-                                            "notes":  "[ML-CAPTURA] Transcreve �udio WhatsApp via Groq Whisper API"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "// Prepara dados do �udio + transcri��o para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
-                                                           },
-                                            "id":  "prepare-audio-data",
-                                            "name":  "Preparar Dados Audio",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             1560,
-                                                             180
-                                                         ]
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027text\u0027,\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
-                                                           },
-                                            "id":  "prepare-text-data",
-                                            "name":  "Preparar Dados Texto",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             1120,
-                                                             420
-                                                         ]
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "operation":  "executeQuery",
-                                                               "query":  "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  \u0027{{ $json.mensagem.projeto_id }}\u0027::uuid,\n  \u0027{{ $json.mensagem.area }}\u0027,\n  \u0027{{ $json.mensagem.fonte }}\u0027,\n  \u0027{{ $json.mensagem.session_id }}\u0027,\n  \u0027{{ $json.mensagem.remote_jid }}\u0027,\n  \u0027{{ $json.mensagem.message_id }}\u0027,\n  \u0027{{ $json.mensagem.tipo }}\u0027,\n  \u0027{{ $json.mensagem.conteudo_raw }}\u0027,\n  {{ $json.mensagem.audio_url ? \"\u0027\" + $json.mensagem.audio_url + \"\u0027\" : \u0027NULL\u0027 }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : \u0027NULL\u0027 }},\n  \u0027{{ $json.mensagem.status }}\u0027,\n  \u0027{{ JSON.stringify($json.mensagem.metadados) }}\u0027::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
-                                                               "additionalFields":  {
-
-                                                                                    }
-                                                           },
-                                            "id":  "insert-mensagem-raw",
-                                            "name":  "Inserir ml_captura.mensagens_raw",
-                                            "type":  "n8n-nodes-base.postgres",
-                                            "typeVersion":  2.5,
-                                            "position":  [
-                                                             1780,
-                                                             300
-                                                         ],
-                                            "credentials":  {
-                                                                "postgres":  {
-                                                                                 "id":  "FO9GgjXtERNuCglX",
-                                                                                 "name":  "ML Postgres"
-                                                                             }
-                                                            },
-                                            "notes":  "Salva mensagem bruta - ON CONFLICT para idempot�ncia"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "operation":  "executeQuery",
-                                                               "query":  "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  \u0027{{ $(\u0027Inserir ml_captura.mensagens_raw\u0027).first().json.id }}\u0027::uuid,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.texto }}\u0027,\n  \u0027{{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.idioma || \u0027pt\u0027 }}\u0027,\n  {{ $(\u0027Preparar Dados Audio\u0027).item.json.transcricao.confianca }},\n  \u0027groq-whisper\u0027\n)",
-                                                               "additionalFields":  {
-
-                                                                                    }
-                                                           },
-                                            "id":  "insert-transcricao",
-                                            "name":  "Inserir ml_captura.transcricoes_audio",
-                                            "type":  "n8n-nodes-base.postgres",
-                                            "typeVersion":  2.5,
-                                            "position":  [
-                                                             2000,
-                                                             180
-                                                         ],
-                                            "credentials":  {
-                                                                "postgres":  {
-                                                                                 "id":  "FO9GgjXtERNuCglX",
-                                                                                 "name":  "ML Postgres"
-                                                                             }
-                                                            },
-                                            "notes":  "Salva transcri��o do �udio (s� executa se houver transcri��o)",
-                                            "continueOnFail":  true
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "operation":  "executeQuery",
-                                                               "query":  "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status, agente_humano_id)\nVALUES (\n  \u0027{{ $(\"Resolver Atendente\").first().json.projeto_id }}\u0027::uuid,\n  \u0027{{ $(\"Resolver Atendente\").first().json.area }}\u0027,\n  \u0027{{ $(\"Resolver Atendente\").first().json.remote_jid }}\u0027,\n  \u0027ativa\u0027,\n  {{ $(\"Resolver Atendente\").first().json.agente_humano_id ? \"\u0027\" + $(\"Resolver Atendente\").first().json.agente_humano_id + \"\u0027::uuid\" : \u0027NULL\u0027 }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO UPDATE\nSET total_mensagens = ml_captura.sessoes_conversa.total_mensagens + 1,\n    updated_at      = NOW(),\n    agente_humano_id = COALESCE(ml_captura.sessoes_conversa.agente_humano_id, EXCLUDED.agente_humano_id);"
-                                                           },
-                                            "id":  "upsert-sessao",
-                                            "name":  "Upsert ml_captura.sessoes_conversa",
-                                            "type":  "n8n-nodes-base.postgres",
-                                            "typeVersion":  2.5,
-                                            "position":  [
-                                                             2000,
-                                                             420
-                                                         ],
-                                            "credentials":  {
-                                                                "postgres":  {
-                                                                                 "id":  "FO9GgjXtERNuCglX",
-                                                                                 "name":  "ML Postgres"
-                                                                             }
-                                                            },
-                                            "notes":  "Cria ou atualiza sess�o de conversa"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "// Log de erro estruturado - n�o quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
-                                                           },
-                                            "id":  "error-handler",
-                                            "name":  "Error Handler",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             1560,
-                                                             560
-                                                         ],
-                                            "notes":  "Captura erros sem derrubar o workflow"
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "const items = $input.all();\nreturn items.filter(item =\u003e item.json.tipo === \u0027audio\u0027);"
-                                                           },
-                                            "id":  "filter-audio",
-                                            "name":  "Filtro Audio",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             1120,
-                                                             180
-                                                         ]
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "const items = $input.all();\nreturn items.filter(item =\u003e item.json.tipo === \u0027text\u0027);"
-                                                           },
-                                            "id":  "filter-text",
-                                            "name":  "Filtro Texto",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             1120,
-                                                             420
-                                                         ]
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "operation":  "executeQuery",
-                                                               "query":  "SELECT\n  \u0027{{ $json.numero_tipo }}\u0027 AS numero_tipo,\n  (\n    SELECT id::text\n    FROM _plataforma.agentes_humanos\n    WHERE identificador_externo = \u0027{{ $json.identificador_externo }}\u0027\n      AND numero_id = \u0027{{ $json.numero_id }}\u0027::uuid\n      AND ativo = true\n    LIMIT 1\n  ) AS agente_multi_id",
-                                                               "additionalFields":  {
-
-                                                                                    }
-                                                           },
-                                            "id":  "lookup-agente-multi",
-                                            "name":  "Lookup Agente Multi",
-                                            "type":  "n8n-nodes-base.postgres",
-                                            "typeVersion":  2.5,
-                                            "position":  [
-                                                             1120,
-                                                             300
-                                                         ],
-                                            "credentials":  {
-                                                                "postgres":  {
-                                                                                 "id":  "FO9GgjXtERNuCglX",
-                                                                                 "name":  "ML Postgres"
-                                                                             }
-                                                            },
-                                            "continueOnFail":  true,
-                                            "notes":  "Sempre retorna 1 linha. agente_multi_id=NULL se nao encontrar (mono ou identificador desconhecido)."
-                                        },
-                                        {
-                                            "parameters":  {
-                                                               "jsCode":  "const dados = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst tipo = dados.numero_tipo || \u0027mono\u0027;\n\nlet agente_humano_id = null;\n\nif (tipo === \u0027mono\u0027) {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  // multi: pega agente_multi_id do Lookup Agente Multi\n  try {\n    const r = $(\u0027Lookup Agente Multi\u0027).first().json;\n    agente_humano_id = r.agente_multi_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\n\nreturn [{ json: { ...dados, agente_humano_id } }];"
-                                                           },
-                                            "id":  "resolver-atendente",
-                                            "name":  "Resolver Atendente",
-                                            "type":  "n8n-nodes-base.code",
-                                            "typeVersion":  2,
-                                            "position":  [
-                                                             1340,
-                                                             300
-                                                         ],
-                                            "notes":  "Resolve agente_humano_id: mono -\u003e agente_default_id; multi -\u003e lookup result. Null se nao encontrado."
-                                        }
-                                    ],
-                          "connections":  {
-                                              "Webhook - Evolution API":  {
-                                                                              "main":  [
-                                                                                           [
-                                                                                               {
-                                                                                                   "node":  "Normalizar Payload",
-                                                                                                   "type":  "main",
-                                                                                                   "index":  0
-                                                                                               }
-                                                                                           ]
-                                                                                       ]
-                                                                          },
-                                              "Normalizar Payload":  {
-                                                                         "main":  [
-                                                                                      [
-                                                                                          {
-                                                                                              "node":  "Lookup Setor",
-                                                                                              "type":  "main",
-                                                                                              "index":  0
-                                                                                          }
-                                                                                      ]
-                                                                                  ]
-                                                                     },
-                                              "Lookup Setor":  {
-                                                                   "main":  [
-                                                                                [
-                                                                                    {
-                                                                                        "node":  "Enriquecer com Setor",
-                                                                                        "type":  "main",
-                                                                                        "index":  0
-                                                                                    }
-                                                                                ]
-                                                                            ]
-                                                               },
-                                              "Enriquecer com Setor":  {
-                                                                           "main":  [
-                                                                                        [
-                                                                                            {
-                                                                                                "node":  "Lookup Agente Multi",
-                                                                                                "type":  "main",
-                                                                                                "index":  0
-                                                                                            }
-                                                                                        ]
-                                                                                    ]
-                                                                       },
-                                              "Download Audio":  {
-                                                                     "main":  [
-                                                                                  [
-                                                                                      {
-                                                                                          "node":  "Groq Whisper - Transcri��o",
-                                                                                          "type":  "main",
-                                                                                          "index":  0
-                                                                                      }
-                                                                                  ]
-                                                                              ]
-                                                                 },
-                                              "Groq Whisper - Transcri��o":  {
-                                                                                 "main":  [
-                                                                                              [
-                                                                                                  {
-                                                                                                      "node":  "Preparar Dados Audio",
-                                                                                                      "type":  "main",
-                                                                                                      "index":  0
-                                                                                                  }
-                                                                                              ]
-                                                                                          ]
-                                                                             },
-                                              "Preparar Dados Audio":  {
-                                                                           "main":  [
-                                                                                        [
-                                                                                            {
-                                                                                                "node":  "Inserir ml_captura.mensagens_raw",
-                                                                                                "type":  "main",
-                                                                                                "index":  0
-                                                                                            }
-                                                                                        ]
-                                                                                    ]
-                                                                       },
-                                              "Preparar Dados Texto":  {
-                                                                           "main":  [
-                                                                                        [
-                                                                                            {
-                                                                                                "node":  "Inserir ml_captura.mensagens_raw",
-                                                                                                "type":  "main",
-                                                                                                "index":  0
-                                                                                            }
-                                                                                        ]
-                                                                                    ]
-                                                                       },
-                                              "Inserir ml_captura.mensagens_raw":  {
-                                                                                       "main":  [
-                                                                                                    [
-                                                                                                        {
-                                                                                                            "node":  "Inserir ml_captura.transcricoes_audio",
-                                                                                                            "type":  "main",
-                                                                                                            "index":  0
-                                                                                                        },
-                                                                                                        {
-                                                                                                            "node":  "Upsert ml_captura.sessoes_conversa",
-                                                                                                            "type":  "main",
-                                                                                                            "index":  0
-                                                                                                        }
-                                                                                                    ]
-                                                                                                ]
-                                                                                   },
-                                              "Filtro Audio":  {
-                                                                   "main":  [
-                                                                                [
-                                                                                    {
-                                                                                        "node":  "Download Audio",
-                                                                                        "type":  "main",
-                                                                                        "index":  0
-                                                                                    }
-                                                                                ]
-                                                                            ]
-                                                               },
-                                              "Filtro Texto":  {
-                                                                   "main":  [
-                                                                                [
-                                                                                    {
-                                                                                        "node":  "Preparar Dados Texto",
-                                                                                        "type":  "main",
-                                                                                        "index":  0
-                                                                                    }
-                                                                                ]
-                                                                            ]
-                                                               },
-                                              "Lookup Agente Multi":  {
-                                                                          "main":  [
-                                                                                       [
-                                                                                           {
-                                                                                               "node":  "Resolver Atendente",
-                                                                                               "type":  "main",
-                                                                                               "index":  0
-                                                                                           }
-                                                                                       ]
-                                                                                   ]
-                                                                      },
-                                              "Resolver Atendente":  {
-                                                                         "main":  [
-                                                                                      [
-                                                                                          {
-                                                                                              "node":  "Filtro Audio",
-                                                                                              "type":  "main",
-                                                                                              "index":  0
-                                                                                          },
-                                                                                          {
-                                                                                              "node":  "Filtro Texto",
-                                                                                              "type":  "main",
-                                                                                              "index":  0
-                                                                                          }
-                                                                                      ]
-                                                                                  ]
-                                                                     }
-                                          },
-                          "authors":  "Ewerton ML",
-                          "name":  null,
-                          "description":  null,
-                          "autosaved":  false,
-                          "workflowPublishHistory":  [
-                                                         {
-                                                             "createdAt":  "2026-04-25T17:24:06.120Z",
-                                                             "id":  118,
-                                                             "workflowId":  "eM0qnKGXShlOuCsV",
-                                                             "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
-                                                             "event":  "deactivated",
-                                                             "userId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
-                                                         },
-                                                         {
-                                                             "createdAt":  "2026-04-25T17:24:06.198Z",
-                                                             "id":  119,
-                                                             "workflowId":  "eM0qnKGXShlOuCsV",
-                                                             "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
-                                                             "event":  "activated",
-                                                             "userId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
-                                                         }
-                                                     ]
-                      }
+                    {
+                        "node": "Upsert ml_captura.sessoes_conversa",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filtro Audio": {
+            "main": [
+                [
+                    {
+                        "node": "Download Audio",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filtro Texto": {
+            "main": [
+                [
+                    {
+                        "node": "Preparar Dados Texto",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Agente Multi": {
+            "main": [
+                [
+                    {
+                        "node": "Resolver Atendente",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Resolver Atendente": {
+            "main": [
+                [
+                    {
+                        "node": "Filtro Audio",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Filtro Texto",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Redis Dedup Check": {
+            "main": [
+                [
+                    {
+                        "node": "Lookup Setor",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "saveManualExecutions": true,
+        "callerPolicy": "workflowsFromSameOwner",
+        "errorWorkflow": "",
+        "timezone": "America/Sao_Paulo",
+        "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "c06192ab-1ef6-4006-aeea-fefc08ef1759",
+    "activeVersionId": "c06192ab-1ef6-4006-aeea-fefc08ef1759",
+    "versionCounter": 56,
+    "triggerCount": 1,
+    "shared": [
+        {
+            "updatedAt": "2026-04-14T03:52:05.207Z",
+            "createdAt": "2026-04-14T03:52:05.207Z",
+            "role": "workflow:owner",
+            "workflowId": "eM0qnKGXShlOuCsV",
+            "projectId": "VTEL9tW4c5DUE6pG",
+            "project": {
+                "updatedAt": "2026-04-10T16:05:13.498Z",
+                "createdAt": "2026-04-09T20:59:27.605Z",
+                "id": "VTEL9tW4c5DUE6pG",
+                "name": "Ewerton ML <ewertonfm00@gmail.com>",
+                "type": "personal",
+                "icon": null,
+                "description": null,
+                "creatorId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+            }
+        }
+    ],
+    "tags": [],
+    "activeVersion": {
+        "updatedAt": "2026-04-25T18:21:28.284Z",
+        "createdAt": "2026-04-25T18:21:28.284Z",
+        "versionId": "c06192ab-1ef6-4006-aeea-fefc08ef1759",
+        "workflowId": "eM0qnKGXShlOuCsV",
+        "nodes": [
+            {
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "ml/webhook/whatsapp",
+                    "responseMode": "onReceived",
+                    "options": {}
+                },
+                "id": "webhook-trigger",
+                "name": "Webhook - Evolution API",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 1.1,
+                "position": [
+                    240,
+                    300
+                ],
+                "notes": "[ML-CAPTURA] Recebe eventos da Evolution API. Endpoint: /ml/webhook/whatsapp",
+                "webhookId": "44d24057-2aad-4db1-a4cb-377834273ea9"
+            },
+            {
+                "parameters": {
+                    "jsCode": "// Evolution API real format: payload root contains event, instance, data\n// data.key: { remoteJid, fromMe, id? }\n// data.pushName: nome do contato\n// data.message: { conversation, extendedTextMessage?, audioMessage?, imageMessage?, documentMessage? }\nconst body = $input.first().json.body || $input.first().json;\nconst eventRaw = body.event || body.type || '';\nconst event = eventRaw.toLowerCase().replace(/_/g, '.');\n\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\n\nconst data = body.data || {};\nconst message = data.message || {};\nconst key = data.key || {};\n\n// Para messages.update sem conteudo, ignorar\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\n\nconst tipo = message.audioMessage ? 'audio'\n           : message.imageMessage ? 'image'\n           : message.documentMessage ? 'document'\n           : 'text';\n\nconst conteudo = message.conversation\n               || message.extendedTextMessage?.text\n               || null;\n\nreturn [{\n  json: {\n    event,\n    tipo,\n    from_me:      key.fromMe || false,\n    session_id:   body.instance || $env.ML_EVOLUTION_INSTANCE,\n    remote_jid:   key.remoteJid,\n    push_name:    data.pushName || null,\n    message_id:   key.id || null,\n    conteudo_raw: conteudo,\n    audio_url:    message.audioMessage?.url || null,\n    duracao_audio: message.audioMessage?.seconds || null,\n    metadados:    body\n  }\n}];"
+                },
+                "id": "normalize-payload",
+                "name": "Normalizar Payload",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    460,
+                    300
+                ],
+                "notes": "Normaliza payload da Evolution API (formato real: event+instance+data). data.key.remoteJid, data.pushName, data.message.conversation"
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
+                    "additionalFields": {}
+                },
+                "id": "lookup-setor",
+                "name": "Lookup Setor",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 2.5,
+                "position": [
+                    900,
+                    300
+                ],
+                "credentials": {
+                    "postgres": {
+                        "id": "FO9GgjXtERNuCglX",
+                        "name": "ML Postgres"
+                    }
+                },
+                "notes": "Busca setor, tipo e agente_default_id do numero. Fallback: 'comercial'"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const payload = $('Normalizar Payload').first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || 'mono';\nconst agente_default_id = lookup.agente_default_id || null;\nconst numero_id = lookup.numero_id || null;\n\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id, numero_id } }];"
+                },
+                "id": "enrich-setor",
+                "name": "Enriquecer com Setor",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1120,
+                    300
+                ],
+                "notes": "Propaga setor, tipo, agente_default_id e numero_id para resolu??o do atendente."
+            },
+            {
+                "parameters": {
+                    "url": "={{ $json.audio_url }}",
+                    "options": {
+                        "response": {
+                            "response": {
+                                "responseFormat": "file"
+                            }
+                        }
+                    }
+                },
+                "id": "download-audio",
+                "name": "Download Audio",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1340,
+                    180
+                ],
+                "notes": "Baixa o arquivo de Ã¯Â¿Â½udio do WhatsApp para transcriÃ¯Â¿Â½Ã¯Â¿Â½o"
+            },
+            {
+                "parameters": {
+                    "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+                    "authentication": "none",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "Authorization",
+                                "value": "Bearer GROQ_API_KEY_PLACEHOLDER"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "contentType": "multipart-form-data",
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "file",
+                                "value": "={{ $binary.data }}",
+                                "parameterType": "formBinaryData"
+                            },
+                            {
+                                "name": "model",
+                                "value": "={{ $vars.ML_GROQ_WHISPER_MODEL || 'whisper-large-v3' }}"
+                            },
+                            {
+                                "name": "language",
+                                "value": "={{ $vars.ML_GROQ_WHISPER_LANGUAGE || 'pt' }}"
+                            },
+                            {
+                                "name": "response_format",
+                                "value": "verbose_json"
+                            }
+                        ]
+                    },
+                    "options": {
+                        "timeout": 60000
+                    }
+                },
+                "id": "groq-whisper",
+                "name": "Groq Whisper - Transcricao",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [
+                    1560,
+                    180
+                ],
+                "notes": "[ML-CAPTURA] Transcreve Ã¯Â¿Â½udio WhatsApp via Groq Whisper API"
+            },
+            {
+                "parameters": {
+                    "jsCode": "// Prepara dados do Ã¯Â¿Â½udio + transcriÃ¯Â¿Â½Ã¯Â¿Â½o para inserir no Postgres\nconst payload = $('Enriquecer com Setor').first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'audio',\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || 'pt',\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  'groq-whisper'\n    }\n  }\n}];"
+                },
+                "id": "prepare-audio-data",
+                "name": "Preparar Dados Audio",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1780,
+                    180
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "// Prepara dados de mensagem de texto para inserir no Postgres\nconst payload = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        'whatsapp',\n      session_id:   payload.session_id,\n      projeto_id:   payload.projeto_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         'text',\n      conteudo_raw: payload.conteudo_raw,\n      audio_url:    null,\n      duracao_audio: null,\n      status:       'processada',\n      metadados:    payload.metadados\n    },\n    transcricao: null\n  }\n}];"
+                },
+                "id": "prepare-text-data",
+                "name": "Preparar Dados Texto",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1340,
+                    420
+                ]
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : 'NULL' }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : 'NULL' }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
+                    "additionalFields": {}
+                },
+                "id": "insert-mensagem-raw",
+                "name": "Inserir ml_captura.mensagens_raw",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 2.5,
+                "position": [
+                    2000,
+                    300
+                ],
+                "credentials": {
+                    "postgres": {
+                        "id": "FO9GgjXtERNuCglX",
+                        "name": "ML Postgres"
+                    }
+                },
+                "notes": "Salva mensagem bruta - ON CONFLICT para idempotÃ¯Â¿Â½ncia"
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  '{{ $('Inserir ml_captura.mensagens_raw').first().json.id }}'::uuid,\n  '{{ $('Preparar Dados Audio').item.json.transcricao.texto }}',\n  '{{ $('Preparar Dados Audio').item.json.transcricao.idioma || 'pt' }}',\n  {{ $('Preparar Dados Audio').item.json.transcricao.confianca }},\n  'groq-whisper'\n)",
+                    "additionalFields": {}
+                },
+                "id": "insert-transcricao",
+                "name": "Inserir ml_captura.transcricoes_audio",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 2.5,
+                "position": [
+                    2220,
+                    180
+                ],
+                "credentials": {
+                    "postgres": {
+                        "id": "FO9GgjXtERNuCglX",
+                        "name": "ML Postgres"
+                    }
+                },
+                "notes": "Salva transcriÃ¯Â¿Â½Ã¯Â¿Â½o do Ã¯Â¿Â½udio (sÃ¯Â¿Â½ executa se houver transcriÃ¯Â¿Â½Ã¯Â¿Â½o)",
+                "continueOnFail": true
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, status, agente_humano_id)\nVALUES (\n  '{{ $(\"Resolver Atendente\").first().json.projeto_id }}'::uuid,\n  '{{ $(\"Resolver Atendente\").first().json.area }}',\n  '{{ $(\"Resolver Atendente\").first().json.remote_jid }}',\n  'ativa',\n  {{ $(\"Resolver Atendente\").first().json.agente_humano_id ? \"'\" + $(\"Resolver Atendente\").first().json.agente_humano_id + \"'::uuid\" : 'NULL' }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO UPDATE\nSET total_mensagens = ml_captura.sessoes_conversa.total_mensagens + 1,\n    updated_at      = NOW(),\n    agente_humano_id = COALESCE(ml_captura.sessoes_conversa.agente_humano_id, EXCLUDED.agente_humano_id);"
+                },
+                "id": "upsert-sessao",
+                "name": "Upsert ml_captura.sessoes_conversa",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 2.5,
+                "position": [
+                    2220,
+                    420
+                ],
+                "credentials": {
+                    "postgres": {
+                        "id": "FO9GgjXtERNuCglX",
+                        "name": "ML Postgres"
+                    }
+                },
+                "notes": "Cria ou atualiza sessÃ¯Â¿Â½o de conversa"
+            },
+            {
+                "parameters": {
+                    "jsCode": "// Log de erro estruturado - nÃ¯Â¿Â½o quebra o pipeline\nconst error = $input.first().json;\nconsole.error('[ML-CAPTURA] Erro no pipeline:', JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || 'Erro desconhecido',\n  node: $runIndex\n}));\nreturn [{ json: { status: 'error_logged', error: error.message } }];"
+                },
+                "id": "error-handler",
+                "name": "Error Handler",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1560,
+                    560
+                ],
+                "notes": "Captura erros sem derrubar o workflow"
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'audio');"
+                },
+                "id": "filter-audio",
+                "name": "Filtro Audio",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1340,
+                    180
+                ]
+            },
+            {
+                "parameters": {
+                    "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'text');"
+                },
+                "id": "filter-text",
+                "name": "Filtro Texto",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1340,
+                    420
+                ]
+            },
+            {
+                "parameters": {
+                    "operation": "executeQuery",
+                    "query": "SELECT\n  '{{ $json.numero_tipo }}' AS numero_tipo,\n  (\n    SELECT id::text\n    FROM _plataforma.agentes_humanos\n    WHERE identificador_externo = '{{ $json.identificador_externo }}'\n      AND numero_id = '{{ $json.numero_id }}'::uuid\n      AND ativo = true\n    LIMIT 1\n  ) AS agente_multi_id",
+                    "additionalFields": {}
+                },
+                "id": "lookup-agente-multi",
+                "name": "Lookup Agente Multi",
+                "type": "n8n-nodes-base.postgres",
+                "typeVersion": 2.5,
+                "position": [
+                    1340,
+                    300
+                ],
+                "credentials": {
+                    "postgres": {
+                        "id": "FO9GgjXtERNuCglX",
+                        "name": "ML Postgres"
+                    }
+                },
+                "continueOnFail": true,
+                "notes": "Sempre retorna 1 linha. agente_multi_id=NULL se nao encontrar (mono ou identificador desconhecido)."
+            },
+            {
+                "parameters": {
+                    "jsCode": "const dados = $('Enriquecer com Setor').first().json;\nconst tipo = dados.numero_tipo || 'mono';\n\nlet agente_humano_id = null;\n\nif (tipo === 'mono') {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  // multi: pega agente_multi_id do Lookup Agente Multi\n  try {\n    const r = $('Lookup Agente Multi').first().json;\n    agente_humano_id = r.agente_multi_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\n\nreturn [{ json: { ...dados, agente_humano_id } }];"
+                },
+                "id": "resolver-atendente",
+                "name": "Resolver Atendente",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    1560,
+                    300
+                ],
+                "notes": "Resolve agente_humano_id: mono -> agente_default_id; multi -> lookup result. Null se nao encontrado."
+            },
+            {
+                "id": "redis-dedup-check",
+                "name": "Redis Dedup Check",
+                "type": "n8n-nodes-base.code",
+                "typeVersion": 2,
+                "position": [
+                    680,
+                    300
+                ],
+                "parameters": {
+                    "jsCode": "// Redis dedup via RESP protocol (TCP direto — sem credencial n8n)\nconst net = require('net');\n\nfunction redisSetNX(host, port, key, ttlSeconds) {\n  return new Promise((resolve) => {\n    const client = new net.Socket();\n    let buf = '';\n    const cmd = '*5\r\n$3\r\nSET\r\n$' + key.length + '\r\n' + key + '\r\n$1\r\n1\r\n$2\r\nNX\r\n$2\r\nEX\r\n$' + String(ttlSeconds).length + '\r\n' + ttlSeconds + '\r\n';\n    const timer = setTimeout(() => { client.destroy(); resolve(null); }, 3000);\n    client.connect(port, host, () => { client.write(cmd); });\n    client.on('data', (chunk) => {\n      buf += chunk.toString();\n      if (buf.includes('\r\n')) {\n        clearTimeout(timer);\n        client.destroy();\n        resolve(buf.trim());\n      }\n    });\n    client.on('error', () => { clearTimeout(timer); resolve(null); });\n  });\n}\n\nconst messageId = .message_id;\nif (!messageId) return [{ json:  }];\n\nconst key = 'ml:dedup:' + messageId;\nconst result = await redisSetNX('redis.railway.internal', 6379, key, 86400);\n\n// +OK = nova mensagem, null = timeout (deixa passar), outro = duplicata\nif (result !== null && result !== '+OK') return [];\nreturn [{ json:  }];"
+                },
+                "notes": "Dedup Redis: SET NX com TTL 24h. Retorna [] se duplicata (para workflow). Timeout 3s = deixa passar (fail-open)."
+            }
+        ],
+        "connections": {
+            "Webhook - Evolution API": {
+                "main": [
+                    [
+                        {
+                            "node": "Normalizar Payload",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Normalizar Payload": {
+                "main": [
+                    [
+                        {
+                            "node": "Redis Dedup Check",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Lookup Setor": {
+                "main": [
+                    [
+                        {
+                            "node": "Enriquecer com Setor",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Enriquecer com Setor": {
+                "main": [
+                    [
+                        {
+                            "node": "Lookup Agente Multi",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Download Audio": {
+                "main": [
+                    [
+                        {
+                            "node": "Groq Whisper - TranscriÃ¯Â¿Â½Ã¯Â¿Â½o",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Groq Whisper - TranscriÃ¯Â¿Â½Ã¯Â¿Â½o": {
+                "main": [
+                    [
+                        {
+                            "node": "Preparar Dados Audio",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Preparar Dados Audio": {
+                "main": [
+                    [
+                        {
+                            "node": "Inserir ml_captura.mensagens_raw",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Preparar Dados Texto": {
+                "main": [
+                    [
+                        {
+                            "node": "Inserir ml_captura.mensagens_raw",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Inserir ml_captura.mensagens_raw": {
+                "main": [
+                    [
+                        {
+                            "node": "Inserir ml_captura.transcricoes_audio",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Upsert ml_captura.sessoes_conversa",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Filtro Audio": {
+                "main": [
+                    [
+                        {
+                            "node": "Download Audio",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Filtro Texto": {
+                "main": [
+                    [
+                        {
+                            "node": "Preparar Dados Texto",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Lookup Agente Multi": {
+                "main": [
+                    [
+                        {
+                            "node": "Resolver Atendente",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Resolver Atendente": {
+                "main": [
+                    [
+                        {
+                            "node": "Filtro Audio",
+                            "type": "main",
+                            "index": 0
+                        },
+                        {
+                            "node": "Filtro Texto",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Redis Dedup Check": {
+                "main": [
+                    [
+                        {
+                            "node": "Lookup Setor",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "authors": "Ewerton ML",
+        "name": null,
+        "description": null,
+        "autosaved": false,
+        "workflowPublishHistory": [
+            {
+                "createdAt": "2026-04-25T18:21:28.416Z",
+                "id": 122,
+                "workflowId": "eM0qnKGXShlOuCsV",
+                "versionId": "c06192ab-1ef6-4006-aeea-fefc08ef1759",
+                "event": "deactivated",
+                "userId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+            },
+            {
+                "createdAt": "2026-04-25T18:21:28.489Z",
+                "id": 123,
+                "workflowId": "eM0qnKGXShlOuCsV",
+                "versionId": "c06192ab-1ef6-4006-aeea-fefc08ef1759",
+                "event": "activated",
+                "userId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+            }
+        ]
+    }
 }
