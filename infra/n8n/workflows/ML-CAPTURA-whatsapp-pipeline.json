@@ -1,5 +1,5 @@
 ﻿{
-    "updatedAt":  "2026-04-25T17:17:34.944Z",
+    "updatedAt":  "2026-04-25T17:24:05.998Z",
     "createdAt":  "2026-04-14T03:52:05.207Z",
     "id":  "eM0qnKGXShlOuCsV",
     "name":  "[ML-CAPTURA] WhatsApp Pipeline",
@@ -77,7 +77,7 @@
                                        900,
                                        300
                                    ],
-                      "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu��o do atendente."
+                      "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu??o do atendente."
                   },
                   {
                       "parameters":  {
@@ -98,7 +98,7 @@
                                        1120,
                                        180
                                    ],
-                      "notes":  "Baixa o arquivo de áudio do WhatsApp para transcrição"
+                      "notes":  "Baixa o arquivo de �udio do WhatsApp para transcri��o"
                   },
                   {
                       "parameters":  {
@@ -109,7 +109,7 @@
                                                                   "parameters":  [
                                                                                      {
                                                                                          "name":  "Authorization",
-                                                                                         "value":  "={{ \u0027Bearer \u0027 + $vars.ML_GROQ_API_KEY }}"
+                                                                                         "value":  "Bearer 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"
                                                                                      }
                                                                                  ]
                                                               },
@@ -148,11 +148,11 @@
                                        1340,
                                        180
                                    ],
-                      "notes":  "[ML-CAPTURA] Transcreve áudio WhatsApp via Groq Whisper API"
+                      "notes":  "[ML-CAPTURA] Transcreve �udio WhatsApp via Groq Whisper API"
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
+                                         "jsCode":  "// Prepara dados do �udio + transcri��o para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
                                      },
                       "id":  "prepare-audio-data",
                       "name":  "Preparar Dados Audio",
@@ -198,7 +198,7 @@
                                                            "name":  "ML Postgres"
                                                        }
                                       },
-                      "notes":  "Salva mensagem bruta - ON CONFLICT para idempotência"
+                      "notes":  "Salva mensagem bruta - ON CONFLICT para idempot�ncia"
                   },
                   {
                       "parameters":  {
@@ -222,7 +222,7 @@
                                                            "name":  "ML Postgres"
                                                        }
                                       },
-                      "notes":  "Salva transcrição do áudio (só executa se houver transcrição)",
+                      "notes":  "Salva transcri��o do �udio (s� executa se houver transcri��o)",
                       "continueOnFail":  true
                   },
                   {
@@ -244,11 +244,11 @@
                                                            "name":  "ML Postgres"
                                                        }
                                       },
-                      "notes":  "Cria ou atualiza sessão de conversa"
+                      "notes":  "Cria ou atualiza sess�o de conversa"
                   },
                   {
                       "parameters":  {
-                                         "jsCode":  "// Log de erro estruturado - não quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
+                                         "jsCode":  "// Log de erro estruturado - n�o quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
                                      },
                       "id":  "error-handler",
                       "name":  "Error Handler",
@@ -375,14 +375,14 @@
                                                "main":  [
                                                             [
                                                                 {
-                                                                    "node":  "Groq Whisper - Transcrição",
+                                                                    "node":  "Groq Whisper - Transcri��o",
                                                                     "type":  "main",
                                                                     "index":  0
                                                                 }
                                                             ]
                                                         ]
                                            },
-                        "Groq Whisper - Transcrição":  {
+                        "Groq Whisper - Transcri��o":  {
                                                            "main":  [
                                                                         [
                                                                             {
@@ -492,9 +492,9 @@
     "staticData":  null,
     "meta":  null,
     "pinData":  null,
-    "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
-    "activeVersionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
-    "versionCounter":  47,
+    "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
+    "activeVersionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
+    "versionCounter":  50,
     "triggerCount":  1,
     "shared":  [
                    {
@@ -519,9 +519,9 @@
 
              ],
     "activeVersion":  {
-                          "updatedAt":  "2026-04-25T17:17:34.949Z",
-                          "createdAt":  "2026-04-25T17:17:34.949Z",
-                          "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
+                          "updatedAt":  "2026-04-25T17:24:06.003Z",
+                          "createdAt":  "2026-04-25T17:24:06.003Z",
+                          "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
                           "workflowId":  "eM0qnKGXShlOuCsV",
                           "nodes":  [
                                         {
@@ -594,7 +594,7 @@
                                                              900,
                                                              300
                                                          ],
-                                            "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu��o do atendente."
+                                            "notes":  "Propaga setor, tipo, agente_default_id e numero_id para resolu??o do atendente."
                                         },
                                         {
                                             "parameters":  {
@@ -615,7 +615,7 @@
                                                              1120,
                                                              180
                                                          ],
-                                            "notes":  "Baixa o arquivo de áudio do WhatsApp para transcrição"
+                                            "notes":  "Baixa o arquivo de �udio do WhatsApp para transcri��o"
                                         },
                                         {
                                             "parameters":  {
@@ -626,7 +626,7 @@
                                                                                         "parameters":  [
                                                                                                            {
                                                                                                                "name":  "Authorization",
-                                                                                                               "value":  "={{ \u0027Bearer \u0027 + $vars.ML_GROQ_API_KEY }}"
+                                                                                                               "value":  "Bearer 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"
                                                                                                            }
                                                                                                        ]
                                                                                     },
@@ -665,11 +665,11 @@
                                                              1340,
                                                              180
                                                          ],
-                                            "notes":  "[ML-CAPTURA] Transcreve áudio WhatsApp via Groq Whisper API"
+                                            "notes":  "[ML-CAPTURA] Transcreve �udio WhatsApp via Groq Whisper API"
                                         },
                                         {
                                             "parameters":  {
-                                                               "jsCode":  "// Prepara dados do áudio + transcrição para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
+                                                               "jsCode":  "// Prepara dados do �udio + transcri��o para inserir no Postgres\nconst payload = $(\u0027Enriquecer com Setor\u0027).first().json;\nconst whisper = $input.first().json;\n\nreturn [{\n  json: {\n    mensagem: {\n      area:         payload.area,\n      fonte:        \u0027whatsapp\u0027,\n      session_id:   payload.session_id,\n      remote_jid:   payload.remote_jid,\n      message_id:   payload.message_id,\n      tipo:         \u0027audio\u0027,\n      conteudo_raw: whisper.text,\n      audio_url:    payload.audio_url,\n      duracao_audio: payload.duracao_audio,\n      status:       \u0027processada\u0027,\n      metadados:    payload.metadados\n    },\n    transcricao: {\n      texto:     whisper.text,\n      idioma:    whisper.language || \u0027pt\u0027,\n      confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null,\n      provider:  \u0027groq-whisper\u0027\n    }\n  }\n}];"
                                                            },
                                             "id":  "prepare-audio-data",
                                             "name":  "Preparar Dados Audio",
@@ -715,7 +715,7 @@
                                                                                  "name":  "ML Postgres"
                                                                              }
                                                             },
-                                            "notes":  "Salva mensagem bruta - ON CONFLICT para idempotência"
+                                            "notes":  "Salva mensagem bruta - ON CONFLICT para idempot�ncia"
                                         },
                                         {
                                             "parameters":  {
@@ -739,7 +739,7 @@
                                                                                  "name":  "ML Postgres"
                                                                              }
                                                             },
-                                            "notes":  "Salva transcrição do áudio (só executa se houver transcrição)",
+                                            "notes":  "Salva transcri��o do �udio (s� executa se houver transcri��o)",
                                             "continueOnFail":  true
                                         },
                                         {
@@ -761,11 +761,11 @@
                                                                                  "name":  "ML Postgres"
                                                                              }
                                                             },
-                                            "notes":  "Cria ou atualiza sessão de conversa"
+                                            "notes":  "Cria ou atualiza sess�o de conversa"
                                         },
                                         {
                                             "parameters":  {
-                                                               "jsCode":  "// Log de erro estruturado - não quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
+                                                               "jsCode":  "// Log de erro estruturado - n�o quebra o pipeline\nconst error = $input.first().json;\nconsole.error(\u0027[ML-CAPTURA] Erro no pipeline:\u0027, JSON.stringify({\n  timestamp: new Date().toISOString(),\n  error: error.message || \u0027Erro desconhecido\u0027,\n  node: $runIndex\n}));\nreturn [{ json: { status: \u0027error_logged\u0027, error: error.message } }];"
                                                            },
                                             "id":  "error-handler",
                                             "name":  "Error Handler",
@@ -892,14 +892,14 @@
                                                                      "main":  [
                                                                                   [
                                                                                       {
-                                                                                          "node":  "Groq Whisper - Transcrição",
+                                                                                          "node":  "Groq Whisper - Transcri��o",
                                                                                           "type":  "main",
                                                                                           "index":  0
                                                                                       }
                                                                                   ]
                                                                               ]
                                                                  },
-                                              "Groq Whisper - Transcrição":  {
+                                              "Groq Whisper - Transcri��o":  {
                                                                                  "main":  [
                                                                                               [
                                                                                                   {
@@ -1004,18 +1004,18 @@
                           "autosaved":  false,
                           "workflowPublishHistory":  [
                                                          {
-                                                             "createdAt":  "2026-04-25T17:17:35.049Z",
-                                                             "id":  116,
+                                                             "createdAt":  "2026-04-25T17:24:06.120Z",
+                                                             "id":  118,
                                                              "workflowId":  "eM0qnKGXShlOuCsV",
-                                                             "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
+                                                             "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
                                                              "event":  "deactivated",
                                                              "userId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
                                                          },
                                                          {
-                                                             "createdAt":  "2026-04-25T17:17:35.100Z",
-                                                             "id":  117,
+                                                             "createdAt":  "2026-04-25T17:24:06.198Z",
+                                                             "id":  119,
                                                              "workflowId":  "eM0qnKGXShlOuCsV",
-                                                             "versionId":  "ab31bb4b-fb9d-4c9a-89c2-f8be810e60ce",
+                                                             "versionId":  "f1d17d26-0d6d-40e3-a02b-2f394d19c79b",
                                                              "event":  "activated",
                                                              "userId":  "1035f6fb-a35c-4a93-8924-7343881c9d21"
                                                          }
