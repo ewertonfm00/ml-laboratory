@@ -1,0 +1,209 @@
+{
+  "id": "kDtiUtT7tS9572mQ",
+  "name": "[ML-CONFIGURE-WEBHOOK] Configurar Webhook Evolution API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/configure/webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ml-configure-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst instanceName = body.instancia_nome;\n\nif (!instanceName) {\n  throw new Error('Campo obrigatorio: instancia_nome (ex: ml-5516988456918)');\n}\n\nreturn [{\n  json: {\n    instancia_nome: instanceName,\n    evolution_base_url: 'https://evolution-api-ml-production.up.railway.app',\n    evolution_api_key: 'ml-evo-key-2026',\n    webhook_url: 'https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp'\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validar Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Valida instancia_nome e injeta constantes de ambiente (Evolution API URL, chave, webhook URL destino)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://evolution-api-ml-production.up.railway.app/webhook/set/{{ $json.instancia_nome }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "ml-evo-key-2026"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"webhook\": {\n    \"enabled\": true,\n    \"url\": \"{{ $json.webhook_url }}\",\n    \"webhookByEvents\": false,\n    \"webhookBase64\": false,\n    \"events\": [\"MESSAGES_UPSERT\", \"MESSAGES_UPDATE\", \"CONNECTION_UPDATE\"]\n  }\n}",
+        "options": {},
+        "specifyHeaders": "keypair"
+      },
+      "id": "configurar-webhook-evo",
+      "name": "Configurar Webhook Evolution",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "notes": "Registra ou atualiza o webhook na Evolution API apontando para o ML-CAPTURA pipeline"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  ie.id AS instancia_id,\n  ie.instance_name,\n  COALESCE(np.numero_whatsapp, '') AS numero_whatsapp\nFROM _plataforma.instancias_evolution ie\nLEFT JOIN _plataforma.numeros_projeto np ON np.instancia_id = ie.id AND np.ativo = true\nWHERE ie.instance_name = '{{ $('Validar Input').item.json.instancia_nome }}'\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "lookup-instancia-db",
+      "name": "Lookup Instancia DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 300],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Busca instancia_id e numero_whatsapp para persistir na webhooks_config"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_captura.webhooks_config\n  (instancia_id, numero_whatsapp, webhook_url, status, metadados)\nVALUES (\n  '{{ $json.instancia_id }}',\n  '{{ $json.numero_whatsapp }}',\n  '{{ $('Validar Input').item.json.webhook_url }}',\n  'ativo',\n  '{\"events\": [\"MESSAGES_UPSERT\", \"MESSAGES_UPDATE\", \"CONNECTION_UPDATE\"]}'\n)\nON CONFLICT (instancia_id) DO UPDATE SET\n  webhook_url  = EXCLUDED.webhook_url,\n  status       = 'ativo',\n  erro_descricao = NULL,\n  metadados    = EXCLUDED.metadados,\n  updated_at   = NOW()\nRETURNING id, instancia_id, webhook_url, status, updated_at",
+        "additionalFields": {}
+      },
+      "id": "upsert-webhooks-config",
+      "name": "Upsert webhooks_config",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 300],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Idempotente via ON CONFLICT(instancia_id) — pode ser chamado quantas vezes necessario"
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $input.first().json;\nconst input = $('Validar Input').item.json;\n\nreturn [{\n  json: {\n    success: true,\n    instancia_nome: input.instancia_nome,\n    webhook_url: config.webhook_url,\n    status: config.status,\n    webhooks_config_id: config.id,\n    updated_at: config.updated_at,\n    message: 'Webhook configurado com sucesso. Eventos MESSAGES_UPSERT, MESSAGES_UPDATE e CONNECTION_UPDATE ativos.'\n  }\n}];"
+      },
+      "id": "build-response",
+      "name": "Montar Resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-success",
+      "name": "Resposta HTTP",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.message }}\" }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "Resposta Erro",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [460, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validar Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Input": {
+      "main": [
+        [
+          {
+            "node": "Configurar Webhook Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurar Webhook Evolution": {
+      "main": [
+        [
+          {
+            "node": "Lookup Instancia DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Instancia DB": {
+      "main": [
+        [
+          {
+            "node": "Upsert webhooks_config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert webhooks_config": {
+      "main": [
+        [
+          {
+            "node": "Montar Resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Resposta": {
+      "main": [
+        [
+          {
+            "node": "Resposta HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true
+}
