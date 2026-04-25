@@ -787,3 +787,44 @@ Lógica de resolução no n8n (captura):
 
 **Bloqueados:**
 - [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** → aguardam onboarding instância EsteticaIA no portal (escaneamento QR Code)
+
+---
+## Sessão 2026-04-25
+
+### 1. Implementações
+
+**Seeds executados no banco Railway via psql (PowerShell):**
+- `_plataforma.agentes_humanos`: Kátia - Cosmobeauty (id: `55c1950e-cc7e-405f-a27d-bff44647c485`) vinculada como `agente_default_id` ao número `5516988456918`
+- `_plataforma.usuarios`: Ewerton / ewertonfm00@gmail.com / is_master=true (id: `31536ed4-41ca-455d-91e2-67072a39e936`)
+
+**Workflow n8n ML-CAPTURA atualizado via API (ID: eM0qnKGXShlOuCsV, 16 nós):**
+- `Lookup Setor`: query atualizada para retornar `tipo` e `agente_default_id`
+- `Enriquecer com Setor`: propaga `numero_tipo`, `agente_default_id`, `numero_id`
+- NOVO `Lookup Agente Multi`: subquery escalar — sempre retorna 1 linha (NULL se não encontrar)
+- NOVO `Resolver Atendente`: mono → usa `agente_default_id`; multi → usa `agente_multi_id` do lookup
+- `Upsert sessoes_conversa`: corrigido para usar `$('Resolver Atendente').first().json` em vez de `mr.agente_humano_id` (coluna inexistente em mensagens_raw)
+- Nós com encoding corrompido renomeados: `Filtro Audio`, `Download Audio`, `Preparar Dados Audio`
+- Conexões corrigidas: `Enriquecer com Setor` → `Lookup Agente Multi` → `Resolver Atendente` → `Filtro Audio` + `Filtro Texto`
+
+**Fix `.claude/settings.json`:** caminho absoluto para `squad-clickup-sync.py` (era relativo, quebrava em subdiretórios)
+
+**Commit:** `a1fff34` — `feat(pipeline): lógica mono/multi de atendente ativa em produção [Story 1.1]`
+
+### 2. Decisões
+
+- **psql no Windows**: usar PowerShell com flags separadas (`-h -p -U -d`) — Bash não interpreta flags após connection string
+- **Encoding banco com acentos**: usar arquivo `.sql` + `PGCLIENTENCODING=UTF8` via `--file=`
+- **Hash de senha**: pgcrypto `crypt('senha', gen_salt('bf', 12))` direto no PostgreSQL — sem bcrypt disponível globalmente em Node
+- **Lookup Agente Multi como subquery escalar**: retorna sempre 1 linha (NULL se não encontrar) — impede o flow parar com 0 linhas em nó Postgres
+- **Renomear nós com encoding corrompido**: surrogates `\udc81` impediam serialização JSON — renomeados para ASCII limpo
+- **Kátia sem identificador_externo**: número mono-agente direto WhatsApp, sem Redrive — resolução via `agente_default_id` apenas
+- **Task 2.8 adiada**: requer número `tipo='multi'` configurado — número atual é mono
+
+### 3. Todos Ativos
+
+- [ ] Story 1.1 task 2.8: teste multi-agente com `identificador_externo` desconhecido — requer número `tipo='multi'`
+- [ ] Sincronizar JSON local `infra/n8n/workflows/ML-CAPTURA-whatsapp-pipeline.json` com versão em produção (mudanças foram feitas via API diretamente)
+- [ ] Story 1.2 tasks 3.1–3.2: testes E2E EsteticaIA (aguarda homologação deles)
+- [ ] Seed `ai:sdr`, `ai:closer`, `ai:agendamento` → após onboarding instância EsteticaIA
+- [ ] Implementar workflows n8n das tasks dos squads ML (começar por ml-captura)
+- [ ] Seed inicial do segment-catalog-manager (Saída 2 inoperante sem catálogo)
