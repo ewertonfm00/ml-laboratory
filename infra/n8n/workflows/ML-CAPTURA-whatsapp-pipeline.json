@@ -109,7 +109,7 @@
                                                                   "parameters":  [
                                                                                      {
                                                                                          "name":  "Authorization",
-                                                                                         "value":  "Bearer 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"
+                                                                                         "value":  "Bearer GROQ_API_KEY_PLACEHOLDER"
                                                                                      }
                                                                                  ]
                                                               },
@@ -626,7 +626,7 @@
                                                                                         "parameters":  [
                                                                                                            {
                                                                                                                "name":  "Authorization",
-                                                                                                               "value":  "Bearer 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"
+                                                                                                               "value":  "Bearer GROQ_API_KEY_PLACEHOLDER"
                                                                                                            }
                                                                                                        ]
                                                                                     },
