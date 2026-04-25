@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 scripts/squad-clickup-sync.py"
+            "command": "python3 \"C:/Users/Ewerton/Projetos - Claude Code/AIOX - Machine Learning/scripts/squad-clickup-sync.py\""
           }
         ]
       }
