@@ -949,3 +949,35 @@ Lógica de resolução no n8n (captura):
 - [ ] **Redis dedup `collect-messages`** — Redis não deployado no Railway (bloqueado)
 - [ ] **12 commits pendentes de push** para `origin/main` — requer `@devops`
 - [ ] **`*enrich-segment estetica-equipamentos`** — executável só após primeiro deploy real de agente validado
+
+---
+## Sessão 2026-04-25 (encerramento — push + validação pipeline Kátia)
+
+### 1. Implementações
+
+**Push para `origin/main` via @devops:**
+- 2 commits pendentes enviados: `b16e199` (compact-preserve trigger 15→10) + `9f159c1` (fecha sessão config-compact)
+- Repositório sincronizado: `1952d63` → `9f159c1` em `ewertonfm00/ml-laboratory`
+
+**Validação do pipeline ML-CAPTURA (consultas diretas ao banco Railway):**
+- Confirmado: mensagens sendo capturadas em `ml_captura.mensagens_raw` ✅
+- Confirmado: `agente_humano_id = Kátia - Cosmobeauty` nas 3 sessões das últimas 48h ✅
+- URL Metabase descoberta e confirmada: `https://metabase-production-11a7.up.railway.app`
+
+### 2. Decisões
+
+- **`session_id` em `mensagens_raw` é VARCHAR** (`ml-5516988456918`), não UUID — não vincula via FK com `sessoes_conversa.id` diretamente; join precisa de lógica diferente
+- **`contato_nome` vazio em todas as sessões** — `push_name` capturado em `mensagens_raw` mas não propagado para `sessoes_conversa.contato_nome` (bug menor no n8n, não crítico)
+- **Sessões anteriores ao fix têm `agente_humano_id = NULL`** — comportamento esperado (fix aplicado hoje)
+- **Para ver mensagens no Metabase**: acessar tabela `ml_captura → mensagens_raw` diretamente (filtrar por `remote_jid`)
+- **Portal `/conversas` tem bugs** — fonte primária `sessoes_conversa` implementada mas não validada em produção; @dev precisa corrigir
+
+### 3. Todos Ativos
+
+- [ ] **`contato_nome` vazio** — push_name não está sendo propagado para `sessoes_conversa.contato_nome` no n8n (fix simples em `Upsert sessoes_conversa`)
+- [ ] **Portal `/conversas` com bugs** — @dev precisa corrigir UI de drill-down (lista de conversas → ver mensagens)
+- [ ] **Story 1.1 task 2.8** — teste multi-agente com `identificador_externo` desconhecido (requer número `tipo='multi'`)
+- [ ] **Story 1.2 tasks 3.1–3.2** — testes E2E EsteticaIA (aguarda homologação)
+- [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** — aguarda onboarding instância EsteticaIA
+- [ ] **Redis dedup `collect-messages`** — Redis não deployado no Railway (bloqueado)
+- [ ] **`*enrich-segment estetica-equipamentos`** — só após primeiro deploy real de agente validado
