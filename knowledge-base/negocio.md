@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-25
+Última atualização: 2026-04-26
 
 ---
 
@@ -41,7 +41,7 @@
 - **Projeto no banco:** `9c22ad6e-ca38-48d4-8dbb-51bbcadf67a2` (Machine Learning)
 - **Finalidade:** captura de conversas reais para alimentar o laboratório
 - **Pipeline confirmado:** mensagens chegando em `ml_captura.mensagens_raw` com `projeto_id` preenchido
-- **Volume atual:** 1.229 mensagens, 90 sessões ativas, 1 agente vinculado (Kátia - Cosmobeauty, id: 55c1950e)
+- **Volume atual:** 1.166+ mensagens, 52 sessões ativas (projeto Machine Learning), 1 agente vinculado (Kátia - Cosmobeauty, id: 55c1950e)
 - **Debug endpoint:** `POST /webhook/ml/captura/debug` (n8n id: ndNJ8wXr1xoN8ZAs) — retorna snapshot diagnóstico
 
 ---
@@ -250,6 +250,14 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 | Railway DB | railway.app → projeto → Postgres → aba "Data" | Query runner inline, sem instalar nada |
 
 **Para ver mensagens de uma conversa no Metabase:** tabela `ml_captura → mensagens_raw`, filtrar por `remote_jid` (número do contato no formato `551699XXXXXXX@s.whatsapp.net`).
+
+---
+
+## Particularidades do Ambiente Railway
+
+- O Railway provisiona **2 bancos no mesmo servidor PostgreSQL**: `railway` (produção, com dados reais) e `postgres` (banco vazio, padrão do provedor). Sempre usar `/railway` na connection string.
+- **Portal `.env.local`** deve apontar para `DATABASE_URL=...@mainline.proxy.rlwy.net:13932/railway` (não `/postgres`).
+- **Portal Next.js** roda apenas localmente em `http://localhost:3001` (sem deploy no Railway ainda).
 
 ---
 
