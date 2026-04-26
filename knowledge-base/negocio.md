@@ -258,6 +258,7 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 - `ml_captura.mensagens_raw.session_id` é **VARCHAR** com o nome da instância Evolution (`ml-5516988456918`), **não um UUID**. JOIN com `sessoes_conversa.id` (UUID) não funciona diretamente — usar `remote_jid + projeto_id` como chave de ligação.
 - `ml_captura.sessoes_conversa.contato_nome` é populado a partir do `push_name` do webhook (nome do contato no WhatsApp). Fix aplicado em 2026-04-25 — sessões criadas antes desta data têm `contato_nome = NULL`.
 - `ml_captura.sessoes_conversa.agente_humano_id` resolvido pela lógica mono/multi do n8n: mono → `agente_default_id` do número; multi → lookup por `identificador_externo`.
+- **Nó "Redis Dedup Check" no ML-CAPTURA**: Code node com lógica TCP direta ao Redis (RESP protocol). Redis não está deployado no Railway. O nó tem `continueOnFail: true` (aplicado 2026-04-26) — falha silenciosamente. Dedup real garantido por `ON CONFLICT (message_id) DO NOTHING` no INSERT do Postgres (sem dependência de Redis).
 
 ---
 
