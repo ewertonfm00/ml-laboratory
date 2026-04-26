@@ -141,7 +141,12 @@ export default async function ConversaDetalhePage({ params }: Props) {
 
               <div className="space-y-2">
                 {grupo.itens.map(msg => {
-                  const isOutgoing = msg.direction === 'outgoing';
+                  // Usa respondent_type como fallback quando direction está ausente/nulo
+                  const outgoingTypes = ['bot', 'agent', 'human_agent', 'assistant'];
+                  const isOutgoing =
+                    msg.direction === 'outgoing' ||
+                    (msg.direction !== 'incoming' && outgoingTypes.includes(msg.respondent_type));
+
                   const isAudio = msg.tipo === 'audio';
                   const conteudo = msg.conteudo_raw
                     ? (typeof msg.conteudo_raw === 'string'
@@ -149,11 +154,23 @@ export default async function ConversaDetalhePage({ params }: Props) {
                         : JSON.stringify(msg.conteudo_raw))
                     : null;
 
+                  // Label do remetente
+                  const senderLabel = msg.respondent_name
+                    ? msg.respondent_name
+                    : isOutgoing
+                    ? (msg.respondent_type === 'bot' ? 'Bot' : 'Agente')
+                    : 'Contato';
+
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'}`}
+                      className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'}`}
                     >
+                      {/* Label do remetente acima do balão */}
+                      <span className={`text-[11px] font-medium mb-0.5 px-1 ${isOutgoing ? 'text-violet-400' : 'text-emerald-400'}`}>
+                        {senderLabel}
+                      </span>
+
                       <div
                         className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                           isOutgoing
@@ -161,11 +178,6 @@ export default async function ConversaDetalhePage({ params }: Props) {
                             : 'bg-[#1A1A2E] border border-[#2A2A3E] text-slate-200 rounded-bl-sm'
                         }`}
                       >
-                        {/* Remetente (quando há nome) */}
-                        {msg.respondent_name && !isOutgoing && (
-                          <p className="text-xs text-violet-400 font-medium mb-1">{msg.respondent_name}</p>
-                        )}
-
                         {/* Conteúdo */}
                         {isAudio ? (
                           <div className="flex items-center gap-2 text-sm">
