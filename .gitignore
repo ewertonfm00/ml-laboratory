@@ -30,3 +30,6 @@ Thumbs.db
 
 # Materiais de referência (documentos, imagens, PDFs — não versionados)
 referencias/
+
+__pycache__/
+*.pyc
