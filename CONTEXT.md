@@ -1,6 +1,6 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-26 (fix portal .env.local DATABASE_URL + diagnóstico pipeline)
+**Última sessão:** 2026-04-26 (deploy portal Railway + fix identificação remetentes conversas)
 
 ---
 
@@ -13,9 +13,6 @@
 ---
 
 ## Pendências
-
-### PORTAL
-- [ ] Portal rodando apenas localmente (porta 3001) — fazer deploy no Railway para acesso remoto
 
 ### PIPELINE DE CAPTURA
 - [ ] Confirmar `contato_nome` sendo gravado após fix Redis Dedup Check — enviar mensagem teste e checar banco
@@ -40,21 +37,19 @@
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | Migrations 001–017 executadas (015/016/017 confirmadas) |
+| Postgres | ✅ Ativo | Migrations 001–017 executadas |
 | n8n | ✅ Ativo | ML-CAPTURA ativo, Redis Dedup Check com continueOnFail=true |
 | Evolution API | ✅ Ativo | `ml-5516988456918` conectado, `state: open` |
-| Portal Next.js | ✅ Local | Porta 3001, DB apontando para `railway` (corrigido 2026-04-26) |
+| Portal Next.js | ✅ Railway | `https://portal-ml-production.up.railway.app` (deployado 2026-04-26) |
 | Metabase | ✅ Ativo | `https://metabase-production-11a7.up.railway.app` |
 
 ## Contexto técnico
 
+- Portal ML: `https://portal-ml-production.up.railway.app/p/machine-learning/conversas`
 - Webhook ML-CAPTURA: `https://n8n-production-47d0.up.railway.app/webhook/ml/webhook/whatsapp`
 - Debug pipeline: `POST https://n8n-production-47d0.up.railway.app/webhook/ml/captura/debug`
-- Configure-webhook: `POST https://n8n-production-47d0.up.railway.app/webhook/ml/configure/webhook`
-- EsteticaIA: `POST https://n8n-production-47d0.up.railway.app/webhook/ml/external/esteticaia`
 - Postgres público: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
 - Projeto no banco: Machine Learning (id: 9c22ad6e-ca38-48d4-8dbb-51bbcadf67a2)
 - Número WhatsApp ativo: `5516988456918` (tipo: mono, agente_default: Katia — 55c1950e-cc7e-405f-a27d-bff44647c485)
 - Workflow ML-CAPTURA: ID `eM0qnKGXShlOuCsV`, n8n API key em credentials.md
-- Portal local: `http://localhost:3001/p/machine-learning/conversas` (52 sessões, 1166+ msgs)
 - DB Railway tem 2 bancos: `railway` (dados reais) e `postgres` (vazio — não usar)

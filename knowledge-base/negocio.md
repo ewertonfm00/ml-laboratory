@@ -31,7 +31,7 @@
 - **Claude Haiku** — classificação automática de conversas
 - **Claude Sonnet** — análise profunda, geração de perfis e treinamentos
 - **Metabase** — dashboards analíticos (embed no portal)
-- **Portal Next.js** (`portal-next/`) — portal interativo de gestão (substituiu Appsmith em 2026-04-16; deployado em produção em 2026-04-17: `https://portal-ml-production.up.railway.app`)
+- **Portal Next.js** (`portal-next/`) — portal interativo de gestão (substituiu Appsmith em 2026-04-16; deployado no Railway em 2026-04-26: `https://portal-ml-production.up.railway.app`; serviço `portal-ml` no projeto `ml-laboratory`)
 
 ---
 
@@ -257,7 +257,7 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 
 - O Railway provisiona **2 bancos no mesmo servidor PostgreSQL**: `railway` (produção, com dados reais) e `postgres` (banco vazio, padrão do provedor). Sempre usar `/railway` na connection string.
 - **Portal `.env.local`** deve apontar para `DATABASE_URL=...@mainline.proxy.rlwy.net:13932/railway` (não `/postgres`).
-- **Portal Next.js** roda apenas localmente em `http://localhost:3001` (sem deploy no Railway ainda).
+- **Portal Next.js** deployado no Railway em `https://portal-ml-production.up.railway.app` (deploy manual via `railway up` — não conectado ao GitHub para auto-deploy).
 
 ---
 
