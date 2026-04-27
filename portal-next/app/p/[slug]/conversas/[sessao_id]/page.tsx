@@ -155,7 +155,7 @@ export default async function ConversaDetalhePage({ params }: Props) {
                         : JSON.stringify(msg.conteudo_raw))
                     : null;
 
-                  const senderLabel = isOutgoing ? 'Bot' : (pushName ?? 'Contato');
+                  const senderLabel = pushName ?? (isOutgoing ? 'Agente' : 'Contato');
 
                   return (
                     <div
