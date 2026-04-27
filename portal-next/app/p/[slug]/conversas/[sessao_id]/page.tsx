@@ -21,9 +21,7 @@ interface Mensagem {
   conteudo_raw: string | null;
   audio_url: string | null;
   duracao_audio: string | null;
-  direction: string;
-  respondent_type: string;
-  respondent_name: string | null;
+  metadados_raw: string | null;
   created_at: string;
 }
 
@@ -62,9 +60,7 @@ async function getMensagens(sessaoId: string): Promise<Mensagem[]> {
       conteudo_raw,
       audio_url,
       duracao_audio::text,
-      COALESCE(direction, 'incoming') AS direction,
-      COALESCE(respondent_type, 'unknown') AS respondent_type,
-      respondent_name,
+      metadados::text AS metadados_raw,
       created_at
     FROM ml_captura.mensagens_raw
     WHERE remote_jid = $1 AND projeto_id = $2
@@ -141,11 +137,16 @@ export default async function ConversaDetalhePage({ params }: Props) {
 
               <div className="space-y-2">
                 {grupo.itens.map(msg => {
-                  // Usa respondent_type como fallback quando direction está ausente/nulo
-                  const outgoingTypes = ['bot', 'agent', 'human_agent', 'assistant'];
-                  const isOutgoing =
-                    msg.direction === 'outgoing' ||
-                    (msg.direction !== 'incoming' && outgoingTypes.includes(msg.respondent_type));
+                  // Determina direção e nome a partir dos metadados do WhatsApp
+                  let isOutgoing = false;
+                  let pushName: string | null = null;
+                  try {
+                    if (msg.metadados_raw) {
+                      const meta = JSON.parse(msg.metadados_raw);
+                      isOutgoing = meta?.data?.key?.fromMe === true;
+                      pushName = meta?.data?.pushName ?? null;
+                    }
+                  } catch { /* metadados inválidos — mantém defaults */ }
 
                   const isAudio = msg.tipo === 'audio';
                   const conteudo = msg.conteudo_raw
@@ -154,12 +155,7 @@ export default async function ConversaDetalhePage({ params }: Props) {
                         : JSON.stringify(msg.conteudo_raw))
                     : null;
 
-                  // Label do remetente
-                  const senderLabel = msg.respondent_name
-                    ? msg.respondent_name
-                    : isOutgoing
-                    ? (msg.respondent_type === 'bot' ? 'Bot' : 'Agente')
-                    : 'Contato';
+                  const senderLabel = isOutgoing ? 'Bot' : (pushName ?? 'Contato');
 
                   return (
                     <div
