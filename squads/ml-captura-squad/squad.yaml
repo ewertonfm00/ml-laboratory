@@ -36,6 +36,9 @@ components:
     - transcribe-audio.md
     - collect-messages.md
     - debug-pipeline.md
+    - check-connection-status.md
+    - reconnect-whatsapp.md
+    - monitor-connection.md
   workflows: []
   checklists: []
   templates: []
