@@ -33,3 +33,9 @@ referencias/
 
 __pycache__/
 *.pyc
+
+# Scripts temporários de fix (não versionar)
+fix_*.py
+
+# Backups de configuração
+*.bak

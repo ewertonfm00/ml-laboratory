@@ -6,7 +6,8 @@
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Story 1.1 task 2.6 — teste mono-agente: enviar msg e confirmar `agente_humano_id` = Kátia
+**PRIORIDADE 1:** Decidir atribuição multi-agente — Cenário B confirmado (1 número, vários atendentes): atribuição manual (supervisor) ou automática (round-robin)?
+**PRIORIDADE 2:** Story 1.1 task 2.6 — teste mono-agente: enviar msg e confirmar `agente_humano_id` = Kátia
 
 ---
 
@@ -17,7 +18,7 @@
 - [ ] Nós com double-encoding nos nomes (mojibake) — considerar renomear para ASCII puro em próxima manutenção
 
 ### PIPELINE DE CAPTURA (`eM0qnKGXShlOuCsV`)
-- [ ] Exportar JSON local atualizado (feito hoje para ml-analise; ml-captura também exportado em `docs/workflows/`)
+- [x] JSON exportados em `docs/workflows/` (ml-analise.json + ml-captura.json) — 2026-04-28
 
 ### INFRA / MANUTENÇÃO
 - [x] entity-registry: regenerado via `populate-entity-registry.js` (750 entidades, zero risco) — 2026-04-28

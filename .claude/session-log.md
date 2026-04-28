@@ -1416,3 +1416,79 @@ Lógica de resolução no n8n (captura):
 - ML Laboratory: 58 agentes ML + 14 SHE = 72 agentes — 100% em v3.0
 - Omega Laser: 14 SHE + 17 vendas-consultivas = 31 agentes — 100% em v3.0
 - Estetica.IA: 6 esteticaia-produto + 14 SHE = 20 agentes — 100% em v3.0
+
+---
+## Sessão 2026-04-28 (parte 6 — compact-preserve)
+
+### 1. Implementações
+
+**Redis Dedup Check — validado em produção**
+- Teste: 2 envios com mesmo `message_id` → 1 registro em `ml_captura.mensagens_raw`
+- Exec dedup 11ms mais rápida que a normal (saída antecipada no nó Redis IF)
+- Nova mensagem com ID diferente inserida normalmente — pipeline íntegro
+
+**Entity Registry regenerado**
+- Arquivo: `.aiox-core/data/entity-registry.yaml`
+- Comando: `node .aiox-core/development/scripts/populate-entity-registry.js`
+- 750 entidades, 100% resolution rate, `settings.json` intocado
+
+**Migration 023 criada e aplicada em produção**
+- Arquivo: `database/migrations/023_comercial_objecoes_unique.sql`
+- Arquivo: `database/migrations/rollbacks/023_comercial_objecoes_unique_rollback.sql`
+- Constraint: `uq_objecoes_tipo_texto UNIQUE (tipo_objecao, texto_objecao)` em `ml_comercial.objecoes`
+- Corrige falha `Executar objecoes SQL` no pipeline ML-ANALISE — commit `adc7e20`
+
+**Fix de Segurança — Anthropic API Key**
+- Arquivo: `docs/workflows/ml-analise.json` (2 ocorrências → `REDACTED`)
+- Histórico reescrito via `git filter-branch` (5 commits, nunca publicados)
+- Force push `--force-with-lease` para `origin/main` — commit HEAD `8c48a2f`
+
+**CONTEXT.md e session-plan atualizados**
+- Pendências concluídas marcadas `[x]`: Redis Dedup, entity-registry, migration 022 (já aplicada), migration 023
+
+### 2. Decisões
+
+- **entity-registry via populate script** (não `install --force`): script é standalone, escreve só em `.aiox-core/data/entity-registry.yaml`, zero risco ao `settings.json`
+- **Migration 023 (constraint + upsert)**: código n8n já usava `ON CONFLICT (tipo_objecao, texto_objecao)` corretamente — faltava só o constraint no banco
+- **filter-branch + force push**: API key estava em commit local não publicado (`c7df83c`) — reescrever histórico foi seguro; `--force-with-lease` garante sem sobrescrever trabalho remoto desconhecido
+
+### 3. Todos ativos
+
+- [ ] **Story 1.1 task 2.6**: teste mono-agente — enviar msg e confirmar `agente_humano_id` = Kátia
+- [ ] **Story 1.1 tasks 2.7–2.8**: BLOQUEADAS — aguarda clínica multi-agente
+- [ ] **Rotacionar Anthropic API Key** — URGENTE: a key ficou em histórico local antes da correção
+- [ ] `docs/workflows/ml-analise.json` e `ml-captura.json` — exportar versão atualizada do n8n (atual tem `REDACTED` onde estava a key)
+- [ ] Nós com mojibake (double-encoding) no ML-ANALISE — renomear para ASCII puro (baixa prioridade)
+- [ ] Seed SQL `tipo='multi'`: BLOQUEADO — aguarda clínica com serviço multi
+- [ ] `fix_objecoes.py` e `.claude/settings.json.bak` — arquivos soltos, decidir se adicionar ao `.gitignore`
+
+---
+## Sessão 2026-04-28 (parte 7 — compact-preserve)
+
+### 1. Implementações
+
+**Anthropic API Key atualizada no n8n**
+- Workflow ML-ANALISE (`UthiBdEQma4DiVhL`): 2 nós HTTP Request atualizados via API PUT
+- Nova key: `sk-ant-api03-I4UH3CX11nze2...lnY09gAA` (específica para ML)
+- Arquivo: `memory/credentials.md` atualizado
+
+**Story 1.1 task 2.6 — teste mono-agente PASS**
+- Webhook simulado → sessão criada com `agente_humano_id = 55c1950e-cc7e-405f-a27d-bff44647c485` (Kátia - Cosmobeauty)
+- Pipeline `Lookup Setor → Enriquecer → Resolver Atendente → Upsert sessao` funcionando
+
+### 2. Decisões
+
+- **API key Anthropic**: era 1 key compartilhada entre todos os projetos, nomeada "estetica-ia" no console. Usuário criou key específica pro ML; Estetica-IA ainda usa a antiga (usuário atualizará depois)
+- **Multi-agente incompleto**: `identificador_externo` é referenciado no `Lookup Agente Multi` mas nunca definido no workflow atual — feature incompleta
+- **Dois cenários multi-agente levantados** (usuário ainda não decidiu):
+  - Cenário A: múltiplos números, 1 agente por número → usar `tipo='mono'` com `agente_default` diferente (sem mudança no pipeline)
+  - Cenário B: 1 número, múltiplos atendentes com roteamento dinâmico → implementar extração de `identificador_externo` no pipeline
+
+### 3. Todos ativos
+
+- [ ] **Definir cenário multi-agente** (A ou B) — aguarda resposta do usuário
+- [ ] **Story 1.1 tasks 2.7–2.8**: BLOQUEADAS — aguarda definição/implementação multi-agente
+- [ ] **Atualizar API key Estetica-IA** — usuário fará depois
+- [ ] **Exportar workflows n8n atualizados** — ml-analise.json e ml-captura.json no repo têm REDACTED onde estava a key
+- [ ] **`fix_objecoes.py` e `.claude/settings.json.bak`** — adicionar ao .gitignore ou remover
+- [ ] Nós com mojibake no ML-ANALISE — baixa prioridade
