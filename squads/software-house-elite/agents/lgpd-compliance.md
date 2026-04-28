@@ -166,6 +166,10 @@ commands:
     args: '{story-id}'
     description: 'Checklist de conformidade LGPD para uma story antes do deploy'
 
+  - name: session-info
+    visibility: [full]
+    description: 'Mostrar detalhes da sessão atual'
+
   - name: guide
     visibility: [full, quick, key]
     description: 'Guia completo de uso deste agente'

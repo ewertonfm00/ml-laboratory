@@ -262,5 +262,5 @@ statistics:
   reused_from_aios: 12
   new_agents: 15
   layers: [management, engineering, infrastructure, design]
-  tasks_available: 10
-  last_audit: "2026-04-22"
+  tasks_available: 21
+  last_audit: "2026-04-27"

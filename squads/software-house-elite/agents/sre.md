@@ -127,6 +127,9 @@ commands:
   - name: chaos-engineering
     visibility: [full]
     description: Planejar experimento de chaos engineering
+  - name: session-info
+    visibility: [full]
+    description: 'Mostrar detalhes da sessão atual'
   - name: guide
     visibility: [full, quick, key]
     description: 'Guia completo de uso deste agente'

@@ -123,6 +123,9 @@ commands:
   - name: jobs-to-be-done
     visibility: [full]
     description: Workshop de Jobs-to-be-Done com stakeholders
+  - name: session-info
+    visibility: [full]
+    description: 'Mostrar detalhes da sessão atual'
   - name: guide
     visibility: [full, quick, key]
     description: 'Guia completo de uso deste agente'

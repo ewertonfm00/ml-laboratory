@@ -155,6 +155,10 @@ commands:
     visibility: [full]
     description: 'Analisar e otimizar bundle: tree shaking, dynamic imports, code splitting'
 
+  - name: session-info
+    visibility: [full]
+    description: 'Mostrar detalhes da sessão atual'
+
   - name: guide
     visibility: [full, quick, key]
     description: 'Guia completo de uso deste agente'

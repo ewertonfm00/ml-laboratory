@@ -154,6 +154,10 @@ commands:
     args: '[workflow]'
     description: 'Validar integridade dos workflows após sync — previne regressões de continueOnFail e IDs'
 
+  - name: session-info
+    visibility: [full]
+    description: 'Mostrar detalhes da sessão atual'
+
   - name: guide
     visibility: [full, quick, key]
     description: 'Guia completo de uso deste agente'

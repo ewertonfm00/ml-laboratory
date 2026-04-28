@@ -1,12 +1,12 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-26 (deploy portal Railway + fix identificação remetentes conversas)
+**Última sessão:** 2026-04-27 (fix Redis Dedup Check — contato_nome gravando + pipeline end-to-end validado)
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Confirmar `contato_nome` sendo gravado — enviar mensagem teste para `5516988456918` e checar banco (campo ainda vazio em todas as sessões).
+**PRIORIDADE 1:** Sincronizar JSON local do ML-CAPTURA com a versão em produção (Redis Dedup Check foi corrigido via API, local está desatualizado).
 
 **PRIORIDADE 2:** Rodar testes pendentes das Stories 1.1 e 1.2 (ver seção Testes abaixo).
 
@@ -15,9 +15,10 @@
 ## Pendências
 
 ### PIPELINE DE CAPTURA
-- [ ] Confirmar `contato_nome` sendo gravado após fix Redis Dedup Check — enviar mensagem teste e checar banco
-- [ ] n8n workflow JSON local desatualizado — nó Redis Dedup Check foi corrigido via API, JSON local precisa sincronizar
-- [ ] Encoding corrompido no workflow JSON (curly quotes + mojibake) — sanitização manual a cada update via API
+- [x] `contato_nome` sendo gravado — confirmado "Ewerton Margonar" após fix Redis Dedup Check (2026-04-27) ✅
+- [ ] n8n workflow JSON local desatualizado — Redis Dedup Check corrigido via API, JSON local precisa sincronizar
+- [ ] Encoding corrompido no workflow JSON (curly quotes + mojibake) — usar código ASCII-only em toda edição via API
+- [ ] Reimplementar lógica Redis no Dedup Check (atualmente pass-through — sem deduplicação real)
 
 ### SEED / CADASTROS
 - [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA

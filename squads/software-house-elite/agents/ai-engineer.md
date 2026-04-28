@@ -158,6 +158,10 @@ commands:
     args: '{agente}'
     description: 'Revisar system prompt completo (persona, contexto, restrições, few-shot)'
 
+  - name: session-info
+    visibility: [full]
+    description: 'Mostrar detalhes da sessão atual'
+
   - name: guide
     visibility: [full, quick, key]
     description: 'Guia completo de uso deste agente'

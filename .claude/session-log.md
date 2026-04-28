@@ -1,6 +1,35 @@
 # Session Log — AIOX Machine Learning Laboratory
 
 ---
+## Sessão 2026-04-27
+
+### 1. Implementações
+- Nenhum arquivo criado ou modificado nesta sessão — sessão de auditoria e verificação de agentes.
+
+### 2. Decisões
+- **Icarus é o agente responsável por auditorias de agentes** — não Claude Code genérico. Qualquer auditoria de squad deve ser feita com @icarus ativo.
+- **Correções do software-house-elite ainda não executadas** — auditoria anterior prescreveu mas @dev nunca foi acionado para aplicar. Ciclo precisa ser fechado.
+- **GAP-003 (número multi) pode ser resolvido via seed SQL + debug endpoint** — sem precisar de segundo chip ou nova instância WhatsApp. Endpoint: `POST .../webhook/ml/captura/debug`.
+- **tasks_available no squad.yaml desatualizado** — squad.yaml diz 10, existem 21 tasks reais. Precisa de atualização manual.
+
+### 3. Todos Ativos
+
+**software-house-elite — correções pendentes (prescrito, não executado):**
+- [ ] `squad.yaml`: atualizar `tasks_available: 10` → 21 e `last_audit`
+- [ ] `icarus.md`: corrigir `IDE-FILE-RESOLUTION` (aponta `.aiox-core/development/tasks/` → deve ser `squads/software-house-elite/tasks/`)
+- [ ] `icarus.md`: adicionar campo `squad:` no bloco `agent:`
+- [ ] `icarus.md`: adicionar footer `*Squad: software-house-elite | AIOX Agent v{version}*`
+- [ ] 9 agentes sem `*session-info`: `ai-engineer`, `enterprise-architect`, `frontend-specialist`, `lgpd-compliance`, `n8n-dev`, `sdet`, `security-architect`, `sre`, `ux-research-lead`
+- [ ] autoClaude v1.0 → v3.0 nos 14 agentes locais (baixa prioridade)
+
+**ml-plataforma-squad — GAPs pendentes:**
+- [ ] GAP-001: criar tasks ausentes — `run-e2e-tests.md`, `validate-pipeline.md`, `seed-master.md`, `seed-catalog.md`, `seed-ai-agents.md`
+- [ ] GAP-004: criar migrations para `ml_captura.diagnostic_runs` e `ml_captura.validation_log`
+- [ ] GAP-003/007: seed SQL de número tipo='multi' para testes das tasks 2.7 e 2.8
+- [ ] GAP-005: atualizar `e2e-test-orchestrator` de `autoClaude v1.0` → `v3.0`
+- [ ] GAP-006: auditar `whatsapp-recovery-agent` (não coberto na auditoria anterior)
+
+---
 ## Sessão 2026-04-19
 
 ### 1. Implementações
@@ -981,3 +1010,38 @@ Lógica de resolução no n8n (captura):
 - [ ] **Seed `ai:sdr`, `ai:closer`, `ai:agendamento`** — aguarda onboarding instância EsteticaIA
 - [ ] **Redis dedup `collect-messages`** — Redis não deployado no Railway (bloqueado)
 - [ ] **`*enrich-segment estetica-equipamentos`** — só após primeiro deploy real de agente validado
+
+---
+## Sessão 2026-04-27
+
+### 1. Implementações
+
+**Fix Redis Dedup Check — workflow ML-CAPTURA (ID: `eM0qnKGXShlOuCsV`):**
+- Bug: código corrompido por encoding (mojibake) — `$input.first().json` apagado → `return [{ json: }]` → produzia `{}` vazio
+- Impacto: 100% dos `messages.upsert` falhavam silenciosamente. Lookup Setor recebia dados nulos → 0 rows → cadeia inteira parava. Nada era inserido em `mensagens_raw` nem `sessoes_conversa`
+- Fix aplicado: código ASCII-only mínimo: `const input = $input.first().json; return [{ json: input }];`
+- Método: PUT /api/v1/workflows/eM0qnKGXShlOuCsV + reativação via API
+
+**Validações confirmadas pós-fix (mensagem "Teste 123"):**
+- `ml_captura.sessoes_conversa.contato_nome = "Ewerton Margonar"` ✅
+- `ml_captura.mensagens_raw` inserindo com `conteudo_raw = "Teste 123"` ✅
+- `agente_humano_id → Kátia - Cosmobeauty` (Story 1.1 task 2.6 validada ✅)
+
+### 2. Decisões
+
+- **Redis Dedup Check simplificado como pass-through**: deduplicação Redis removida temporariamente — `ON CONFLICT (message_id) DO NOTHING` no SQL garante idempotência suficiente. Reintroduzir Redis dedup futuramente com código ASCII-only
+- **Encoding corrompido persiste no n8n**: toda edição via API deve usar exclusivamente código ASCII (sem acentos, sem chars especiais em strings JS)
+- **Squad ml-atendimento-squad não implementado**: status=planned, workflows=[]. Critérios de disparo de análise (mínimo de conversas/dias) devem ser definidos por @analyst ou @pm antes de implementar
+- **@icarus ativado**: aguardando escopo de auditoria definido pelo usuário
+
+### 3. Todos Ativos
+
+- [ ] Sincronizar JSON local `ML-CAPTURA` com versão em produção após fix Redis Dedup Check
+- [ ] Reimplementar lógica Redis no Dedup Check (pass-through atual, sem deduplicação real)
+- [ ] Story 1.1 task 2.8: teste multi-agente com `identificador_externo` desconhecido (requer número `tipo='multi'`)
+- [ ] Story 1.2 tasks 3.1–3.2: testes E2E EsteticaIA (aguarda homologação deles)
+- [ ] Seed `ai:sdr`, `ai:closer`, `ai:agendamento` → após onboarding instância EsteticaIA
+- [ ] Avisar EsteticaIA: endpoint pronto em `/webhook/ml/external/esteticaia`
+- [ ] Squad ml-atendimento-squad: @analyst/@pm definir critérios de disparo das análises
+- [ ] `*enrich-segment estetica-equipamentos` → após primeiro deploy real de agente validado
+- [ ] @icarus ativo — aguardando comando do usuário para auditoria
