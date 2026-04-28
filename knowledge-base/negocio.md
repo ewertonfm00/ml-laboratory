@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-26
+Última atualização: 2026-04-28
 
 ---
 
@@ -119,6 +119,14 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 - **Padrão respondent_id:** `{tipo}:{slug}` — ex: `ai:sdr`, `human:maria`, `specialist:dr-carlos`
 - **Seeds de IA:** inseridos em `_plataforma.agentes_humanos` após onboarding da instância da clínica (requerem `numero_id` válido)
 - **Modelo de atribuição:** número `tipo=mono` → `agente_humano_id = agente_default_id` do número; `tipo=multi` → extrai `identificador_externo` do payload webhook → resolve `agente_humano_id`
+
+### Cenário Real Identificado (2026-04-28) — Omega Laser
+
+- **Cenário B confirmado:** a clínica usa **1 número único compartilhado** por múltiplos atendentes (não um número por pessoa)
+- **Modelo atual não cobre esse caso diretamente** — `tipo=multi` pressupõe que o webhook identifica o atendente pelo `identificador_externo`; no Cenário B isso não ocorre automaticamente
+- **Opção 1 (manual):** supervisor abre o Portal e atribui cada conversa a um atendente — `agente_humano_id` começa NULL, preenchido via interface
+- **Opção 2 (automática):** round-robin — na 1ª mensagem de um contato, sistema sorteia/atribui um agente e persiste; futuras mensagens do mesmo contato vão para o mesmo atendente
+- **Decisão em aberto** — usuário ainda decidindo entre as duas opções
 
 ---
 
