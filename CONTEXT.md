@@ -1,24 +1,23 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-27 (fix Redis Dedup Check — contato_nome gravando + pipeline end-to-end validado)
+**Última sessão:** 2026-04-27 — auditoria geral de agentes + Redis Dedup Check implementado + migrations 022
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Sincronizar JSON local do ML-CAPTURA com a versão em produção (Redis Dedup Check foi corrigido via API, local está desatualizado).
+**PRIORIDADE 1:** Testar Redis Dedup Check — enviar mesma mensagem WhatsApp 2x e confirmar apenas 1 registro em `ml_captura.mensagens_raw` (key: `dedup:{message_id}`, TTL 24h).
 
-**PRIORIDADE 2:** Rodar testes pendentes das Stories 1.1 e 1.2 (ver seção Testes abaixo).
+**PRIORIDADE 2:** Rodar testes Story 1.1 task 2.6 (mono-agente → confirmar `agente_humano_id` = Kátia).
 
 ---
 
 ## Pendências
 
 ### PIPELINE DE CAPTURA
-- [x] `contato_nome` sendo gravado — confirmado "Ewerton Margonar" após fix Redis Dedup Check (2026-04-27) ✅
-- [ ] n8n workflow JSON local desatualizado — Redis Dedup Check corrigido via API, JSON local precisa sincronizar
-- [ ] Encoding corrompido no workflow JSON (curly quotes + mojibake) — usar código ASCII-only em toda edição via API
-- [ ] Reimplementar lógica Redis no Dedup Check (atualmente pass-through — sem deduplicação real)
+- [ ] **#1 TESTE:** Validar Redis Dedup Check — enviar msg duplicada e confirmar deduplicação real no pipeline
+- [ ] n8n JSON local desatualizado — workflow foi editado via API, local não reflete estado atual
+- [ ] Encoding corrompido no workflow JSON (curly quotes + mojibake) — usar ASCII-only em edições via API
 
 ### SEED / CADASTROS
 - [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
@@ -26,7 +25,7 @@
 
 ### TESTES
 - [ ] Story 1.1 task 2.6: teste mono-agente — enviar msg e confirmar `agente_humano_id` = Kátia
-- [ ] Story 1.1 task 2.8: teste multi-agente com `identificador_externo` desconhecido (gravar null) — requer número tipo=multi
+- [ ] Story 1.1 task 2.8: teste multi-agente com `identificador_externo` desconhecido — requer número tipo=multi (BLOQUEADO sem clínica multi)
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
 
 ### SQUADS ML — OPERACIONALIZAÇÃO
@@ -38,10 +37,10 @@
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | Migrations 001–017 executadas |
-| n8n | ✅ Ativo | ML-CAPTURA ativo, Redis Dedup Check com continueOnFail=true |
+| Postgres | ✅ Ativo | Migrations 001–022 aplicadas (022 criada hoje — aplicar em produção) |
+| n8n | ✅ Ativo | ML-CAPTURA ativo, Redis Dedup Check com 3 nós reais (GET+IF+SET) |
 | Evolution API | ✅ Ativo | `ml-5516988456918` conectado, `state: open` |
-| Portal Next.js | ✅ Railway | `https://portal-ml-production.up.railway.app` (deployado 2026-04-26) |
+| Portal Next.js | ✅ Railway | `https://portal-ml-production.up.railway.app` |
 | Metabase | ✅ Ativo | `https://metabase-production-11a7.up.railway.app` |
 
 ## Contexto técnico
@@ -54,3 +53,4 @@
 - Número WhatsApp ativo: `5516988456918` (tipo: mono, agente_default: Katia — 55c1950e-cc7e-405f-a27d-bff44647c485)
 - Workflow ML-CAPTURA: ID `eM0qnKGXShlOuCsV`, n8n API key em credentials.md
 - DB Railway tem 2 bancos: `railway` (dados reais) e `postgres` (vazio — não usar)
+- Migration 022: `ml_captura.diagnostic_runs` + `ml_captura.validation_log` — criada no git, ainda não aplicada em produção

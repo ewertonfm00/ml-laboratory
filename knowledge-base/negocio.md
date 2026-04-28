@@ -129,6 +129,12 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 - ml-ia-padroes (9), ml-marketing (3), ml-orquestrador (6), ml-plataforma (5)
 - ml-skills (8), software-house-elite (14)
 
+**Estado global de agentes (2026-04-27):** 123 agentes auditados nos 3 projetos — 100% em autoClaude v3.0:
+- ML Laboratory: 72 agentes ML + SHE
+- Omega Laser: 14 SHE + 17 vendas-consultivas-estetica (lead-registry.md é `type: service`, não agente)
+- Estetica.IA: 6 esteticaia-produto + 14 SHE
+- **Regra de sync:** ML Laboratory é fonte de verdade do SHE — atualizações sempre ML → Omega Laser → Estetica.IA
+
 **Gate de segmento (onboarding):** `strict_mode: true` por padrão — segmento inválido bloqueia onboarding inteiro antes de criar instâncias Evolution API. `strict_mode: false` apenas para adição de números isolados em clientes já ativos.
 
 ### Documentos de Produto (3 fontes)
@@ -266,7 +272,7 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 - `ml_captura.mensagens_raw.session_id` é **VARCHAR** com o nome da instância Evolution (`ml-5516988456918`), **não um UUID**. JOIN com `sessoes_conversa.id` (UUID) não funciona diretamente — usar `remote_jid + projeto_id` como chave de ligação.
 - `ml_captura.sessoes_conversa.contato_nome` é populado a partir do `push_name` do webhook (nome do contato no WhatsApp). Fix aplicado em 2026-04-25 — sessões criadas antes desta data têm `contato_nome = NULL`.
 - `ml_captura.sessoes_conversa.agente_humano_id` resolvido pela lógica mono/multi do n8n: mono → `agente_default_id` do número; multi → lookup por `identificador_externo`.
-- **Nó "Redis Dedup Check" no ML-CAPTURA**: Code node com lógica TCP direta ao Redis (RESP protocol). Redis não está deployado no Railway. O nó tem `continueOnFail: true` (aplicado 2026-04-26) — falha silenciosamente. Dedup real garantido por `ON CONFLICT (message_id) DO NOTHING` no INSERT do Postgres (sem dependência de Redis).
+- **Nó "Redis Dedup Check" no ML-CAPTURA** (atualizado 2026-04-27): substituído por 3 nós n8n nativos — `Redis GET - Check Dedup` (verifica key `dedup:{message_id}`), `IF - Is Duplicate` (branch 0 = novo → continua; branch 1 = duplicata → pipeline para), `Redis SET - Mark Processed` (grava key com TTL 24h). Credencial `ML Redis` (ID: `xLcvYhoiv5J3BSs9`). Deduplicação real via Redis ativa. Workflow com 19 nós total.
 
 ---
 
