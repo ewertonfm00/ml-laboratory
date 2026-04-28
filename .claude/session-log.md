@@ -1,6 +1,90 @@
 # Session Log — AIOX Machine Learning Laboratory
 
 ---
+## Sessão 2026-04-27 (parte 3)
+
+### 1. Implementações
+
+**Commit `e8055e6` — push origin/main ✅ — 16 arquivos:**
+
+squad.yaml corrigidos (tasks não declaradas adicionadas):
+- `squads/ml-captura-squad/squad.yaml`: + debug-pipeline.md
+- `squads/ml-data-eng-squad/squad.yaml`: + build-etl-pipeline.md, design-schema.md
+- `squads/ml-marketing-squad/squad.yaml`: + execute-campaign.md
+- `squads/ml-plataforma-squad/squad.yaml`: + deploy-update.md, monitor-health.md, run-e2e-tests.md, validate-pipeline.md, seed-master.md, seed-catalog.md, seed-ai-agents.md
+
+Tasks criadas (GAP-001 fechado):
+- `squads/ml-plataforma-squad/tasks/run-e2e-tests.md`
+- `squads/ml-plataforma-squad/tasks/validate-pipeline.md`
+- `squads/ml-plataforma-squad/tasks/seed-master.md`
+- `squads/ml-plataforma-squad/tasks/seed-catalog.md`
+- `squads/ml-plataforma-squad/tasks/seed-ai-agents.md`
+
+autoClaude v1.0 → v3.0 (ml-captura + ml-plataforma):
+- `squads/ml-captura-squad/agents/n8n-encoding-sanitizer.md`
+- `squads/ml-captura-squad/agents/whatsapp-recovery-agent.md`
+- `squads/ml-captura-squad/agents/whatsapp-webhook-validator.md`
+- `squads/ml-plataforma-squad/agents/crm-sync-agent.md`
+- `squads/ml-plataforma-squad/agents/e2e-test-orchestrator.md`
+- `squads/ml-plataforma-squad/agents/monitor-agent.md`
+- `squads/ml-plataforma-squad/agents/seed-manager.md`
+
+### 2. Decisões
+
+- **Squad.yaml ML squads estavam maioritariamente corretos** — o erro era tasks reais não declaradas, não agentes listados como tasks (inferência errada da primeira análise)
+- **GAP-001 fechado via subagente** — 5 task files criados seguindo template de setup-infrastructure.md
+- **autoClaude v3.0 apenas para ML squads** — SHE fica em v1.0 (baixa prioridade, não bloqueia nada)
+- **Varredura global confirmou 72/72 agentes conformes** nos campos críticos do template após correções da sessão anterior
+
+### 3. Todos Ativos
+
+- [ ] GAP-006: auditar `whatsapp-recovery-agent` (ml-captura) — não coberto ainda
+- [ ] migrations: criar `ml_captura.diagnostic_runs` e `ml_captura.validation_log` → `@data-engineer`
+- [ ] seed SQL: número `tipo='multi'` para testes 2.7 e 2.8 → decisão de `@pm` ou `@po`
+- [ ] SHE (baixa prioridade): autoClaude v1.0 → v3.0 nos 14 agentes locais
+- [ ] entity-registry: desatualizado 132h (threshold 48h) — rodar `npx aiox-core install --force`
+
+---
+## Sessão 2026-04-27 (parte 2)
+
+### 1. Implementações
+
+**Commit `9e78f53` — push origin/main ✅ — 13 arquivos:**
+
+- `squads/software-house-elite/agents/icarus.md`: IDE-FILE-RESOLUTION corrigido (`.aiox-core/development/tasks/` → `squads/software-house-elite/tasks/`), campo `squad: software-house-elite` adicionado, footer `*Squad: software-house-elite | AIOX Agent v1.0*` adicionado
+- `squads/software-house-elite/agents/ai-engineer.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/enterprise-architect.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/frontend-specialist.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/lgpd-compliance.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/n8n-dev.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/sdet.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/security-architect.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/sre.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/agents/ux-research-lead.md`: comando `*session-info` adicionado
+- `squads/software-house-elite/squad.yaml`: `tasks_available: 10 → 21`, `last_audit: "2026-04-22" → "2026-04-27"`
+- `.claude/session-log.md`: entrada da sessão adicionada
+- `CONTEXT.md`: atualizado
+
+### 2. Decisões
+
+- **Icarus é o agente responsável por auditorias de agentes** — Claude Code genérico não deve executar esse papel
+- **Ciclo de auditoria deve ser fechado na mesma sessão**: auditar → prescrever → corrigir → commitar — prescrição sem execução é falha
+- **@icarus pode editar arquivos com autorização explícita do usuário** — regra de escopo flexibilizada por permissão direta
+- **@devops executa commit + push após correções de @icarus** — fluxo padrão mantido
+
+### 3. Todos Ativos
+
+**ml-plataforma-squad — GAPs ainda pendentes:**
+- [ ] GAP-001: criar `run-e2e-tests.md`, `validate-pipeline.md`, `seed-master.md`, `seed-catalog.md`, `seed-ai-agents.md`
+- [ ] GAP-004: migrations para `ml_captura.diagnostic_runs` e `ml_captura.validation_log`
+- [ ] GAP-003/007: seed SQL de número `tipo='multi'` para tasks 2.7 e 2.8 (via debug endpoint, sem segundo chip)
+- [ ] GAP-005: `e2e-test-orchestrator` autoClaude v1.0 → v3.0
+- [ ] GAP-006: auditar `whatsapp-recovery-agent` (não coberto ainda)
+
+**software-house-elite — pendência restante (baixa prioridade):**
+- [ ] autoClaude v1.0 → v3.0 nos 14 agentes locais (não bloqueia nenhum teste)
+
+---
 ## Sessão 2026-04-27
 
 ### 1. Implementações
@@ -1045,3 +1129,97 @@ Lógica de resolução no n8n (captura):
 - [ ] Squad ml-atendimento-squad: @analyst/@pm definir critérios de disparo das análises
 - [ ] `*enrich-segment estetica-equipamentos` → após primeiro deploy real de agente validado
 - [ ] @icarus ativo — aguardando comando do usuário para auditoria
+
+---
+## Sessão 2026-04-27 (parte 4)
+
+### 1. Implementações
+
+**Commit `da225cc` — push origin/main ✅ — 4 arquivos:**
+- `squads/ml-captura-squad/tasks/check-connection-status.md` — criado (whatsapp-recovery-agent)
+- `squads/ml-captura-squad/tasks/reconnect-whatsapp.md` — criado (whatsapp-recovery-agent)
+- `squads/ml-captura-squad/tasks/monitor-connection.md` — criado (whatsapp-recovery-agent)
+- `squads/ml-captura-squad/squad.yaml` — tasks check-connection-status, reconnect-whatsapp, monitor-connection adicionadas
+
+**Commit `7fbd936` — push origin/main ✅ — 2 arquivos:**
+- `database/migrations/022_captura_diagnostics_validation.sql` — tabelas diagnostic_runs (pipeline-debugger) + validation_log (webhook-validator)
+- `database/migrations/rollbacks/022_captura_diagnostics_validation_rollback.sql` — rollback correspondente
+
+### 2. Decisões
+
+- **GAP-006 encerrado**: whatsapp-recovery-agent declarava 3 tasks inexistentes — criadas e registradas no squad.yaml
+- **diagnostic_runs**: registra execuções do Trace (pipeline-debugger) — campos tipo (quick|full), root_cause, evidencias, steps_executados, correcao_aplicada
+- **validation_log**: append-only (sem updated_at), armazena só rejeições do Lex (webhook-validator) — payload_hash SHA-256, motivo_rejeicao codificado
+- **entity-registry WARN ignorado**: install --force sobrescreve settings.json (80 deny rules) — resolver com backup+restore quando necessário
+- **Seed tipo='multi' bloqueado**: não existe clínica com esse perfil ainda — aguarda caso real de negócio
+
+### 3. Todos ativos
+
+- [ ] SHE: autoClaude v1.0 → v3.0 nos 14 agentes do software-house-elite (baixa prioridade)
+- [ ] entity-registry 132h+ desatualizado: backup settings.json → install --force → restore (quando necessário)
+- [ ] Seed SQL tipo='multi': BLOQUEADO — aguarda clínica com serviço multi
+
+---
+## Sessão 2026-04-27 (parte 5)
+
+### 1. Implementações
+
+**Commit `ee6c8ec` — push origin/main ✅ — 14 arquivos:**
+- squads/software-house-elite/agents/*.md (todos 14): autoClaude v1.0 → v3.0
+  - version: '3.0', migratedAt: '2026-04-27T00:00:00.000Z'
+  - selfCritique removido (não consta no template v3.0)
+  - enterprise-architect.md: canExecute: false preservado (intencional)
+
+**Meta-auditoria (@icarus) — sem alterações, apenas verificação:**
+- 9 squads ML: tasks vs squad.yaml — 100% alinhado
+- 9 squads ML: agentes vs squad.yaml — 100% alinhado
+- 3 tasks criadas (check-connection, reconnect, monitor) — campos obrigatórios OK
+- 14 agentes SHE: version, migratedAt, exec_fields, mem_fields — todos corretos
+- 58/58 agentes ML em autoClaude v3.0
+
+### 2. Decisões
+
+- **SHE autoClaude v3.0**: selfCritique removido de todos os 14 agentes — não faz parte do template v3.0 padrão
+- **enterprise-architect canExecute: false**: preservado intencionalmente — agente de design, não executa código
+- **entity-registry WARN ignorado**: install --force sobrescreve settings.json (80 deny rules) — fix requer backup+restore manual
+- **Seed tipo='multi' bloqueado**: aguarda clínica real com serviço multi — não é gap técnico, é dependência de negócio
+- **Meta-auditoria limpa**: nenhum gap remanescente após verificação cruzada de todos os squads ML
+
+### 3. Todos ativos
+
+- [ ] entity-registry 132h+: backup settings.json → npx aiox-core install --force → restore (quando necessário)
+- [ ] Seed SQL tipo='multi': BLOQUEADO — aguarda clínica com serviço multi
+
+---
+## Sessão 2026-04-27 (parte 6)
+
+### 1. Implementações
+
+**Sincronização SHE → Omega Laser e Estetica.IA:**
+- Omega Laser: squads/software-house-elite/agents/*.md (14 arquivos) — v1.0 → v3.0 — commit 4fb4424 → push main ✅
+- Estetica.IA: squads/software-house-elite/agents/*.md (14 arquivos) — v1.0 → v3.0 — commit 1f8d74c → push master ✅
+
+**Migração vendas-consultivas-estetica (Omega Laser):**
+- squads/vendas-consultivas-estetica/agents/*.md (17 arquivos) — v1.0 → v3.0 — commit 51b9bcf → push main ✅
+- lead-registry.md: ignorado intencionalmente (type: service, não é agente de IA)
+- selfCritique removido de 7 agentes que tinham o campo
+
+**Meta-auditoria @icarus — verificação final:**
+- 3 projetos auditados: ML Laboratory, Omega Laser, Estetica.IA
+- Todos os squads e agentes verificados — nenhum gap remanescente
+
+### 2. Decisões
+
+- **lead-registry.md não migrado**: type: service, não possui frontmatter agent:, não é agente de IA — aplicar autoClaude seria incorreto
+- **Fluxo de sync entre projetos**: ML Laboratory é a fonte de verdade do SHE — atualizações devem ser aplicadas lá primeiro, depois copiadas via cp para Omega Laser e Estetica.IA
+- **selfCritique removido**: não faz parte do schema v3.0 — campo descontinuado
+
+### 3. Todos ativos
+
+- [ ] entity-registry 132h+: backup settings.json → npx aiox-core install --force → restore (quando necessário)
+- [ ] Seed SQL tipo='multi': BLOQUEADO — aguarda clínica com serviço multi
+
+**Estado final dos agentes (todos os projetos):**
+- ML Laboratory: 58 agentes ML + 14 SHE = 72 agentes — 100% em v3.0
+- Omega Laser: 14 SHE + 17 vendas-consultivas = 31 agentes — 100% em v3.0
+- Estetica.IA: 6 esteticaia-produto + 14 SHE = 20 agentes — 100% em v3.0
