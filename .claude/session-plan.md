@@ -9,6 +9,8 @@ _Criado em 2026-04-21 — atualizado pelo agente a cada task_
 - [ ] Seed SQL tipo='multi': BLOQUEADO — aguarda clínica com serviço multi
 
 ## Concluído
+- [x] Story 1.1 task 2.6: mono-agente validado em produção — 1.175 msgs, agente_humano_id = Kátia em 100% das sessões — 2026-04-28
+- [x] Onboarding parceiros externos: migration 024 + 8 arquivos Portal (admin, onboarding público, aba perfil, Sidebar, types) — 2026-04-28
 - [x] GAP-006: 3 tasks do whatsapp-recovery-agent criadas + squad.yaml atualizado — commit da225cc
 - [x] Migration 022: diagnostic_runs + validation_log — commit 7fbd936
 - [x] SHE: 14 agentes autoClaude v1.0 → v3.0 — commit ee6c8ec (+ sync Omega Laser e Estetica.IA)

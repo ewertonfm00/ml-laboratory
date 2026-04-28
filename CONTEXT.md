@@ -7,7 +7,8 @@
 ## Próximo passo imediato
 
 **PRIORIDADE 1:** Decidir atribuição multi-agente — Cenário B (1 número, vários atendentes): atribuição manual pelo supervisor ou automática (round-robin)?
-**PRIORIDADE 2:** Story 1.1 task 2.6 — teste mono-agente: enviar msg e confirmar `agente_humano_id` = Kátia
+**PRIORIDADE 2:** Story 1.1 tasks 2.7–2.8 — testes multi-agente (BLOQUEADO: aguarda decisão Cenário B)
+**PRIORIDADE 3:** Seed ai:sdr, ai:closer, ai:agendamento — após onboarding EsteticaIA
 
 ---
 
@@ -21,7 +22,7 @@
 - [ ] Avisar EsteticaIA: endpoint pronto em `/webhook/ml/external/esteticaia`
 
 ### TESTES
-- [ ] Story 1.1 task 2.6: teste mono-agente — enviar msg e confirmar `agente_humano_id` = Kátia
+- [x] Story 1.1 task 2.6: CONCLUÍDO — pipeline confirmado: 1.175 msgs capturadas, todas as sessões com `agente_humano_id = Kátia (55c1950e)` ✅ (2026-04-28)
 - [ ] Story 1.1 tasks 2.7–2.8: BLOQUEADAS (aguarda clínica multi-agente)
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
 

@@ -55,13 +55,19 @@ export default async function DashboardPage() {
         <p className="text-slate-400 mt-1">Painel de controle</p>
       </div>
 
-      {/* Quick action */}
-      <div className="mb-6">
+      {/* Quick actions */}
+      <div className="mb-6 flex flex-wrap gap-3">
         <Link
           href="/numeros/conectar"
           className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           ➕ Conectar Número WhatsApp
+        </Link>
+        <Link
+          href="/admin/parceiros/novo"
+          className="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          ➕ Novo Parceiro
         </Link>
       </div>
 

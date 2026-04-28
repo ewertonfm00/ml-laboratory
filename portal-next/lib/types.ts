@@ -179,6 +179,15 @@ export interface ClinicaKnowledgeBase {
   updated_at: string;
 }
 
+export interface ProjetoCompleto extends Projeto {
+  email?: string;
+  telefone?: string;
+  setor?: string;
+  onboarding_token?: string;
+  onboarding_status?: 'pendente' | 'conectado';
+  responsavel?: string;
+}
+
 export interface ConectarNumeroPayload {
   numero_whatsapp: string;
   projeto_id: string;

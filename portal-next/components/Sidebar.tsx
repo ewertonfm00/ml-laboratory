@@ -18,6 +18,11 @@ const menuItems = (slug: string) => [
     exact: true,
   },
   {
+    href: `/p/${slug}/perfil`,
+    label: 'Perfil',
+    icon: '🏢',
+  },
+  {
     href: `/p/${slug}/numeros`,
     label: 'Números',
     icon: '📱',
