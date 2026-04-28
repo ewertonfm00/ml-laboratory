@@ -1,0 +1,1208 @@
+{
+  "updatedAt": "2026-04-28T13:42:48.001Z",
+  "createdAt": "2026-04-14T03:52:05.207Z",
+  "id": "eM0qnKGXShlOuCsV",
+  "name": "[ML-CAPTURA] WhatsApp Pipeline",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/webhook/whatsapp",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Evolution API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "[ML-CAPTURA] Recebe eventos da Evolution API. Endpoint: /ml/webhook/whatsapp",
+      "webhookId": "44d24057-2aad-4db1-a4cb-377834273ea9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evolution API real format\nconst body = $input.first().json.body || $input.first().json;\nconst eventRaw = body.event || body.type || '';\nconst event = eventRaw.toLowerCase().replace(/_/g, '.');\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\nconst data = body.data || {};\nconst message = data.message || {};\nconst key = data.key || {};\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\nconst tipo = message.audioMessage ? 'audio' : message.imageMessage ? 'image' : message.documentMessage ? 'document' : 'text';\nconst conteudo = message.conversation || message.extendedTextMessage?.text || null;\nreturn [{ json: { event, tipo, from_me: key.fromMe || false, session_id: body.instance || $env.ML_EVOLUTION_INSTANCE, remote_jid: key.remoteJid, push_name: data.pushName || null, message_id: key.id || null, conteudo_raw: conteudo, audio_url: message.audioMessage?.url || null, duracao_audio: message.audioMessage?.seconds || null, metadados: body } }];"
+      },
+      "id": "normalize-payload",
+      "name": "Normalizar Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "notes": "Normaliza payload da Evolution API"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "=dedup:{{ $json.message_id }}"
+      },
+      "id": "redis-get-check-dedup",
+      "name": "Redis GET - Check Dedup",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ],
+      "credentials": {
+        "redis": {
+          "id": "xLcvYhoiv5J3BSs9",
+          "name": "ML Redis"
+        }
+      },
+      "notes": "Verifica se message_id ja foi processado. Retorna valor se duplicata, null se novo.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.value }}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-is-duplicate",
+      "name": "IF - Is Duplicate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        880,
+        300
+      ],
+      "notes": "Branch 0 (true) = vazio/null = mensagem nova. Branch 1 (false) = duplicata, pipeline para."
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=dedup:{{ $(\"Normalizar Payload\").first().json.message_id }}",
+        "value": "1",
+        "keyType": "automatic",
+        "expire": true,
+        "ttl": 86400
+      },
+      "id": "redis-set-mark-processed",
+      "name": "Redis SET - Mark Processed",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        180
+      ],
+      "credentials": {
+        "redis": {
+          "id": "xLcvYhoiv5J3BSs9",
+          "name": "ML Redis"
+        }
+      },
+      "notes": "Marca message_id como processado no Redis com TTL 24h (86400s).",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $(\"Normalizar Payload\").item.json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "lookup-setor",
+      "name": "Lookup Setor",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Busca setor, tipo e agente_default_id do numero. Fallback: comercial"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $(\"Normalizar Payload\").first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || 'mono';\nconst agente_default_id = lookup.agente_default_id || null;\nconst numero_id = lookup.numero_id || null;\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id, numero_id } }];"
+      },
+      "id": "enrich-setor",
+      "name": "Enriquecer com Setor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        180
+      ],
+      "notes": "Propaga setor, tipo, agente_default_id e numero_id."
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.audio_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "download-audio",
+      "name": "Download Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        60
+      ],
+      "notes": "Baixa o arquivo de audio do WhatsApp para transcricao"
+    },
+    {
+      "parameters": {
+        "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer GROQ_API_KEY_PLACEHOLDER"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "value": "={{ $binary.data }}",
+              "parameterType": "formBinaryData"
+            },
+            {
+              "name": "model",
+              "value": "={{ $vars.ML_GROQ_WHISPER_MODEL || 'whisper-large-v3' }}"
+            },
+            {
+              "name": "language",
+              "value": "={{ $vars.ML_GROQ_WHISPER_LANGUAGE || 'pt' }}"
+            },
+            {
+              "name": "response_format",
+              "value": "verbose_json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "groq-whisper",
+      "name": "Groq Whisper - Transcricao",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2180,
+        60
+      ],
+      "notes": "[ML-CAPTURA] Transcreve audio WhatsApp via Groq Whisper API"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $(\"Enriquecer com Setor\").first().json;\nconst whisper = $input.first().json;\nreturn [{ json: { mensagem: { area: payload.area, fonte: 'whatsapp', session_id: payload.session_id, remote_jid: payload.remote_jid, message_id: payload.message_id, tipo: 'audio', conteudo_raw: whisper.text, audio_url: payload.audio_url, duracao_audio: payload.duracao_audio, status: 'processada', metadados: payload.metadados }, transcricao: { texto: whisper.text, idioma: whisper.language || 'pt', confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null, provider: 'groq-whisper' } } }];"
+      },
+      "id": "prepare-audio-data",
+      "name": "Preparar Dados Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json;\nreturn [{ json: { mensagem: { area: payload.area, fonte: 'whatsapp', session_id: payload.session_id, projeto_id: payload.projeto_id, remote_jid: payload.remote_jid, message_id: payload.message_id, tipo: 'text', conteudo_raw: payload.conteudo_raw, audio_url: null, duracao_audio: null, status: 'processada', metadados: payload.metadados }, transcricao: null } }];"
+      },
+      "id": "prepare-text-data",
+      "name": "Preparar Dados Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : 'NULL' }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : 'NULL' }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
+        "additionalFields": {}
+      },
+      "id": "insert-mensagem-raw",
+      "name": "Inserir ml_captura.mensagens_raw",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2620,
+        180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Salva mensagem bruta - ON CONFLICT para idempotencia"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  '{{ $(\"Inserir ml_captura.mensagens_raw\").first().json.id }}'::uuid,\n  '{{ $(\"Preparar Dados Audio\").item.json.transcricao.texto }}',\n  '{{ $(\"Preparar Dados Audio\").item.json.transcricao.idioma || \"pt\" }}',\n  {{ $(\"Preparar Dados Audio\").item.json.transcricao.confianca }},\n  'groq-whisper'\n)",
+        "additionalFields": {}
+      },
+      "id": "insert-transcricao",
+      "name": "Inserir ml_captura.transcricoes_audio",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2840,
+        60
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Salva transcricao do audio",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, contato_nome, status, agente_humano_id)\nVALUES (\n  '{{ $(\"Resolver Atendente\").first().json.projeto_id }}'::uuid,\n  '{{ $(\"Resolver Atendente\").first().json.area }}',\n  '{{ $(\"Resolver Atendente\").first().json.remote_jid }}',\n  {{ $(\"Resolver Atendente\").first().json.push_name ? \"'\" + $(\"Resolver Atendente\").first().json.push_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  'ativa',\n  {{ $(\"Resolver Atendente\").first().json.agente_humano_id ? \"'\" + $(\"Resolver Atendente\").first().json.agente_humano_id + \"'::uuid\" : 'NULL' }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO UPDATE\nSET total_mensagens = ml_captura.sessoes_conversa.total_mensagens + 1,\n    updated_at      = NOW(),\n    agente_humano_id = COALESCE(ml_captura.sessoes_conversa.agente_humano_id, EXCLUDED.agente_humano_id),\n    contato_nome = COALESCE(ml_captura.sessoes_conversa.contato_nome, EXCLUDED.contato_nome);"
+      },
+      "id": "upsert-sessao",
+      "name": "Upsert ml_captura.sessoes_conversa",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2840,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Cria ou atualiza sessao de conversa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nconsole.error('[ML-CAPTURA] Erro no pipeline:', JSON.stringify({ timestamp: new Date().toISOString(), error: error.message || 'Erro desconhecido', node: $runIndex }));\nreturn [{ json: { status: 'error_logged', error: error.message } }];"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        560
+      ],
+      "notes": "Captura erros sem derrubar o workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'audio');"
+      },
+      "id": "filter-audio",
+      "name": "Filtro Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'text');"
+      },
+      "id": "filter-text",
+      "name": "Filtro Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  '{{ $json.numero_tipo }}' AS numero_tipo,\n  (\n    SELECT id::text\n    FROM _plataforma.agentes_humanos\n    WHERE identificador_externo = '{{ $json.identificador_externo }}'\n      AND numero_id = '{{ $json.numero_id }}'::uuid\n      AND ativo = true\n    LIMIT 1\n  ) AS agente_multi_id",
+        "additionalFields": {}
+      },
+      "id": "lookup-agente-multi",
+      "name": "Lookup Agente Multi",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1740,
+        180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "continueOnFail": true,
+      "notes": "Sempre retorna 1 linha. agente_multi_id=NULL se nao encontrar."
+    },
+    {
+      "parameters": {
+        "jsCode": "const dados = $(\"Enriquecer com Setor\").first().json;\nconst tipo = dados.numero_tipo || 'mono';\nlet agente_humano_id = null;\nif (tipo === 'mono') {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  try {\n    const r = $(\"Lookup Agente Multi\").first().json;\n    agente_humano_id = r.agente_multi_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\nreturn [{ json: { ...dados, agente_humano_id } }];"
+      },
+      "id": "resolver-atendente",
+      "name": "Resolver Atendente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        180
+      ],
+      "notes": "Resolve agente_humano_id: mono -> agente_default_id; multi -> lookup result."
+    }
+  ],
+  "connections": {
+    "Webhook - Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Payload": {
+      "main": [
+        [
+          {
+            "node": "Redis GET - Check Dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis GET - Check Dedup": {
+      "main": [
+        [
+          {
+            "node": "IF - Is Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Is Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Redis SET - Mark Processed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Redis SET - Mark Processed": {
+      "main": [
+        [
+          {
+            "node": "Lookup Setor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Setor": {
+      "main": [
+        [
+          {
+            "node": "Enriquecer com Setor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enriquecer com Setor": {
+      "main": [
+        [
+          {
+            "node": "Lookup Agente Multi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Groq Whisper - Transcricao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Whisper - Transcricao": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados Audio": {
+      "main": [
+        [
+          {
+            "node": "Inserir ml_captura.mensagens_raw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Dados Texto": {
+      "main": [
+        [
+          {
+            "node": "Inserir ml_captura.mensagens_raw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inserir ml_captura.mensagens_raw": {
+      "main": [
+        [
+          {
+            "node": "Inserir ml_captura.transcricoes_audio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upsert ml_captura.sessoes_conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro Audio": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro Texto": {
+      "main": [
+        [
+          {
+            "node": "Preparar Dados Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Agente Multi": {
+      "main": [
+        [
+          {
+            "node": "Resolver Atendente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver Atendente": {
+      "main": [
+        [
+          {
+            "node": "Filtro Audio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filtro Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "America/Sao_Paulo",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "9e3b9af9-e3bd-4efa-9667-da1300c4ddf7",
+  "activeVersionId": "9e3b9af9-e3bd-4efa-9667-da1300c4ddf7",
+  "versionCounter": 85,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-04-14T03:52:05.207Z",
+      "createdAt": "2026-04-14T03:52:05.207Z",
+      "role": "workflow:owner",
+      "workflowId": "eM0qnKGXShlOuCsV",
+      "projectId": "VTEL9tW4c5DUE6pG",
+      "project": {
+        "updatedAt": "2026-04-10T16:05:13.498Z",
+        "createdAt": "2026-04-09T20:59:27.605Z",
+        "id": "VTEL9tW4c5DUE6pG",
+        "name": "Ewerton ML <ewertonfm00@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-04-28T13:42:48.006Z",
+    "createdAt": "2026-04-28T13:42:48.006Z",
+    "versionId": "9e3b9af9-e3bd-4efa-9667-da1300c4ddf7",
+    "workflowId": "eM0qnKGXShlOuCsV",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "ml/webhook/whatsapp",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "id": "webhook-trigger",
+        "name": "Webhook - Evolution API",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1.1,
+        "position": [
+          240,
+          300
+        ],
+        "notes": "[ML-CAPTURA] Recebe eventos da Evolution API. Endpoint: /ml/webhook/whatsapp",
+        "webhookId": "44d24057-2aad-4db1-a4cb-377834273ea9"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Evolution API real format\nconst body = $input.first().json.body || $input.first().json;\nconst eventRaw = body.event || body.type || '';\nconst event = eventRaw.toLowerCase().replace(/_/g, '.');\nconst messageEvents = ['messages.upsert', 'messages.update'];\nif (!messageEvents.includes(event)) return [];\nconst data = body.data || {};\nconst message = data.message || {};\nconst key = data.key || {};\nif (event === 'messages.update' && !message.conversation && !message.extendedTextMessage) return [];\nconst tipo = message.audioMessage ? 'audio' : message.imageMessage ? 'image' : message.documentMessage ? 'document' : 'text';\nconst conteudo = message.conversation || message.extendedTextMessage?.text || null;\nreturn [{ json: { event, tipo, from_me: key.fromMe || false, session_id: body.instance || $env.ML_EVOLUTION_INSTANCE, remote_jid: key.remoteJid, push_name: data.pushName || null, message_id: key.id || null, conteudo_raw: conteudo, audio_url: message.audioMessage?.url || null, duracao_audio: message.audioMessage?.seconds || null, metadados: body } }];"
+        },
+        "id": "normalize-payload",
+        "name": "Normalizar Payload",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          460,
+          300
+        ],
+        "notes": "Normaliza payload da Evolution API"
+      },
+      {
+        "parameters": {
+          "operation": "get",
+          "key": "=dedup:{{ $json.message_id }}"
+        },
+        "id": "redis-get-check-dedup",
+        "name": "Redis GET - Check Dedup",
+        "type": "n8n-nodes-base.redis",
+        "typeVersion": 1,
+        "position": [
+          680,
+          300
+        ],
+        "credentials": {
+          "redis": {
+            "id": "xLcvYhoiv5J3BSs9",
+            "name": "ML Redis"
+          }
+        },
+        "notes": "Verifica se message_id ja foi processado. Retorna valor se duplicata, null se novo.",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "string": [
+              {
+                "value1": "={{ $json.value }}",
+                "operation": "isEmpty"
+              }
+            ]
+          }
+        },
+        "id": "if-is-duplicate",
+        "name": "IF - Is Duplicate",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          880,
+          300
+        ],
+        "notes": "Branch 0 (true) = vazio/null = mensagem nova. Branch 1 (false) = duplicata, pipeline para."
+      },
+      {
+        "parameters": {
+          "operation": "set",
+          "key": "=dedup:{{ $(\"Normalizar Payload\").first().json.message_id }}",
+          "value": "1",
+          "keyType": "automatic",
+          "expire": true,
+          "ttl": 86400
+        },
+        "id": "redis-set-mark-processed",
+        "name": "Redis SET - Mark Processed",
+        "type": "n8n-nodes-base.redis",
+        "typeVersion": 1,
+        "position": [
+          1080,
+          180
+        ],
+        "credentials": {
+          "redis": {
+            "id": "xLcvYhoiv5J3BSs9",
+            "name": "ML Redis"
+          }
+        },
+        "notes": "Marca message_id como processado no Redis com TTL 24h (86400s).",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT\n  COALESCE(np.setor::text, 'comercial') AS area,\n  np.id AS numero_id,\n  np.projeto_id,\n  np.tipo AS numero_tipo,\n  np.agente_default_id\nFROM _plataforma.numeros_projeto np\nJOIN _plataforma.instancias_evolution ie ON ie.id = np.instancia_id\nWHERE ie.instance_name = '{{ $(\"Normalizar Payload\").item.json.session_id }}'\n  AND np.ativo = true\nLIMIT 1",
+          "additionalFields": {}
+        },
+        "id": "lookup-setor",
+        "name": "Lookup Setor",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1300,
+          180
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "Busca setor, tipo e agente_default_id do numero. Fallback: comercial"
+      },
+      {
+        "parameters": {
+          "jsCode": "const payload = $(\"Normalizar Payload\").first().json;\nconst lookup = $input.first().json;\nconst area = lookup.area || 'comercial';\nconst projeto_id = lookup.projeto_id || null;\nconst numero_tipo = lookup.numero_tipo || 'mono';\nconst agente_default_id = lookup.agente_default_id || null;\nconst numero_id = lookup.numero_id || null;\nreturn [{ json: { ...payload, area, projeto_id, numero_tipo, agente_default_id, numero_id } }];"
+        },
+        "id": "enrich-setor",
+        "name": "Enriquecer com Setor",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1520,
+          180
+        ],
+        "notes": "Propaga setor, tipo, agente_default_id e numero_id."
+      },
+      {
+        "parameters": {
+          "url": "={{ $json.audio_url }}",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "file"
+              }
+            }
+          }
+        },
+        "id": "download-audio",
+        "name": "Download Audio",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1960,
+          60
+        ],
+        "notes": "Baixa o arquivo de audio do WhatsApp para transcricao"
+      },
+      {
+        "parameters": {
+          "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+          "authentication": "none",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "Bearer GROQ_API_KEY_PLACEHOLDER"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "multipart-form-data",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "file",
+                "value": "={{ $binary.data }}",
+                "parameterType": "formBinaryData"
+              },
+              {
+                "name": "model",
+                "value": "={{ $vars.ML_GROQ_WHISPER_MODEL || 'whisper-large-v3' }}"
+              },
+              {
+                "name": "language",
+                "value": "={{ $vars.ML_GROQ_WHISPER_LANGUAGE || 'pt' }}"
+              },
+              {
+                "name": "response_format",
+                "value": "verbose_json"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "id": "groq-whisper",
+        "name": "Groq Whisper - Transcricao",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2180,
+          60
+        ],
+        "notes": "[ML-CAPTURA] Transcreve audio WhatsApp via Groq Whisper API"
+      },
+      {
+        "parameters": {
+          "jsCode": "const payload = $(\"Enriquecer com Setor\").first().json;\nconst whisper = $input.first().json;\nreturn [{ json: { mensagem: { area: payload.area, fonte: 'whatsapp', session_id: payload.session_id, remote_jid: payload.remote_jid, message_id: payload.message_id, tipo: 'audio', conteudo_raw: whisper.text, audio_url: payload.audio_url, duracao_audio: payload.duracao_audio, status: 'processada', metadados: payload.metadados }, transcricao: { texto: whisper.text, idioma: whisper.language || 'pt', confianca: whisper.segments?.[0]?.avg_logprob ? Math.exp(whisper.segments[0].avg_logprob) : null, provider: 'groq-whisper' } } }];"
+        },
+        "id": "prepare-audio-data",
+        "name": "Preparar Dados Audio",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2400,
+          60
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const payload = $input.first().json;\nreturn [{ json: { mensagem: { area: payload.area, fonte: 'whatsapp', session_id: payload.session_id, projeto_id: payload.projeto_id, remote_jid: payload.remote_jid, message_id: payload.message_id, tipo: 'text', conteudo_raw: payload.conteudo_raw, audio_url: null, duracao_audio: null, status: 'processada', metadados: payload.metadados }, transcricao: null } }];"
+        },
+        "id": "prepare-text-data",
+        "name": "Preparar Dados Texto",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1960,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO ml_captura.mensagens_raw (\n  projeto_id, area, fonte, session_id, remote_jid, message_id,\n  tipo, conteudo_raw, audio_url, duracao_audio, status, metadados\n) VALUES (\n  '{{ $json.mensagem.projeto_id }}'::uuid,\n  '{{ $json.mensagem.area }}',\n  '{{ $json.mensagem.fonte }}',\n  '{{ $json.mensagem.session_id }}',\n  '{{ $json.mensagem.remote_jid }}',\n  '{{ $json.mensagem.message_id }}',\n  '{{ $json.mensagem.tipo }}',\n  '{{ $json.mensagem.conteudo_raw }}',\n  {{ $json.mensagem.audio_url ? \"'\" + $json.mensagem.audio_url + \"'\" : 'NULL' }},\n  {{ $json.mensagem.duracao_audio !== null ? $json.mensagem.duracao_audio : 'NULL' }},\n  '{{ $json.mensagem.status }}',\n  '{{ JSON.stringify($json.mensagem.metadados) }}'::jsonb\n)\nON CONFLICT (message_id) DO NOTHING\nRETURNING id;",
+          "additionalFields": {}
+        },
+        "id": "insert-mensagem-raw",
+        "name": "Inserir ml_captura.mensagens_raw",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2620,
+          180
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "Salva mensagem bruta - ON CONFLICT para idempotencia"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO ml_captura.transcricoes_audio (mensagem_id, texto, idioma, confianca, provider)\nVALUES (\n  '{{ $(\"Inserir ml_captura.mensagens_raw\").first().json.id }}'::uuid,\n  '{{ $(\"Preparar Dados Audio\").item.json.transcricao.texto }}',\n  '{{ $(\"Preparar Dados Audio\").item.json.transcricao.idioma || \"pt\" }}',\n  {{ $(\"Preparar Dados Audio\").item.json.transcricao.confianca }},\n  'groq-whisper'\n)",
+          "additionalFields": {}
+        },
+        "id": "insert-transcricao",
+        "name": "Inserir ml_captura.transcricoes_audio",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2840,
+          60
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "Salva transcricao do audio",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO ml_captura.sessoes_conversa (projeto_id, area, remote_jid, contato_nome, status, agente_humano_id)\nVALUES (\n  '{{ $(\"Resolver Atendente\").first().json.projeto_id }}'::uuid,\n  '{{ $(\"Resolver Atendente\").first().json.area }}',\n  '{{ $(\"Resolver Atendente\").first().json.remote_jid }}',\n  {{ $(\"Resolver Atendente\").first().json.push_name ? \"'\" + $(\"Resolver Atendente\").first().json.push_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  'ativa',\n  {{ $(\"Resolver Atendente\").first().json.agente_humano_id ? \"'\" + $(\"Resolver Atendente\").first().json.agente_humano_id + \"'::uuid\" : 'NULL' }}\n)\nON CONFLICT (projeto_id, area, remote_jid) DO UPDATE\nSET total_mensagens = ml_captura.sessoes_conversa.total_mensagens + 1,\n    updated_at      = NOW(),\n    agente_humano_id = COALESCE(ml_captura.sessoes_conversa.agente_humano_id, EXCLUDED.agente_humano_id),\n    contato_nome = COALESCE(ml_captura.sessoes_conversa.contato_nome, EXCLUDED.contato_nome);"
+        },
+        "id": "upsert-sessao",
+        "name": "Upsert ml_captura.sessoes_conversa",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2840,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "Cria ou atualiza sessao de conversa"
+      },
+      {
+        "parameters": {
+          "jsCode": "const error = $input.first().json;\nconsole.error('[ML-CAPTURA] Erro no pipeline:', JSON.stringify({ timestamp: new Date().toISOString(), error: error.message || 'Erro desconhecido', node: $runIndex }));\nreturn [{ json: { status: 'error_logged', error: error.message } }];"
+        },
+        "id": "error-handler",
+        "name": "Error Handler",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2180,
+          560
+        ],
+        "notes": "Captura erros sem derrubar o workflow"
+      },
+      {
+        "parameters": {
+          "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'audio');"
+        },
+        "id": "filter-audio",
+        "name": "Filtro Audio",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1960,
+          60
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const items = $input.all();\nreturn items.filter(item => item.json.tipo === 'text');"
+        },
+        "id": "filter-text",
+        "name": "Filtro Texto",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1960,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT\n  '{{ $json.numero_tipo }}' AS numero_tipo,\n  (\n    SELECT id::text\n    FROM _plataforma.agentes_humanos\n    WHERE identificador_externo = '{{ $json.identificador_externo }}'\n      AND numero_id = '{{ $json.numero_id }}'::uuid\n      AND ativo = true\n    LIMIT 1\n  ) AS agente_multi_id",
+          "additionalFields": {}
+        },
+        "id": "lookup-agente-multi",
+        "name": "Lookup Agente Multi",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1740,
+          180
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "continueOnFail": true,
+        "notes": "Sempre retorna 1 linha. agente_multi_id=NULL se nao encontrar."
+      },
+      {
+        "parameters": {
+          "jsCode": "const dados = $(\"Enriquecer com Setor\").first().json;\nconst tipo = dados.numero_tipo || 'mono';\nlet agente_humano_id = null;\nif (tipo === 'mono') {\n  agente_humano_id = dados.agente_default_id || null;\n} else {\n  try {\n    const r = $(\"Lookup Agente Multi\").first().json;\n    agente_humano_id = r.agente_multi_id || null;\n  } catch (e) {\n    agente_humano_id = null;\n  }\n}\nreturn [{ json: { ...dados, agente_humano_id } }];"
+        },
+        "id": "resolver-atendente",
+        "name": "Resolver Atendente",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1960,
+          180
+        ],
+        "notes": "Resolve agente_humano_id: mono -> agente_default_id; multi -> lookup result."
+      }
+    ],
+    "connections": {
+      "Webhook - Evolution API": {
+        "main": [
+          [
+            {
+              "node": "Normalizar Payload",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalizar Payload": {
+        "main": [
+          [
+            {
+              "node": "Redis GET - Check Dedup",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Redis GET - Check Dedup": {
+        "main": [
+          [
+            {
+              "node": "IF - Is Duplicate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - Is Duplicate": {
+        "main": [
+          [
+            {
+              "node": "Redis SET - Mark Processed",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Redis SET - Mark Processed": {
+        "main": [
+          [
+            {
+              "node": "Lookup Setor",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Lookup Setor": {
+        "main": [
+          [
+            {
+              "node": "Enriquecer com Setor",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Enriquecer com Setor": {
+        "main": [
+          [
+            {
+              "node": "Lookup Agente Multi",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download Audio": {
+        "main": [
+          [
+            {
+              "node": "Groq Whisper - Transcricao",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Groq Whisper - Transcricao": {
+        "main": [
+          [
+            {
+              "node": "Preparar Dados Audio",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar Dados Audio": {
+        "main": [
+          [
+            {
+              "node": "Inserir ml_captura.mensagens_raw",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar Dados Texto": {
+        "main": [
+          [
+            {
+              "node": "Inserir ml_captura.mensagens_raw",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Inserir ml_captura.mensagens_raw": {
+        "main": [
+          [
+            {
+              "node": "Inserir ml_captura.transcricoes_audio",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Upsert ml_captura.sessoes_conversa",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filtro Audio": {
+        "main": [
+          [
+            {
+              "node": "Download Audio",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filtro Texto": {
+        "main": [
+          [
+            {
+              "node": "Preparar Dados Texto",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Lookup Agente Multi": {
+        "main": [
+          [
+            {
+              "node": "Resolver Atendente",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Resolver Atendente": {
+        "main": [
+          [
+            {
+              "node": "Filtro Audio",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Filtro Texto",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Ewerton ML",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-04-28T13:42:48.143Z",
+        "id": 142,
+        "workflowId": "eM0qnKGXShlOuCsV",
+        "versionId": "9e3b9af9-e3bd-4efa-9667-da1300c4ddf7",
+        "event": "deactivated",
+        "userId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+      },
+      {
+        "createdAt": "2026-04-28T13:42:48.205Z",
+        "id": 143,
+        "workflowId": "eM0qnKGXShlOuCsV",
+        "versionId": "9e3b9af9-e3bd-4efa-9667-da1300c4ddf7",
+        "event": "activated",
+        "userId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+      }
+    ]
+  }
+}

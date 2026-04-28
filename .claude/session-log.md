@@ -1,6 +1,199 @@
 # Session Log — AIOX Machine Learning Laboratory
 
 ---
+## Sessão 2026-04-28 (parte 5 — compact final)
+
+### 1. Implementações
+
+**Pipeline ML-ANALISE (`UthiBdEQma4DiVhL`) — FUNCIONANDO** — primeira execução `status=success` às 15:35 UTC
+
+**Nós reescritos no workflow:**
+- `extrair-analise` (Code): SQL builder com escaping manual, defaults para todos os campos enum, `objecoes` e `sessao_id` no output
+- `salvar-analise` (Postgres): `query: {{ $json.query }}` — remove dependência de queryParams
+- `atualizar-objecoes` (Postgres): `SELECT 1 AS objecoes_skip` (no-op temporário — débito técnico)
+- `encerrar-sessao` (Postgres): query expression usando `$('Preparar Prompt Claude').first().json.sessao_id`
+
+**8 bugs corrigidos em cadeia:**
+1. JOIN errado: `session_id = s.id::text` → `m.remote_jid = s.remote_jid`
+2. method GET → POST na API Anthropic
+3. API key Anthropic ausente no header (hardcoded)
+4. `additionalFields.queryParams` ignorado pelo driver → SQL builder no Code node
+5. `varchar(255)` overflow em `padrao_detectado` → `slice(0, 250)`
+6. `ON CONFLICT (sessao_id)` sem unique constraint → `DO NOTHING`
+7. Double-encoding nos nomes dos nós → usar nome garbled ou nó ASCII
+8. IIFE não suportada em query expressions → simplificado para no-op
+
+**Resultado confirmado:**
+- `ml_comercial.conversas` inseriu id `6add87e8-b7e8-4bc8-a4c8-0999b9480f18`
+- `encerrar-sessao` retornou `success: true`
+- Pipeline processa 49 sessões elegíveis a cada 5 min automaticamente
+
+**Arquivo temporário:** `extrair_fix.js` na raiz do projeto (pode deletar)
+
+### 2. Decisões
+
+- **SQL builder no Code node**: `additionalFields.queryParams` ignorado no n8n desta versão — construir SQL completo com escaping manual é a única abordagem confiável
+- **ON CONFLICT DO NOTHING**: sem unique constraint em `sessao_id` na tabela `ml_comercial.conversas`
+- **padrao_detectado truncado a 250**: coluna `varchar(255)` — Claude pode retornar texto longo
+- **encerrar-sessao usa Preparar Prompt Claude**: nó ASCII puro, evita problema de double-encoding nos nomes
+- **atualizar-objecoes como no-op**: IIFE JavaScript não suportada em query expressions do n8n — débito técnico para implementar como Code node separado
+- **objecoes + sessao_id no output de extrair-analise**: necessário para nós downstream acessarem via referência de nó
+
+### 3. Todos ativos
+
+- [ ] **atualizar-objecoes — DÉBITO TÉCNICO**: reimplementar catalogação de objeções como Code node + Postgres (IIFE não funciona em query expression do n8n)
+- [ ] Exportar JSON atualizado dos workflows `eM0qnKGXShlOuCsV` e `UthiBdEQma4DiVhL`
+- [ ] entity-registry: backup settings.json → install --force → restore
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+- [ ] Story 1.1 tasks 2.7 e 2.8 — BLOQUEADAS (aguarda clínica multi-agente)
+- [ ] Deletar `extrair_fix.js` da raiz do projeto
+
+---
+## Sessão 2026-04-28 (parte 4 — compact)
+
+### 1. Implementações
+
+**Workflow `UthiBdEQma4DiVhL` (ML-ANALISE) — 4 nós reescritos:**
+
+- `extrair-analise` (Code node): novo SQL builder com escaping manual, defaults para todos os campos, `objecoes` e `sessao_id` passados no output para nós downstream
+- `salvar-analise` (Postgres): simplificado para `query: {{ $json.query }}` — remove dependência de `additionalFields.queryParams`
+- `atualizar-objecoes` (Postgres): query expression que constrói INSERT SQL inline via objecoes de `$('Extrair Análise do Claude')`
+- `encerrar-sessao` (Postgres): query expression com `sessao_id` via `$('Extrair Análise do Claude').first().json.sessao_id`
+
+**Bugs corrigidos nesta sessão:**
+- Bug #4: `additionalFields.queryParams` ignorado pelo driver → SQL builder no Code node
+- Bug #5: `varchar(255)` overflow em `padrao_detectado` → `slice(0, 250)`
+- Bug #6: `ON CONFLICT (sessao_id)` sem unique constraint → revertido para `DO NOTHING`
+- Bug #7: `atualizar-objecoes` e `encerrar-sessao` mesma falha queryParams → expressions inline
+
+**Arquivo temporário criado:** `extrair_fix.js` (pode deletar após confirmação)
+
+### 2. Decisões
+
+- **SQL builder no Code node**: `additionalFields.queryParams` é ignorado pelo driver n8n Postgres nesta versão — construir SQL completo com escaping manual é a única abordagem confiável
+- **ON CONFLICT DO NOTHING**: `ml_comercial.conversas` não tem unique constraint em `sessao_id` — DO NOTHING genérico é o correto
+- **padrao_detectado truncado a 250**: coluna `varchar(255)` — Claude pode retornar texto longo
+- **objecoes + sessao_id no output de extrair-analise**: necessário para que nós downstream (`atualizar-objecoes`, `encerrar-sessao`) acessem via `$('Extrair Análise do Claude')`
+
+### 3. Todos ativos
+
+- [ ] **CONFIRMAR pipeline completo** (PRIORIDADE): verificar se execução após 15:21 UTC passou sem erros em todos os nós — monitor boqx3l31w aguardando id > 27844
+- [ ] Story 1.1 tasks 2.7 e 2.8 — BLOQUEADAS (aguarda clínica multi-agente)
+- [ ] Exportar JSON atualizado: `eM0qnKGXShlOuCsV` e `UthiBdEQma4DiVhL`
+- [ ] entity-registry: backup settings.json → install --force → restore
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+- [ ] Deletar `extrair_fix.js` temporário após confirmação
+
+---
+## Sessão 2026-04-28 (parte 3)
+
+### 1. Implementações
+
+**Bug #4 — API key Anthropic ausente no workflow `UthiBdEQma4DiVhL`:**
+- Header `x-api-key` usava `{{ $env.ML_ANTHROPIC_API_KEY }}` — variável não definida no n8n
+- Railway token inválido impossibilitou configurar via Railway API
+- Fix: chave configurada diretamente no header do nó `Claude Haiku — Analisar Conversa`
+- `updatedAt: 2026-04-28T14:41:32Z`
+- Chave salva em `memory/credentials.md` (seção Anthropic)
+
+**Estado do workflow `UthiBdEQma4DiVhL` após todos os fixes:**
+- JOIN corrigido: `m.remote_jid = s.remote_jid` (era `m.session_id = s.id::text`)
+- method=POST configurado no nó httpRequest Claude Haiku
+- x-api-key: chave Anthropic direta no header
+- Aguardando execução às 14:45 UTC para confirmar
+
+### 2. Decisões
+
+- **API key hardcoded no header**: Railway token expirado + n8n sem credential type Anthropic nativo → solução direta no workflow
+- **Chave salva em credentials.md**: disponível em sessões futuras sem precisar re-informar
+
+### 3. Todos ativos
+
+- [ ] **CONFIRMAR análises (PRIORIDADE)**: próxima execução 14:45 UTC — verificar se `ml_comercial.conversas` começa a ser populada (49 sessões elegíveis)
+- [ ] Story 1.1 tasks 2.7 e 2.8 — BLOQUEADAS (aguarda clínica multi-agente)
+- [ ] n8n JSON local desatualizado — exportar versão atual dos 2 workflows editados (`eM0qnKGXShlOuCsV` e `UthiBdEQma4DiVhL`)
+- [ ] entity-registry: backup settings.json → install --force → restore
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+
+---
+## Sessão 2026-04-28 (parte 2)
+
+### 1. Implementações
+
+**Bug #1 — Lookup Setor perdendo session_id (workflow ML-CAPTURA `eM0qnKGXShlOuCsV`):**
+- Redis SET sobrescreve `$json` com `{propertyName: null}`, zerando contexto downstream
+- Fix: `$json.session_id` → `$("Normalizar Payload").item.json.session_id` no nó Lookup Setor
+- `updatedAt: 2026-04-28T13:42:48Z` — confirmado com mensagem "Teste 123—- 123" entrando no banco
+
+**Redis Dedup Check validado:**
+- Payload duplicado enviado com message_id real (`A552E38E55774874BF30D064410E618F`)
+- Banco ficou com `count=1` — ✅ dedup funcionou com mensagem real do usuário
+
+**Migration 022 aplicada em produção:**
+- `ml_captura.diagnostic_runs` + `ml_captura.validation_log` criadas com triggers e grants
+
+**Story 1.1 task 2.6 concluída:**
+- `sessoes_conversa.agente_humano_id` = Kátia Cosmobeauty (`55c1950e-...`) confirmado nas sessões recentes
+- Checkbox `[x] 2.6` marcado na story
+
+**Bug #2 — Análise de Conversa não populava `ml_comercial.conversas` (workflow `UthiBdEQma4DiVhL`):**
+- JOIN `m.session_id = s.id::text` nunca batia — `mensagens_raw.session_id` é nome da instância, não UUID
+- Fix: `m.remote_jid = s.remote_jid` — 49 sessões elegíveis para análise
+- `updatedAt: 2026-04-28T14:13:11Z`
+
+**Bug #3 — Claude Haiku com method GET (mesmo workflow):**
+- Nó httpRequest sem `method` definido usava GET → `Method Not Allowed` na API Anthropic
+- Fix: `method=POST` adicionado — `updatedAt: 2026-04-28T14:17:04Z`
+
+### 2. Decisões
+
+- **JOIN por remote_jid**: `mensagens_raw.session_id` armazena nome da instância Evolution API, não UUID — linkagem deve ser por `remote_jid`
+- **Dois fixes no mesmo workflow `UthiBdEQma4DiVhL`**: JOIN + method=POST aplicados juntos
+- **49 sessões elegíveis** aguardando análise após fix (todas com 3+ mensagens, inativas 30+ min)
+
+### 3. Todos ativos
+
+- [ ] **CONFIRMAR análises**: verificar próxima execução às 14:20 UTC — espera-se que `ml_comercial.conversas` comece a ser populada
+- [ ] Story 1.1 tasks 2.7 e 2.8 — BLOQUEADAS (aguarda clínica multi-agente)
+- [ ] n8n JSON local desatualizado — exportar versão atual dos workflows editados
+- [ ] entity-registry: backup settings.json → install --force → restore
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+
+---
+## Sessão 2026-04-28
+
+### 1. Implementações
+
+**Fix crítico — workflow n8n `eM0qnKGXShlOuCsV` [ML-CAPTURA]:**
+- Nó `Lookup Setor` corrigido: expressão `$json.session_id` → `$("Normalizar Payload").item.json.session_id`
+- Aplicado via `PUT /api/v1/workflows/eM0qnKGXShlOuCsV` — `updatedAt: 2026-04-28T13:42:48Z`
+
+**Teste Redis Dedup Check:**
+- Validado com message_id `A552E38E55774874BF30D064410E618F` ("Serve para estrias?")
+- Enviamos payload duplicado via curl → banco ficou com `count=1` → ✅ dedup funcionou
+- Descoberta colateral: a mensagem enviada pelo usuário não era a usada no teste (era de outro número)
+
+**Bug identificado (raiz):**
+- `Redis SET - Mark Processed` (adicionado na sessão anterior) sobrescreve `$json` com `{"propertyName": null}`
+- Todos os nós downstream perdiam `session_id`, `remote_jid`, etc.
+- Resultado: `Lookup Setor` retornava vazio → pipeline parava → nenhuma mensagem era inserida no banco
+- Efeito: pipeline estava quebrado desde a implementação do Redis Dedup (sessão 2026-04-27)
+
+### 2. Decisões
+
+- **Fix via referência explícita ao nó**: usar `$("Normalizar Payload").item.json.session_id` em vez de `$json.session_id` para não depender do contexto sobrescrito pelo Redis SET
+- **Dedup confirmado funcionando**: a lógica Redis GET → IF → Redis SET está correta; o problema era só a perda de contexto downstream
+
+### 3. Todos ativos
+
+- [ ] **CONFIRMAR FIX**: usuário deve enviar mensagem e verificar se entra em `ml_captura.mensagens_raw`
+- [ ] Aplicar migration 022 em produção (`diagnostic_runs` + `validation_log`)
+- [ ] Story 1.1 task 2.6: teste mono-agente — confirmar `agente_humano_id` = Kátia
+- [ ] n8n JSON local desatualizado — workflow foi editado via API, exportar versão atual
+- [ ] entity-registry: backup settings.json → install --force → restore
+- [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+
+---
 ## Sessão 2026-04-27 (parte 3)
 
 ### 1. Implementações

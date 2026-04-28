@@ -1,0 +1,650 @@
+{
+  "updatedAt": "2026-04-28T15:31:19.734Z",
+  "createdAt": "2026-04-14T01:47:56.083Z",
+  "id": "UthiBdEQma4DiVhL",
+  "name": "[ML-COMERCIAL] AnÃ¡lise de Conversa",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "A cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "[ML-COMERCIAL] Verifica conversas encerradas prontas para anÃ¡lise"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  s.id          AS sessao_id,\n  s.remote_jid,\n  s.area,\n  s.total_mensagens,\n  s.iniciada_em,\n  s.agente_humano_id,\n  array_agg(\n    COALESCE(m.conteudo_raw, t.texto)\n    ORDER BY m.created_at\n  ) FILTER (WHERE COALESCE(m.conteudo_raw, t.texto) IS NOT NULL) AS mensagens\nFROM ml_captura.sessoes_conversa s\nJOIN ml_captura.mensagens_raw m ON m.remote_jid = s.remote_jid AND m.area = 'comercial'\nLEFT JOIN ml_captura.transcricoes_audio t ON t.mensagem_id = m.id\nWHERE\n  s.status = 'ativa'\n  AND s.area = 'comercial'\n  AND s.updated_at < NOW() - INTERVAL '30 minutes'\n  AND NOT EXISTS (\n    SELECT 1 FROM ml_comercial.conversas c\n    WHERE c.sessao_id = s.id\n  )\nGROUP BY s.id, s.remote_jid, s.area, s.total_mensagens, s.iniciada_em, s.agente_humano_id\nHAVING count(m.id) >= 3\nLIMIT 10",
+        "additionalFields": {}
+      },
+      "id": "buscar-sessoes-prontas",
+      "name": "Buscar sessÃµes prontas para anÃ¡lise",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "SessÃµes com 30min de inatividade e >= 3 mensagens, ainda nÃ£o analisadas"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "leftValue": "={{ $json.sessao_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "tem-sessoes",
+      "name": "Tem sessÃµes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepara o prompt para o Claude Haiku analisar a conversa\nconst sessao = $input.first().json;\nconst mensagens = sessao.mensagens || [];\n\nconst conversa_texto = mensagens.map((m, i) => `[${i+1}] ${m}`).join('\\n');\n\nconst prompt = `VocÃª Ã© um especialista em anÃ¡lise de conversas comerciais de vendas.\n\nAnalise a seguinte conversa comercial e retorne um JSON estruturado:\n\nCONVERSA:\n${conversa_texto}\n\nRetorne APENAS um JSON vÃ¡lido (sem markdown) com esta estrutura:\n{\n  \"tipo_venda\": \"varejo\" | \"consultiva\" | \"despertar_desejo\" | null,\n  \"resultado\": \"converteu\" | \"perdeu\" | \"pendente\",\n  \"tom_predominante\": \"tecnico\" | \"emocional\" | \"relacional\" | \"direto\" | \"misto\",\n  \"score_qualidade\": 0.0 a 10.0,\n  \"fases\": [\n    {\"fase\": \"abertura|descoberta|apresentacao|objecao|fechamento\", \"qualidade\": \"alta|media|baixa\"}\n  ],\n  \"argumentos\": [\n    {\"texto\": \"...\", \"efetivo\": true|false, \"fase\": \"...\"}\n  ],\n  \"objecoes\": [\n    {\"tipo\": \"preco|prazo|necessidade|confianca|concorrencia|outra\", \"contornada\": true|false, \"texto\": \"...\"}\n  ],\n  \"padrao_detectado\": \"descriÃ§Ã£o do padrÃ£o comportamental principal\",\n  \"flags\": [\"objecao_ignorada\", \"tom_inadequado\", etc]\n}`;\n\nreturn [{\n  json: {\n    sessao_id: sessao.sessao_id,\n    remote_jid: sessao.remote_jid,\n    prompt\n  }\n}];"
+      },
+      "id": "preparar-prompt",
+      "name": "Preparar Prompt Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "REDACTED"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: $json.prompt }] }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "claude-analise",
+      "name": "Claude Haiku â€” Analisar Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ],
+      "notes": "[ML-COMERCIAL] conversation-analyst via Claude Haiku"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai analise do Claude e monta INSERT SQL seguro\nconst sessao_id = $('Preparar Prompt Claude').first().json.sessao_id;\nconst claudeResponse = $input.first().json;\n\nlet analise = {};\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  const match = content.match(/\\{[\\s\\S]*\\}/);\n  analise = JSON.parse(match ? match[0] : content);\n} catch(e) {\n  analise = {};\n}\n\nconst totalTokens = (claudeResponse.usage?.input_tokens || 0) + (claudeResponse.usage?.output_tokens || 0);\n\n// Defaults garantidos\nconst tipo_venda = analise.tipo_venda || 'consultiva';\nconst resultado = analise.resultado || 'pendente';\nconst tom = analise.tom_predominante || 'neutro';\nconst score = typeof analise.score_qualidade === 'number' ? Math.round(analise.score_qualidade) : 50;\nconst fases = Array.isArray(analise.fases) ? analise.fases : [];\nconst argumentos = Array.isArray(analise.argumentos) ? analise.argumentos : [];\nconst flags = Array.isArray(analise.flags) ? analise.flags : [];\nconst padrao = analise.padrao_detectado ? String(analise.padrao_detectado).slice(0, 250) : null;\nconst objecoes = Array.isArray(analise.objecoes) ? analise.objecoes : [];\n\n// Escape SQL seguro\nconst sqlStr = (v) => \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst sqlJson = (v) => \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n\nconst query = `INSERT INTO ml_comercial.conversas (\n  sessao_id, tipo_venda, resultado, tom_predominante, score_qualidade,\n  fases, argumentos, flags, padrao_detectado, analisado_por, tokens_usados, raw_analise\n) VALUES (\n  ${sqlStr(sessao_id)}::uuid,\n  ${sqlStr(tipo_venda)}::ml_comercial.tipo_venda,\n  ${sqlStr(resultado)}::ml_comercial.resultado_conversa,\n  ${sqlStr(tom)}::ml_comercial.tom_comunicacao,\n  ${score},\n  ${sqlJson(fases)},\n  ${sqlJson(argumentos)},\n  ${sqlJson(flags)},\n  ${padrao ? sqlStr(padrao) : 'NULL'},\n  'conversation-analyst',\n  ${totalTokens},\n  ${sqlJson(analise)}\n) ON CONFLICT DO NOTHING RETURNING id`;\n\nreturn [{ json: { sessao_id, query, tokens_usados: totalTokens, objecoes } }];\n"
+      },
+      "id": "extrair-analise",
+      "name": "Extrair AnÃ¡lise do Claude",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "salvar-analise",
+      "name": "Salvar em ml_comercial.conversas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1560,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Persiste anÃ¡lise estruturada â€” alimenta behavioral-profiler e objection-handler"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 1 AS objecoes_skip"
+      },
+      "id": "atualizar-objecoes",
+      "name": "Atualizar ml_comercial.objecoes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1780,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      },
+      "notes": "Alimenta catÃ¡logo do objection-handler automaticamente"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE ml_captura.sessoes_conversa SET status = 'encerrada', encerrada_em = NOW(), updated_at = NOW() WHERE id = '\" + $('Preparar Prompt Claude').first().json.sessao_id + \"'::uuid\" }}"
+      },
+      "id": "encerrar-sessao",
+      "name": "Encerrar sessÃ£o analisada",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "FO9GgjXtERNuCglX",
+          "name": "ML Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Buscar sessÃµes prontas para anÃ¡lise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar sessÃµes prontas para anÃ¡lise": {
+      "main": [
+        [
+          {
+            "node": "Tem sessÃµes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem sessÃµes?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Prompt Claude",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Preparar Prompt Claude": {
+      "main": [
+        [
+          {
+            "node": "Claude Haiku â€” Analisar Conversa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Haiku â€” Analisar Conversa": {
+      "main": [
+        [
+          {
+            "node": "Extrair AnÃ¡lise do Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair AnÃ¡lise do Claude": {
+      "main": [
+        [
+          {
+            "node": "Salvar em ml_comercial.conversas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar em ml_comercial.conversas": {
+      "main": [
+        [
+          {
+            "node": "Atualizar ml_comercial.objecoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atualizar ml_comercial.objecoes": {
+      "main": [
+        [
+          {
+            "node": "Encerrar sessÃ£o analisada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:A cada 5 minutos": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "d2c64866-bc4a-4e52-a09c-c504144fa8df",
+  "activeVersionId": "d2c64866-bc4a-4e52-a09c-c504144fa8df",
+  "versionCounter": 39,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-04-14T01:47:56.083Z",
+      "createdAt": "2026-04-14T01:47:56.083Z",
+      "role": "workflow:owner",
+      "workflowId": "UthiBdEQma4DiVhL",
+      "projectId": "VTEL9tW4c5DUE6pG",
+      "project": {
+        "updatedAt": "2026-04-10T16:05:13.498Z",
+        "createdAt": "2026-04-09T20:59:27.605Z",
+        "id": "VTEL9tW4c5DUE6pG",
+        "name": "Ewerton ML <ewertonfm00@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-04-28T15:31:19.738Z",
+    "createdAt": "2026-04-28T15:31:19.738Z",
+    "versionId": "d2c64866-bc4a-4e52-a09c-c504144fa8df",
+    "workflowId": "UthiBdEQma4DiVhL",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 5
+              }
+            ]
+          }
+        },
+        "id": "schedule-trigger",
+        "name": "A cada 5 minutos",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          240,
+          300
+        ],
+        "notes": "[ML-COMERCIAL] Verifica conversas encerradas prontas para anÃ¡lise"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT\n  s.id          AS sessao_id,\n  s.remote_jid,\n  s.area,\n  s.total_mensagens,\n  s.iniciada_em,\n  s.agente_humano_id,\n  array_agg(\n    COALESCE(m.conteudo_raw, t.texto)\n    ORDER BY m.created_at\n  ) FILTER (WHERE COALESCE(m.conteudo_raw, t.texto) IS NOT NULL) AS mensagens\nFROM ml_captura.sessoes_conversa s\nJOIN ml_captura.mensagens_raw m ON m.remote_jid = s.remote_jid AND m.area = 'comercial'\nLEFT JOIN ml_captura.transcricoes_audio t ON t.mensagem_id = m.id\nWHERE\n  s.status = 'ativa'\n  AND s.area = 'comercial'\n  AND s.updated_at < NOW() - INTERVAL '30 minutes'\n  AND NOT EXISTS (\n    SELECT 1 FROM ml_comercial.conversas c\n    WHERE c.sessao_id = s.id\n  )\nGROUP BY s.id, s.remote_jid, s.area, s.total_mensagens, s.iniciada_em, s.agente_humano_id\nHAVING count(m.id) >= 3\nLIMIT 10",
+          "additionalFields": {}
+        },
+        "id": "buscar-sessoes-prontas",
+        "name": "Buscar sessÃµes prontas para anÃ¡lise",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          460,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "SessÃµes com 30min de inatividade e >= 3 mensagens, ainda nÃ£o analisadas"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {},
+            "conditions": [
+              {
+                "leftValue": "={{ $json.sessao_id }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEquals"
+                }
+              }
+            ]
+          }
+        },
+        "id": "tem-sessoes",
+        "name": "Tem sessÃµes?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          680,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Prepara o prompt para o Claude Haiku analisar a conversa\nconst sessao = $input.first().json;\nconst mensagens = sessao.mensagens || [];\n\nconst conversa_texto = mensagens.map((m, i) => `[${i+1}] ${m}`).join('\\n');\n\nconst prompt = `VocÃª Ã© um especialista em anÃ¡lise de conversas comerciais de vendas.\n\nAnalise a seguinte conversa comercial e retorne um JSON estruturado:\n\nCONVERSA:\n${conversa_texto}\n\nRetorne APENAS um JSON vÃ¡lido (sem markdown) com esta estrutura:\n{\n  \"tipo_venda\": \"varejo\" | \"consultiva\" | \"despertar_desejo\" | null,\n  \"resultado\": \"converteu\" | \"perdeu\" | \"pendente\",\n  \"tom_predominante\": \"tecnico\" | \"emocional\" | \"relacional\" | \"direto\" | \"misto\",\n  \"score_qualidade\": 0.0 a 10.0,\n  \"fases\": [\n    {\"fase\": \"abertura|descoberta|apresentacao|objecao|fechamento\", \"qualidade\": \"alta|media|baixa\"}\n  ],\n  \"argumentos\": [\n    {\"texto\": \"...\", \"efetivo\": true|false, \"fase\": \"...\"}\n  ],\n  \"objecoes\": [\n    {\"tipo\": \"preco|prazo|necessidade|confianca|concorrencia|outra\", \"contornada\": true|false, \"texto\": \"...\"}\n  ],\n  \"padrao_detectado\": \"descriÃ§Ã£o do padrÃ£o comportamental principal\",\n  \"flags\": [\"objecao_ignorada\", \"tom_inadequado\", etc]\n}`;\n\nreturn [{\n  json: {\n    sessao_id: sessao.sessao_id,\n    remote_jid: sessao.remote_jid,\n    prompt\n  }\n}];"
+        },
+        "id": "preparar-prompt",
+        "name": "Preparar Prompt Claude",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          900,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "x-api-key",
+                "value": "REDACTED"
+              },
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: $json.prompt }] }) }}",
+          "options": {
+            "timeout": 30000
+          }
+        },
+        "id": "claude-analise",
+        "name": "Claude Haiku â€” Analisar Conversa",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1120,
+          300
+        ],
+        "notes": "[ML-COMERCIAL] conversation-analyst via Claude Haiku"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Extrai analise do Claude e monta INSERT SQL seguro\nconst sessao_id = $('Preparar Prompt Claude').first().json.sessao_id;\nconst claudeResponse = $input.first().json;\n\nlet analise = {};\ntry {\n  const content = claudeResponse.content?.[0]?.text || '{}';\n  const match = content.match(/\\{[\\s\\S]*\\}/);\n  analise = JSON.parse(match ? match[0] : content);\n} catch(e) {\n  analise = {};\n}\n\nconst totalTokens = (claudeResponse.usage?.input_tokens || 0) + (claudeResponse.usage?.output_tokens || 0);\n\n// Defaults garantidos\nconst tipo_venda = analise.tipo_venda || 'consultiva';\nconst resultado = analise.resultado || 'pendente';\nconst tom = analise.tom_predominante || 'neutro';\nconst score = typeof analise.score_qualidade === 'number' ? Math.round(analise.score_qualidade) : 50;\nconst fases = Array.isArray(analise.fases) ? analise.fases : [];\nconst argumentos = Array.isArray(analise.argumentos) ? analise.argumentos : [];\nconst flags = Array.isArray(analise.flags) ? analise.flags : [];\nconst padrao = analise.padrao_detectado ? String(analise.padrao_detectado).slice(0, 250) : null;\nconst objecoes = Array.isArray(analise.objecoes) ? analise.objecoes : [];\n\n// Escape SQL seguro\nconst sqlStr = (v) => \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst sqlJson = (v) => \"'\" + JSON.stringify(v).replace(/'/g, \"''\") + \"'::jsonb\";\n\nconst query = `INSERT INTO ml_comercial.conversas (\n  sessao_id, tipo_venda, resultado, tom_predominante, score_qualidade,\n  fases, argumentos, flags, padrao_detectado, analisado_por, tokens_usados, raw_analise\n) VALUES (\n  ${sqlStr(sessao_id)}::uuid,\n  ${sqlStr(tipo_venda)}::ml_comercial.tipo_venda,\n  ${sqlStr(resultado)}::ml_comercial.resultado_conversa,\n  ${sqlStr(tom)}::ml_comercial.tom_comunicacao,\n  ${score},\n  ${sqlJson(fases)},\n  ${sqlJson(argumentos)},\n  ${sqlJson(flags)},\n  ${padrao ? sqlStr(padrao) : 'NULL'},\n  'conversation-analyst',\n  ${totalTokens},\n  ${sqlJson(analise)}\n) ON CONFLICT DO NOTHING RETURNING id`;\n\nreturn [{ json: { sessao_id, query, tokens_usados: totalTokens, objecoes } }];\n"
+        },
+        "id": "extrair-analise",
+        "name": "Extrair AnÃ¡lise do Claude",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1340,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "={{ $json.query }}"
+        },
+        "id": "salvar-analise",
+        "name": "Salvar em ml_comercial.conversas",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1560,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "Persiste anÃ¡lise estruturada â€” alimenta behavioral-profiler e objection-handler"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT 1 AS objecoes_skip"
+        },
+        "id": "atualizar-objecoes",
+        "name": "Atualizar ml_comercial.objecoes",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1780,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        },
+        "notes": "Alimenta catÃ¡logo do objection-handler automaticamente"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "={{ \"UPDATE ml_captura.sessoes_conversa SET status = 'encerrada', encerrada_em = NOW(), updated_at = NOW() WHERE id = '\" + $('Preparar Prompt Claude').first().json.sessao_id + \"'::uuid\" }}"
+        },
+        "id": "encerrar-sessao",
+        "name": "Encerrar sessÃ£o analisada",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          2000,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "FO9GgjXtERNuCglX",
+            "name": "ML Postgres"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "A cada 5 minutos": {
+        "main": [
+          [
+            {
+              "node": "Buscar sessÃµes prontas para anÃ¡lise",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar sessÃµes prontas para anÃ¡lise": {
+        "main": [
+          [
+            {
+              "node": "Tem sessÃµes?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tem sessÃµes?": {
+        "main": [
+          [
+            {
+              "node": "Preparar Prompt Claude",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          []
+        ]
+      },
+      "Preparar Prompt Claude": {
+        "main": [
+          [
+            {
+              "node": "Claude Haiku â€” Analisar Conversa",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude Haiku â€” Analisar Conversa": {
+        "main": [
+          [
+            {
+              "node": "Extrair AnÃ¡lise do Claude",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extrair AnÃ¡lise do Claude": {
+        "main": [
+          [
+            {
+              "node": "Salvar em ml_comercial.conversas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Salvar em ml_comercial.conversas": {
+        "main": [
+          [
+            {
+              "node": "Atualizar ml_comercial.objecoes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Atualizar ml_comercial.objecoes": {
+        "main": [
+          [
+            {
+              "node": "Encerrar sessÃ£o analisada",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Ewerton ML",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-04-28T15:31:19.832Z",
+        "id": 164,
+        "workflowId": "UthiBdEQma4DiVhL",
+        "versionId": "d2c64866-bc4a-4e52-a09c-c504144fa8df",
+        "event": "deactivated",
+        "userId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+      },
+      {
+        "createdAt": "2026-04-28T15:31:19.879Z",
+        "id": 165,
+        "workflowId": "UthiBdEQma4DiVhL",
+        "versionId": "d2c64866-bc4a-4e52-a09c-c504144fa8df",
+        "event": "activated",
+        "userId": "1035f6fb-a35c-4a93-8924-7343881c9d21"
+      }
+    ]
+  }
+}
