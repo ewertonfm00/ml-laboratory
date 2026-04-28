@@ -28,6 +28,13 @@ components:
     - monitor-agent.md
   tasks:
     - setup-infrastructure.md
+    - deploy-update.md
+    - monitor-health.md
+    - run-e2e-tests.md
+    - validate-pipeline.md
+    - seed-master.md
+    - seed-catalog.md
+    - seed-ai-agents.md
   workflows: []
   checklists: []
   templates: []

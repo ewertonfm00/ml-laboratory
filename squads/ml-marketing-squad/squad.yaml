@@ -41,6 +41,7 @@ components:
     - analyze-campaign.md
     - optimize-message.md
     - generate-segmentation.md
+    - execute-campaign.md
   workflows: []
   checklists: []
   templates: []

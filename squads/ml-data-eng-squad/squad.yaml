@@ -28,6 +28,8 @@ components:
     - data-quality-validator.md
   tasks:
     - classify-data.md
+    - build-etl-pipeline.md
+    - design-schema.md
   workflows: []
   checklists: []
   templates: []

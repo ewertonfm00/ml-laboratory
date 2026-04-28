@@ -35,6 +35,7 @@ components:
     - configure-webhook.md
     - transcribe-audio.md
     - collect-messages.md
+    - debug-pipeline.md
   workflows: []
   checklists: []
   templates: []
