@@ -1492,3 +1492,98 @@ Lógica de resolução no n8n (captura):
 - [ ] **Exportar workflows n8n atualizados** — ml-analise.json e ml-captura.json no repo têm REDACTED onde estava a key
 - [ ] **`fix_objecoes.py` e `.claude/settings.json.bak`** — adicionar ao .gitignore ou remover
 - [ ] Nós com mojibake no ML-ANALISE — baixa prioridade
+
+---
+## Sessão 2026-04-28 (parte 6)
+
+### 1. Implementações
+
+**Story 1.1 — Validação mono-agente (task 2.6)**
+- Confirmado via banco: 1.175 msgs individuais capturadas, todas as sessões com `agente_humano_id = Kátia (55c1950e-cc7e-405f-a27d-bff44647c485)`
+- Task 3.2 (story 1.1) marcada como concluída
+- CONTEXT.md e session-plan.md atualizados
+
+**Migration 024 — Onboarding de parceiros externos**
+- `database/migrations/024_projetos_onboarding.sql` — ADD COLUMN email, telefone, setor, onboarding_token (UUID), onboarding_status em `_plataforma.projetos`
+- `database/migrations/rollbacks/024_projetos_onboarding_rollback.sql`
+- Aplicada com sucesso no Railway
+
+**Portal Next.js — Feature completa de onboarding externo (commit 8b55d63)**
+- `portal-next/app/admin/parceiros/novo/page.tsx` — tela admin criar parceiro
+- `portal-next/app/api/admin/parceiros/route.ts` — POST: cria projeto no banco, envia e-mail (Resend) + WhatsApp (Evolution)
+- `portal-next/app/onboarding/[token]/page.tsx` — página pública para técnico do parceiro configurar Evolution deles
+- `portal-next/app/api/onboarding/[token]/route.ts` — GET: retorna dados do projeto pelo token
+- `portal-next/app/api/onboarding/conectar/route.ts` — POST: chama Evolution do parceiro via API, insere instancia_evolution + numeros_projeto, atualiza status=conectado
+- `portal-next/app/p/[slug]/perfil/page.tsx` — aba Perfil no espaço do parceiro (dados + status conexão)
+- `portal-next/components/Sidebar.tsx` — item "Perfil" adicionado como 2º item do menu
+- `portal-next/lib/types.ts` — ProjetoCompleto extends Projeto
+- `portal-next/app/page.tsx` — botão "Novo Parceiro" na home
+- `portal-next/package.json` — resend instalado
+
+**Credencial salva:** Resend API Key `re_MhciXG3c_Mgeh2nZpgd8YxLVNXVMvdycK`
+
+---
+
+### 2. Decisões
+
+- **Onboarding caso B (Evolution própria do parceiro):** admin cria parceiro no Portal → link enviado por WhatsApp + e-mail → técnico do parceiro preenche URL/APIKey/instância → sistema configura webhook via REST na Evolution deles automaticamente. Sem interação técnica do parceiro.
+- **Sem n8n para este fluxo:** lógica de criação e configuração feita direto nas API routes Next.js (padrão mais simples dado que Portal já tem acesso ao banco).
+- **telefone como numero_whatsapp fallback:** campo `numero_whatsapp` em `numeros_projeto` usa o telefone do projeto quando não há campo separado no formulário de onboarding.
+- **Agente_humano multi:** identificador_externo vem da plataforma do parceiro (Redrive-like) — não da Evolution. Precisamos inspecionar payload real após primeira mensagem do parceiro para mapear o campo correto.
+- **Mono-agente não precisa de decisão de atribuição:** o ML Lab apenas lê o `identificador_externo` que a plataforma envia — a atribuição é responsabilidade do sistema do parceiro.
+
+---
+
+### 3. Todos Ativos
+
+**Story 1.1 — Pendentes bloqueados:**
+- Task 2.7: teste multi-agente com `identificador_externo` válido — BLOQUEADO: aguarda primeiro parceiro multi-agente fazer onboarding e enviar mensagem real
+- Task 2.8: teste multi-agente com `identificador_externo` desconhecido — mesmo bloqueio
+
+**Pós-onboarding do primeiro parceiro multi-agente:**
+- Inspecionar `metadados` em `mensagens_raw` para identificar campo do agente na plataforma deles
+- Cadastrar agentes com `identificador_externo` correto
+- Ajustar nó ML-CAPTURA para ler esse campo
+
+**Pendências gerais (CONTEXT.md):**
+- Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+- Avisar EsteticaIA: endpoint `/webhook/ml/external/esteticaia` pronto
+- Nós com nomes mojibake no ML-ANALISE (`UthiBdEQma4DiVhL`) — renomear para ASCII
+- Seed SQL tipo='multi': BLOQUEADO — aguarda clínica com serviço multi real
+- Stories 3.1–3.2 (EsteticaIA): aguarda homologação
+
+**Env vars a configurar no Railway (portal-next):**
+- `RESEND_API_KEY=re_MhciXG3c_Mgeh2nZpgd8YxLVNXVMvdycK`
+- `RESEND_FROM=onboarding@mlaboratory.com.br`
+- `PORTAL_URL=https://portal-ml-production.up.railway.app`
+
+---
+## Sessão 2026-04-28 (parte 7 — Gage @devops)
+
+### 1. Implementações
+
+**Variáveis de ambiente adicionadas no Railway (serviço portal-ml):**
+- `RESEND_API_KEY=re_MhciXG3c_Mgeh2nZpgd8YxLVNXVMvdycK`
+- `RESEND_FROM=onboarding@mlaboratory.com.br`
+- `PORTAL_URL=https://portal-ml-production.up.railway.app`
+- Redeploy automático disparado pelo Railway
+
+### 2. Decisões
+
+- **Nome real do serviço Railway:** `portal-ml` (não `portal-next`) — descoberto via `railway variables` no diretório `portal-next/`
+- **Vars adicionadas via Railway CLI** (não pelo dashboard) — mais rápido e rastreável
+
+### 3. Todos Ativos
+
+**Próximo passo imediato:**
+- Testar fluxo completo: acessar `https://portal-ml-production.up.railway.app/admin/parceiros/novo`, criar parceiro, verificar envio de e-mail (Resend) + WhatsApp (Evolution), validar link de onboarding público
+
+**Pendências da Story 1.1:**
+- Task 2.7: multi-agente com `identificador_externo` válido — BLOQUEADO: aguarda primeiro parceiro multi-agente
+- Task 2.8: multi-agente com `identificador_externo` desconhecido — mesmo bloqueio
+
+**Pendências gerais:**
+- Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+- Avisar EsteticaIA: endpoint `/webhook/ml/external/esteticaia` pronto
+- Nós com mojibake no ML-ANALISE (`UthiBdEQma4DiVhL`) — renomear para ASCII
+- Stories 3.1–3.2 (EsteticaIA): aguarda homologação
