@@ -169,15 +169,13 @@ dependencies:
     redirect_message: 'Para operações git, use o agente @devops (Gage)'
 
 autoClaude:
-  version: '1.0'
+  version: '3.0'
+  migratedAt: '2026-04-27T00:00:00.000Z'
   execution:
     canCreatePlan: true
     canCreateContext: true
     canExecute: true
     canVerify: true
-    selfCritique:
-      enabled: true
-      trigger: slo_definition_complete
   memory:
     canCaptureInsights: true
     canExtractPatterns: true
