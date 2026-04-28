@@ -6,24 +6,22 @@
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Corrigir `Executar objecoes SQL` — tabela `ml_comercial.objecoes` não tem unique constraint em `(tipo_objecao, texto_objecao)`. Adicionar constraint no banco OU trocar para `INSERT ... ON CONFLICT DO NOTHING` sem especificar colunas.
-
-**PRIORIDADE 2:** entity-registry 146h+ desatualizado — executar `npx aiox-core install --force` manualmente no terminal (requer seleção interativa).
+**PRIORIDADE 1:** Story 1.1 task 2.6 — teste mono-agente: enviar msg e confirmar `agente_humano_id` = Kátia
 
 ---
 
 ## Pendências
 
 ### PIPELINE ML-ANALISE (`UthiBdEQma4DiVhL`)
-- [ ] **Objeções:** `Executar objecoes SQL` falha — sem unique constraint em `ml_comercial.objecoes(tipo_objecao, texto_objecao)`. Criar migration ou trocar para `ON CONFLICT DO NOTHING`
+- [x] **Objeções:** migration 023 aplicada — `uq_objecoes_tipo_texto` UNIQUE (tipo_objecao, texto_objecao) — commit 49a52d8
 - [ ] Nós com double-encoding nos nomes (mojibake) — considerar renomear para ASCII puro em próxima manutenção
 
 ### PIPELINE DE CAPTURA (`eM0qnKGXShlOuCsV`)
 - [ ] Exportar JSON local atualizado (feito hoje para ml-analise; ml-captura também exportado em `docs/workflows/`)
 
 ### INFRA / MANUTENÇÃO
-- [ ] entity-registry: `npx aiox-core install --force` (requer terminal interativo — não pode ser automatizado)
-- [ ] Migration 022 (`diagnostic_runs` + `validation_log`) — criada no git, ainda não aplicada em produção
+- [x] entity-registry: regenerado via `populate-entity-registry.js` (750 entidades, zero risco) — 2026-04-28
+- [x] Migration 022 (`diagnostic_runs` + `validation_log`) — aplicada em produção ✅
 
 ### SEED / CADASTROS
 - [ ] Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
