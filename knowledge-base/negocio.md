@@ -267,6 +267,20 @@ A plataforma suporta múltiplos clientes (projetos). Para conectar um novo clien
 
 ---
 
+## Particularidades Técnicas do n8n (Railway)
+
+- **`additionalFields.queryParams` não funciona** no Postgres node desta versão do n8n — os parâmetros `$1`, `$2`, etc. chegam literais ao banco sem substituição. Solução: construir o SQL completo como string no Code node anterior, passar via `{{ $json.query }}`.
+- **Double-encoding em nomes de nós**: nós criados com caracteres especiais (acentos) têm nomes armazenados com encoding duplo — ex: `Extrair Análise do Claude` vira `Extrair AnÃ¡lise do Claude`. Referências entre nós com `$('nome')` precisam usar o nome garbled exato, ou usar nós com nomes ASCII puros.
+- **IIFE em query expression não funciona**: expressões complexas com `(() => { ... })()` causam `Syntax error at line 1 near "{"` em campos `query` de Postgres nodes. Para lógica complexa: usar Code node separado que prepara o SQL.
+- **Workflows exportados localmente**: `docs/workflows/ml-captura.json` e `docs/workflows/ml-analise.json` (atualizados em 2026-04-28).
+
+## Particularidades do Schema ML-COMERCIAL
+
+- `ml_comercial.objecoes` **não tem** unique constraint em `(tipo_objecao, texto_objecao)` — `ON CONFLICT (tipo_objecao, texto_objecao)` falha. Pendente: criar constraint via migration ou usar `ON CONFLICT DO NOTHING`.
+- `ml_comercial.conversas.padrao_detectado` é `varchar(255)` — truncar a 250 chars ao inserir (Claude pode retornar texto mais longo).
+
+---
+
 ## Particularidades Técnicas do Schema de Captura
 
 - `ml_captura.mensagens_raw.session_id` é **VARCHAR** com o nome da instância Evolution (`ml-5516988456918`), **não um UUID**. JOIN com `sessoes_conversa.id` (UUID) não funciona diretamente — usar `remote_jid + projeto_id` como chave de ligação.
