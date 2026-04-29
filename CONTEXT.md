@@ -1,25 +1,30 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-29 — Falha silenciosa email/WhatsApp corrigida (commit 55c2eb8) + investigação Opção B (workflow webhook externo)
+**Última sessão:** 2026-04-29 (parte 11) — Workflow ML-CAPTURA-EXTERNAL ativo no n8n (5/5 E2E OK) + Railway voltou + 6 decisões workflow externo fechadas
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Concluir 3 decisões pendentes da Opção B (agente_humano_id NULL vs auto-criar, áudio salvar URL vs transcrever, duplicate flag) → disparar subagente para construir workflow ML-CAPTURA-EXTERNAL no n8n
-**PRIORIDADE 2:** Conectar número WhatsApp ao ML Laboratory via QR Code
-**PRIORIDADE 3:** Decidir Cenário B multi-agente — atribuição manual vs round-robin
+**PRIORIDADE 1:** Editar webhook node do workflow `paVFxFzH6sjW4Tyv` na UI do n8n — trocar Path `ml/external/app-omega-laser` → `ml/external/:slug`. API pública não aceita path-param dinâmico via POST/PATCH, só a UI registra rota dinâmica. Sem isso, cada parceiro precisaria de 1 workflow próprio (não escala).
+**PRIORIDADE 2:** Após path dinâmico, ativar webhook_api_key e cadastrar setores via SQL pros parceiros `estetica-ia` e `machine-learning` (já no banco). Avisar EsteticaIA: endpoint pronto.
+**PRIORIDADE 3:** Atualizar UI `/admin/parceiros/novo` p/ multi-setor (form com lista de setores).
+**PRIORIDADE 4:** Validar email Resend sandbox em produção (env nova ativa após Railway voltar).
+**PRIORIDADE 5:** Conectar número WhatsApp ao ML Laboratory via QR Code.
+**PRIORIDADE 6:** Decidir Cenário B multi-agente — atribuição manual vs round-robin.
 
 ---
 
 ## Pendências
 
-### WORKFLOW WEBHOOK EXTERNO (NOVA FRENTE — em progresso)
-- [ ] Confirmar 3 decisões técnicas restantes (Q2 agente_humano_id, Q3 áudio, Q4 duplicate flag) — `fonte='external_partner'` já aprovado
-- [ ] Construir workflow ML-CAPTURA-EXTERNAL.json via subagente: webhook em `/ml/external/:slug`, valida Bearer contra `_plataforma.projetos.webhook_api_key`, INSERT em `ml_captura.mensagens_raw`
-- [ ] Importar e ativar workflow no n8n via API
-- [ ] Teste E2E com curl simulando parceiro (cadastrar → ativar key → POST → verificar inserção)
-- [ ] Commit do workflow JSON exportado
+### WORKFLOW WEBHOOK EXTERNO ✅ ATIVO (parte 11)
+- [x] 6 decisões técnicas fechadas (Q2/Q2.1/Q2.2/Q2.3/Q3/Q4) — ver `.claude/session-plan.md`
+- [x] Workflow `ML-CAPTURA-EXTERNAL` construído + ativo (n8n ID `paVFxFzH6sjW4Tyv`) — JSON em `docs/workflows/ml-captura-external.json`
+- [x] 5/5 cenários E2E validados (CLIENTE, ATENDENTE auto-criar, duplicata, bearer inválido, setor não cadastrado)
+- [x] Migration 026 aplicada (`numeros_projeto.numero_whatsapp/instancia_id` nullable)
+- [ ] **Editar Path do webhook na UI do n8n** → `ml/external/:slug` (atual: literal `ml/external/app-omega-laser`)
+- [ ] Cadastrar webhook_api_key + numeros_projeto pros outros parceiros após path dinâmico
+- [ ] Commit dos artefatos: `database/migrations/026_*.sql` + `docs/workflows/ml-captura-external.json`
 
 ### PORTAL NEXT.JS — VALIDAR CORREÇÃO EM PRODUÇÃO
 - [ ] Após deploy do commit `55c2eb8` no Railway: criar parceiro de teste em `/admin/parceiros/novo`, verificar que tela de sucesso mostra ✅/⚠️ por canal com mensagem de erro real quando algo falha

@@ -1780,3 +1780,144 @@ Lógica de resolução no n8n (captura):
 - Service `portal-ml` ID: `616c8604-6a56-441f-a5e4-90d8033adf1d`
 - Environment `production` ID: `8d833424-d179-44c0-9eb5-d73004c3d1a6`
 - Project ID: `8fe26ff4-e569-4738-8b77-2489bfde67b8`
+
+---
+## Sessão 2026-04-29 (parte 10) — Validação E2E onboarding + decisões workflow externo + Railway DOWN
+
+### 1. Implementações
+
+**Env Railway:**
+- `RESEND_FROM` alterado: `onboarding@mlaboratory.com.br` → `ML Laboratory <onboarding@resend.dev>` (sandbox Resend)
+
+**Validações E2E (parcial — backend OK, UI bloqueada por incidente Railway):**
+- Tela `/onboarding/[token]` validada visualmente em 2 passos (endpoint + campo api_key)
+- POST `/api/onboarding/conectar` validado: grava `webhook_api_key` + status `pendente → conectado`
+- Bug fix da falha silenciosa email **confirmado funcionando** (tela mostra erro real do Resend: "domain not verified")
+
+**Cadastros de teste:**
+- `app-omega-laser` — token `7e9088ba-793a-401b-9064-beb54c981bb1` (UI, email falhou domínio, WhatsApp OK)
+- `app-omega-laser` 2 — token `6879f6fc-356f-4b22-b1ae-a7294539e76f` (UI, idem)
+- `teste-env-resend` — criado via API + DELETADO (validar env Resend)
+- `ewerton-locacoes` revertido pra `pendente` após validar backend de ativação
+
+### 2. Decisões
+
+- **Q2 (agente_humano_id) = B**: auto-criar entradas em `_plataforma.agentes_humanos`
+- **Modelo bifurcado mono/multi**: parceiro escolhe `tipo_atendimento` no cadastro
+  - **Mono**: nome do atendente único é fornecido no cadastro → backend cria 1 entrada em `agentes_humanos` na hora
+  - **Multi**: sistema do parceiro envia `atendente_id` no payload → workflow busca/cria por `(projeto_id, identificador_externo)`
+- **Schema planejado**: `_plataforma.projetos` ganha `tipo_atendimento ENUM('mono','multi')` + `atendente_unico_nome VARCHAR(255)`
+- **Resend sandbox provisório**: `onboarding@resend.dev` enquanto não há domínio próprio. Limita destinatário a `ewertonfm00@gmail.com` (dono da conta Resend) — suficiente pra teste E2E
+- **Workflow externo independe do portal**: pode prosseguir Q2.1/Q2.2/Q3/Q4 + construir `ML-CAPTURA-EXTERNAL.json` mesmo com Railway com bug
+
+### 3. Todos ativos
+
+**🚨 INCIDENTE Railway — portal fora do ar:**
+- Deploy `d1f71ef9` QUEUED desde 15:26 (build OK + healthcheck OK), Railway não fez swap
+- `railway down` removeu o deploy ATIVO `9c8673bc` por engano — portal HTTP 404
+- `railway up` falhou (deployment `d2aeded6` FAILED imediato)
+- Aguardando Railway destravar OU ação manual no dashboard:
+  - URL: https://railway.com/project/8fe26ff4-e569-4738-8b77-2489bfde67b8/service/616c8604-6a56-441f-a5e4-90d8033adf1d
+  - Aba Deployments → forçar redeploy do `d1f71ef9` ou novo deploy
+- Alternativa: empty commit em main + push (autodeploy GitHub)
+
+**Decisões pendentes pra fechar workflow externo:**
+- **Sub-Q2.1** (nome no multi): A (`atendente_nome` no payload, recomendado) | B (API REST) | C (placeholder)
+- **Sub-Q2.2** (numero_id NOT NULL): A (número virtual `external-{slug}`) | B (migration nullable, recomendado)
+- **Q3** (áudio): A (URL + batch, recomendado) | B (Whisper inline)
+- **Q4** (duplicate): A (200 puro) | B (200 com duplicate flag, recomendado)
+
+**Após decisões fechadas (sequência):**
+1. Migration ALTER TABLE `_plataforma.projetos` ADD `tipo_atendimento` + `atendente_unico_nome`
+2. Atualizar UI `/admin/parceiros/novo` (radio mono/multi + campo nome condicional)
+3. Atualizar POST `/api/admin/parceiros` (cria `agentes_humanos` quando mono)
+4. Subagente constrói `ML-CAPTURA-EXTERNAL.json`
+5. Importar/ativar no n8n via API
+6. Teste E2E webhook (setar `webhook_api_key` via SQL em `app-omega-laser` + curl)
+
+**Pendências herdadas:**
+- Validar email Resend chegando após Railway voltar (sandbox)
+- Configurar DNS no Resend quando houver domínio próprio
+- Story 1.1 tasks 2.7-2.8: aguarda primeiro parceiro multi-agente real
+- Cenário B multi-agente: atribuição manual vs round-robin
+- Conectar número WhatsApp ao ML Laboratory via QR Code
+
+**Credenciais Railway (referência):**
+- Service `portal-ml` ID: `616c8604-6a56-441f-a5e4-90d8033adf1d`
+- Environment `production` ID: `8d833424-d179-44c0-9eb5-d73004c3d1a6`
+- Project ID: `8fe26ff4-e569-4738-8b77-2489bfde67b8`
+
+---
+## Sessão 2026-04-29 (parte 11) — Workflow ML-CAPTURA-EXTERNAL ATIVO + Railway RECOVERY
+
+### 1. Implementações
+
+**Migration:** `database/migrations/026_numeros_projeto_nullable_external.sql`
+- `_plataforma.numeros_projeto.numero_whatsapp` → NULLABLE
+- `_plataforma.numeros_projeto.instancia_id` → NULLABLE
+- BONUS: UNIQUE INDEX em `_plataforma.agentes_humanos (projeto_id, identificador_externo)` (criado pelo subagente)
+- Aplicada no banco Railway ✅
+
+**Workflow:** `docs/workflows/ml-captura-external.json` (12.6KB, 18 nodes)
+- ID n8n: `paVFxFzH6sjW4Tyv` — **ativo**
+- Endpoint atual: `https://n8n-production-47d0.up.railway.app/webhook/ml/external/app-omega-laser`
+- Fluxo: Webhook → Normalize → Lookup Projeto+Bearer → Lookup Numero/Setor → Auto-criar Agente (se ATENDENTE) → Insert mensagens_raw (ON CONFLICT message_id DO NOTHING) → Upsert sessoes_conversa
+
+**Setup teste no banco (`app-omega-laser`):**
+- `webhook_api_key = 'sk_test_omega_e2e_2026'`
+- `numeros_projeto` id `e110697f-c04a-4d17-b93a-cad030829372` (setor=comercial, whatsapp/instancia=NULL)
+
+**5 cenários E2E validados (manualmente confirmados após subagente):**
+| # | Cenário | Resp | Banco |
+|---|---------|------|-------|
+| 1 | CLIENTE texto | 200 ok=true | INSERT incoming/unknown ✅ |
+| 2 | ATENDENTE texto | 200 ok=true | INSERT outgoing/human + agente Maria Costa (atd-007) auto-criado ✅ |
+| 3 | Duplicata mesmo message_id | 200 duplicate=true | sem INSERT extra ✅ |
+| 4 | Bearer inválido | 401 invalid_bearer | sem INSERT ✅ |
+| 5 | Setor não cadastrado | 400 setor_not_registered | sem INSERT ✅ |
+
+### 2. Decisões finais workflow externo (todas fechadas)
+
+- **Q2 = B**: auto-criar `agentes_humanos` por `(projeto_id, identificador_externo)`
+- **Q2.1 = A**: payload traz `atendente_id` estável + `atendente_nome` mutável (separados)
+- **Q2.2 = Caminho A puro**: usa `numeros_projeto` integralmente (1 entrada por setor por parceiro). Migration nullable em 2 colunas
+- **Q2.3 = A**: setor desconhecido → 400 (força admin cadastrar antes)
+- **Q3 = A**: áudio salva URL em `audio_url`, transcreve em batch separado
+- **Q4 = B**: duplicata responde `200 { duplicate: true }`
+- **fonte = 'external_partner'** no `mensagens_raw`
+
+### 3. Todos ativos
+
+**🛠️ Ação manual pendente (5min, no n8n UI):**
+- Editar webhook node do workflow `paVFxFzH6sjW4Tyv` na UI: trocar Path `ml/external/app-omega-laser` → `ml/external/:slug`. Limitação descoberta: API pública do n8n não aceita path-param dinâmico via POST/PATCH — só a UI registra rota dinâmica corretamente. Sem isso, cada parceiro precisaria de 1 workflow próprio (não escala).
+- Após editar: testar com `estetica-ia` e `machine-learning` (slugs já existem no banco). Se funcionar, ativar webhook_api_key + cadastrar setores via SQL pros outros parceiros.
+
+**✅ Railway RECOVERY:**
+- Portal voltou no deployment `2b525cc4` (16:06). Provavelmente o QUEUED `d1f71ef9` foi descartado e novo deploy ocorreu.
+- Env `RESEND_FROM=ML Laboratory <onboarding@resend.dev>` em uso agora.
+- Validar email Resend chegando no Gmail em próximo cadastro de parceiro.
+
+**Pendências de UI/backend (não bloqueiam testes):**
+- Form `/admin/parceiros/novo` precisa virar multi-setor: aceitar lista `setores: [{setor, nome_identificador?, tipo_produto?, tipo}]` e backend criar N entradas em `numeros_projeto`
+- Aba "Setores" no painel do parceiro pra adicionar setores conforme crescer
+
+**Dados de teste no banco (limpar quando quiser):**
+- Mensagens `manual-test-001` e `manual-test-002` em `mensagens_raw`
+- Atendente Maria Costa (`atd-007`) em `agentes_humanos`
+- Sessão em `sessoes_conversa` projeto `557164fb-...`
+
+**Pendências herdadas:**
+- Cenário B multi-agente: atribuição manual vs round-robin
+- Conectar número WhatsApp ao ML Laboratory via QR Code
+- Configurar DNS no Resend quando houver domínio próprio (sair do sandbox)
+- Avisar EsteticaIA: endpoint pronto após path dinâmico estar ativo
+
+**Artefatos NÃO commitados:**
+- `database/migrations/026_numeros_projeto_nullable_external.sql`
+- `docs/workflows/ml-captura-external.json`
+- `scripts/clickup_send.py` (do início da sessão)
+
+**Credenciais úteis pro próximo step:**
+- Postgres: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
+- n8n workflow ID: `paVFxFzH6sjW4Tyv`
+- n8n API key e UI login em `memory/credentials.md`
