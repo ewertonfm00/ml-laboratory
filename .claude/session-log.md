@@ -1918,6 +1918,6 @@ Lógica de resolução no n8n (captura):
 - `scripts/clickup_send.py` (do início da sessão)
 
 **Credenciais úteis pro próximo step:**
-- Postgres: `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway`
+- Postgres: `${DATABASE_URL}` (consultar Railway — host `mainline.proxy.rlwy.net:13932`, db `railway`)
 - n8n workflow ID: `paVFxFzH6sjW4Tyv`
 - n8n API key e UI login em `memory/credentials.md`

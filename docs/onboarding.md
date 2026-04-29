@@ -37,11 +37,14 @@ Plataforma de ML que captura conversas de WhatsApp de múltiplos projetos (clien
 
 ## Credenciais de Acesso
 
-| Sistema | Usuário/Key | Senha/Token |
-|---------|-------------|-------------|
-| n8n | ewertonfm00@gmail.com | Senha1234 |
-| Evolution API Key | ml-evo-key-2026 | — |
-| Postgres | postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/railway | — |
+> ⚠️ **As credenciais reais NÃO ficam neste arquivo** (repositório é público).
+> Consultar no Railway dashboard ou no arquivo local `.env` (gitignored).
+
+| Sistema | Usuário/Key | Onde consultar |
+|---------|-------------|----------------|
+| n8n | `ewertonfm00@gmail.com` | senha no `.env` local ou cofre pessoal |
+| Evolution API Key | `EVOLUTION_API_KEY` | Railway → service `evolution-api-ml` → Variables |
+| Postgres | `DATABASE_URL` | Railway → service `Postgres` → Variables |
 
 ---
 

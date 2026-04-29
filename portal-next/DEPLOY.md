@@ -36,10 +36,10 @@ Configurar no painel Railway → Service → Variables:
 
 | Variável | Valor |
 |----------|-------|
-| `DATABASE_URL` | `postgresql://postgres:LdMDvxoqOaYxlEgRnfqSpykBNpvZvNQa@mainline.proxy.rlwy.net:13932/postgres` |
+| `DATABASE_URL` | `<consultar Railway dashboard — postgres@mainline.proxy.rlwy.net:13932>` |
 | `N8N_SETUP_URL` | `https://n8n-production-47d0.up.railway.app/webhook/ml/setup/instancia` |
 | `EVOLUTION_API_URL` | `https://evolution-api-ml-production.up.railway.app` |
-| `EVOLUTION_API_KEY` | `ml-evo-key-2026` |
+| `EVOLUTION_API_KEY` | `<consultar Railway dashboard>` |
 | `NODE_ENV` | `production` |
 
 ### 3. Build Settings no Railway
@@ -101,7 +101,7 @@ npm start
 ### QR Code não aparece
 - Verificar logs do n8n webhook
 - Confirmar que `N8N_SETUP_URL` está correto
-- Checar Evolution API: `curl https://evolution-api-ml-production.up.railway.app/instance/fetchInstances -H "apikey: ml-evo-key-2026"`
+- Checar Evolution API: `curl https://evolution-api-ml-production.up.railway.app/instance/fetchInstances -H "apikey: $EVOLUTION_API_KEY"`
 
 ### Status não atualiza
 - O polling acontece a cada 5s via `/api/numeros/status`
