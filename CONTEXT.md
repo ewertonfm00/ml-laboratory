@@ -64,7 +64,7 @@
 - Webhook ML-CAPTURA-EXTERNAL (a criar): `https://n8n-production-47d0.up.railway.app/webhook/ml/external/{slug}`
 - Workflow ML-CAPTURA: ID `eM0qnKGXShlOuCsV` (template para o externo, exportado em `tmp/ml-captura-current.json` durante investigação)
 - Workflow ML-ANALISE: ID `UthiBdEQma4DiVhL`
-- Postgres público: `${DATABASE_URL}` (consultar Railway dashboard — host `mainline.proxy.rlwy.net:13932`, db `railway`, user `postgres`)
+- Postgres público: `${DATABASE_URL}` (ver Railway env vars)
 - Schema mensagens: `ml_captura.mensagens_raw` — `message_id` UNIQUE → dedupe nativo
 - Credencial Postgres no n8n: `FO9GgjXtERNuCglX` ("ML Postgres")
 - n8n API key + demais credenciais em `memory/credentials.md`
