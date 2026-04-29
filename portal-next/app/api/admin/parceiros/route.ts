@@ -35,12 +35,20 @@ async function enviarEmail(email: string, responsavel: string, link: string) {
 
 async function enviarWhatsApp(telefone: string, responsavel: string, link: string) {
   try {
-    const evolutionUrl = process.env.EVOLUTION_API_URL;
-    const response = await fetch(`${evolutionUrl}/message/sendText/ml-5516988456918`, {
+    const evolutionUrl = process.env.ONBOARDING_EVOLUTION_URL;
+    const apiKey = process.env.ONBOARDING_EVOLUTION_API_KEY;
+    const instanceName = process.env.ONBOARDING_INSTANCE_NAME;
+
+    if (!evolutionUrl || !apiKey || !instanceName) {
+      console.error('Variáveis de onboarding ausentes (ONBOARDING_EVOLUTION_URL/API_KEY/INSTANCE_NAME)');
+      return;
+    }
+
+    const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: 'ml-evo-key-2026',
+        apikey: apiKey,
       },
       body: JSON.stringify({
         number: telefone,
