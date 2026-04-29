@@ -1,6 +1,6 @@
 # Knowledge Base — Negócio
 
-Última atualização: 2026-04-28
+Última atualização: 2026-04-29
 
 ---
 
@@ -62,6 +62,19 @@
 - Webhook global Redrive NÃO dispara para mensagens recebidas (confirmado)
 - Captura funciona via bloco "Requisição" (POST) dentro do chatflow
 - API Redrive (`api.redrive.com.br`): endpoints de auth retornam 404 — autenticação não mapeada ainda
+
+---
+
+## Onboarding de Parceiros Externos (Portal Next.js)
+
+- **Rota:** `POST /api/admin/parceiros` + página `/admin/parceiros/novo`
+- **Fluxo:** formulário (nome, responsável, e-mail, WhatsApp, setor) → INSERT em `_plataforma.projetos` → e-mail via Resend + WhatsApp via Evolution `ml-5516988456918` → retorna link `/onboarding/{onboarding_token}`
+- **`schema_prefix`:** campo NOT NULL em `_plataforma.projetos` — obrigatório no INSERT, usa o slug do parceiro
+- **`onboarding_token`:** UUID gerado automaticamente pelo banco (`DEFAULT uuid_generate_v4()`) — usado como token único no link de onboarding
+- **E-mail enviado via:** Resend (`RESEND_API_KEY`, `RESEND_FROM` env vars no Railway)
+- **WhatsApp enviado via:** Evolution API instância `ml-5516988456918`, apikey `ml-evo-key-2026`
+- **Migrations necessárias:** 024 (adiciona `onboarding_token`, `email`, `telefone`, `setor`, `responsavel`, `onboarding_status` à tabela)
+- **Observação técnica:** `new Resend()` não pode ser instanciado no nível do módulo em Next.js — deve ser criado dentro do handler (env var não existe em build time)
 
 ---
 

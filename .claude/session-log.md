@@ -1,6 +1,37 @@
 # Session Log — AIOX Machine Learning Laboratory
 
 ---
+## Sessão 2026-04-28 (parte 6 — Railway build fix)
+
+### 1. Implementações
+
+**Arquivos criados:**
+- `portal-next/Dockerfile` — multi-stage build (deps → builder → runner, node:20-alpine)
+
+**Arquivos modificados:**
+- `portal-next/railway.json` — `builder: NIXPACKS` → `builder: DOCKERFILE, dockerfilePath: ./Dockerfile`
+- `portal-next/app/api/admin/parceiros/route.ts` — removeu `const resend = new Resend(...)` do nível do módulo; instanciação movida para dentro de `enviarEmail()`
+
+**Bugs corrigidos:**
+1. `Module not found: Can't resolve '@/lib/db'` — nixpacks em monorepo com dois `package.json` criava WORKDIR ambíguo; Dockerfile explícito resolve
+2. `Missing API key` (Resend) — `new Resend()` no nível do módulo falha durante "Collecting page data" do Next.js build; movido para dentro do handler
+
+**Commits pushados para GitHub:**
+- `11da7c4 fix(deploy): substitui nixpacks por Dockerfile explícito no portal-next`
+- `8a5d94f fix(portal): move Resend init para dentro do handler — corrige build Railway`
+
+### 2. Decisões
+
+- **Dockerfile multi-stage em vez de nixpacks:** nixpacks confundia-se com dois `package.json` (raiz `aiox-machine-learning` + `portal-next`); Dockerfile garante WORKDIR correto e COPY explícito
+- **Resend lazy init:** Serviços com env vars de runtime não devem ser instanciados no nível do módulo em Next.js — o build executa os módulos durante "Collecting page data" sem as env vars disponíveis
+
+### 3. Todos ativos
+
+- [ ] **Verificar Railway build** — confirmar que deploy com `11da7c4` + `8a5d94f` passou (acesse Railway dashboard)
+- [ ] **Testar em produção** — `https://portal-ml-production.up.railway.app/admin/parceiros/novo` — criar parceiro e validar fluxo (cadastro + e-mail + WhatsApp)
+- [ ] **Número WhatsApp** — pendente da sessão anterior: conectar número ao ML Laboratory via QR Code no Appsmith/portal
+
+---
 ## Sessão 2026-04-28 (parte 5 — compact final)
 
 ### 1. Implementações
@@ -1587,3 +1618,46 @@ Lógica de resolução no n8n (captura):
 - Avisar EsteticaIA: endpoint `/webhook/ml/external/esteticaia` pronto
 - Nós com mojibake no ML-ANALISE (`UthiBdEQma4DiVhL`) — renomear para ASCII
 - Stories 3.1–3.2 (EsteticaIA): aguarda homologação
+
+---
+## Sessão 2026-04-29 (parte 8 — debug build Railway)
+
+### 1. Implementações
+
+**Diagnóstico e fix do build Railway:**
+- Identificado: Railway servindo commit `41a94544` (antigo) em vez do `b444b139` (novo com admin route)
+- Causa raiz: Nixpacks tem 2 camadas `COPY . /app/.` — primeira (cached) usa arquivos antigos → `npm ci` instala pacotes do `package-lock.json` antigo (sem `resend`) → build falha com `Module not found: @/lib/db` em cascata
+- Fix aplicado: `NIXPACKS_NO_CACHE=1` adicionado como env var no Railway → força build sem cache
+- Novo deploy triggerado via Railway GraphQL API com commit `b444b139` + cache limpo
+- Status no momento do compact: 2 deployments em BUILDING (`7ffe81ce`, `50f46692`)
+
+### 2. Decisões
+
+- **Root cause do 404:** Railway estava no commit `41a94544` ("adiciona __pycache__ ao .gitignore") — muito mais antigo que nosso código. O `railway redeploy` executado anteriormente fez redeploy de um commit antigo.
+- **Solução de cache:** `NIXPACKS_NO_CACHE=1` — evita que Nixpacks reutilize layers Docker antigas que continham `package-lock.json` sem `resend`
+- **Deploy via API GraphQL:** `serviceInstanceDeploy` com `commitSha` completo é a forma correta de garantir que o Railway builde um commit específico do GitHub
+
+### 3. Todos Ativos
+
+**IMEDIATO — aguardando build terminar:**
+- Verificar se deployment `7ffe81ce` ou `50f46692` virou SUCCESS
+- Testar `https://portal-ml-production.up.railway.app/admin/parceiros/novo`
+- Se passar: criar parceiro de teste, validar e-mail (Resend) + WhatsApp + link de onboarding
+
+**Após build confirmar:**
+- Remover `NIXPACKS_NO_CACHE=1` (pode ficar, mas aumenta build time desnecessariamente após primeiro build limpo)
+- Ou manter — não prejudica funcionalidade
+
+**Pendências da Story 1.1 (bloqueadas):**
+- Task 2.7: multi-agente com `identificador_externo` válido — aguarda primeiro parceiro multi
+- Task 2.8: multi-agente com `identificador_externo` desconhecido — mesmo bloqueio
+
+**Pendências gerais:**
+- Avisar EsteticaIA: endpoint `/webhook/ml/external/esteticaia` pronto
+- Nós mojibake no ML-ANALISE (`UthiBdEQma4DiVhL`)
+- Seed ai:sdr, ai:closer, ai:agendamento → após onboarding EsteticaIA
+
+**Credenciais Railway:**
+- Service `portal-ml` ID: `616c8604-6a56-441f-a5e4-90d8033adf1d`
+- Environment `production` ID: `8d833424-d179-44c0-9eb5-d73004c3d1a6`
+- Project ID: `8fe26ff4-e569-4738-8b77-2489bfde67b8`

@@ -1,18 +1,22 @@
 # ML Laboratory — Contexto do Projeto
 **Projeto:** Laboratório de Inteligência Aplicada a Negócios
-**Última sessão:** 2026-04-28 — cenário multi-agente confirmado (tipo B: 1 número / N atendentes); .gitignore, CONTEXT e session-log atualizados
+**Última sessão:** 2026-04-29 — Railway build corrigido (Dockerfile + Resend lazy init + schema_prefix); formulário de parceiros em teste
 
 ---
 
 ## Próximo passo imediato
 
-**PRIORIDADE 1:** Decidir atribuição multi-agente — Cenário B (1 número, vários atendentes): atribuição manual pelo supervisor ou automática (round-robin)?
-**PRIORIDADE 2:** Story 1.1 tasks 2.7–2.8 — testes multi-agente (BLOQUEADO: aguarda decisão Cenário B)
-**PRIORIDADE 3:** Seed ai:sdr, ai:closer, ai:agendamento — após onboarding EsteticaIA
+**PRIORIDADE 1:** Testar `/admin/parceiros/novo` em produção após deploy `d0e0533` (Railway ~2 min)
+**PRIORIDADE 2:** Decidir atribuição multi-agente — Cenário B: atribuição manual vs round-robin?
+**PRIORIDADE 3:** Conectar número WhatsApp ao ML Laboratory via QR Code
 
 ---
 
 ## Pendências
+
+### PORTAL NEXT.JS — TESTE PENDENTE
+- [ ] Testar formulário `/admin/parceiros/novo` em produção após deploy `d0e0533`
+- [ ] Confirmar fluxo completo: cadastro → e-mail enviado → WhatsApp enviado → link de onboarding gerado
 
 ### PIPELINE ML-ANALISE (`UthiBdEQma4DiVhL`)
 - [ ] Nós com double-encoding nos nomes (mojibake) — renomear para ASCII em próxima manutenção
@@ -22,12 +26,14 @@
 - [ ] Avisar EsteticaIA: endpoint pronto em `/webhook/ml/external/esteticaia`
 
 ### TESTES
-- [x] Story 1.1 task 2.6: CONCLUÍDO — pipeline confirmado: 1.175 msgs capturadas, todas as sessões com `agente_humano_id = Kátia (55c1950e)` ✅ (2026-04-28)
-- [ ] Story 1.1 tasks 2.7–2.8: BLOQUEADAS (aguarda clínica multi-agente)
+- [ ] Story 1.1 tasks 2.7–2.8: BLOQUEADAS (aguarda decisão Cenário B multi-agente)
 - [ ] Story 1.2 tasks 3.1–3.2: testes E2E payload EsteticaIA (aguarda homologação)
 
 ### DECISÃO PENDENTE
-- [ ] Cenário B multi-agente: atribuição manual (supervisor distribui) vs automática (round-robin) — usuário ainda decidindo
+- [ ] Cenário B multi-agente: atribuição manual (supervisor distribui) vs automática (round-robin)
+
+### INFRA
+- [ ] Conectar número WhatsApp ao ML Laboratory (escanear QR Code)
 
 ---
 
@@ -35,10 +41,10 @@
 
 | Serviço | Status | Detalhe |
 |---------|--------|---------|
-| Postgres | ✅ Ativo | Migrations 001–023 aplicadas |
+| Postgres | ✅ Ativo | Migrations 001–024 aplicadas |
 | n8n | ✅ Ativo | ML-CAPTURA + ML-ANALISE ativos, pipeline completo |
 | Evolution API | ✅ Ativo | `ml-5516988456918` conectado, `state: open` |
-| Portal Next.js | ✅ Railway | `https://portal-ml-production.up.railway.app` |
+| Portal Next.js | ✅ Railway | `https://portal-ml-production.up.railway.app` (Dockerfile multi-stage) |
 | Metabase | ✅ Ativo | `https://metabase-production-11a7.up.railway.app` |
 
 ## Contexto técnico
@@ -50,3 +56,4 @@
 - Número WhatsApp ativo: `5516988456918` (tipo: mono, agente_default: Katia — 55c1950e-cc7e-405f-a27d-bff44647c485)
 - n8n API key e demais credenciais em `memory/credentials.md`
 - DB Railway: usar banco `railway` (dados reais) — `postgres` está vazio
+- Portal builder: DOCKERFILE (multi-stage, node:20-alpine) — nixpacks substituído
