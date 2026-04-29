@@ -1,6 +1,25 @@
-import { query } from '@/lib/db';
+import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+
+const SETORES_VALIDOS = [
+  'comercial',
+  'atendimento',
+  'operacional',
+  'financeiro',
+  'marketing',
+  'pessoas',
+] as const;
+type SetorEnum = (typeof SETORES_VALIDOS)[number];
+
+const SETOR_LABEL: Record<SetorEnum, string> = {
+  comercial: 'Comercial',
+  atendimento: 'Atendimento',
+  operacional: 'Operacional',
+  financeiro: 'Financeiro',
+  marketing: 'Marketing',
+  pessoas: 'Pessoas',
+};
 
 function toSlug(nome: string): string {
   return nome
@@ -97,22 +116,65 @@ async function enviarWhatsApp(telefone: string, responsavel: string, link: strin
 
 export async function POST(req: NextRequest) {
   try {
-    const { nome, responsavel, email, telefone, setor } = await req.json();
+    const body = await req.json();
+    const { nome, responsavel, email, telefone } = body;
+    const setoresInput: unknown = body.setores;
 
     if (!nome || !responsavel || !email || !telefone) {
       return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
     }
 
-    const slug = toSlug(nome);
+    if (!Array.isArray(setoresInput) || setoresInput.length === 0) {
+      return NextResponse.json(
+        { error: 'Selecione ao menos um setor' },
+        { status: 400 }
+      );
+    }
 
-    const rows = await query<{ id: string; slug: string; onboarding_token: string }>(
-      `INSERT INTO _plataforma.projetos (nome, slug, schema_prefix, responsavel, email, telefone, setor, ativo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-       RETURNING id, slug, onboarding_token`,
-      [nome, slug, slug, responsavel, email, telefone, setor ?? null]
+    const setores = Array.from(new Set(setoresInput.map((s) => String(s)))) as string[];
+    const setoresInvalidos = setores.filter(
+      (s): s is string => !SETORES_VALIDOS.includes(s as SetorEnum)
     );
+    if (setoresInvalidos.length > 0) {
+      return NextResponse.json(
+        { error: `Setor inválido: ${setoresInvalidos.join(', ')}` },
+        { status: 400 }
+      );
+    }
 
-    const projeto = rows[0];
+    const slug = toSlug(nome);
+    const setoresCsv = setores.join(',');
+
+    const client = await pool.connect();
+    let projeto: { id: string; slug: string; onboarding_token: string };
+    try {
+      await client.query('BEGIN');
+
+      const projetoRes = await client.query<{ id: string; slug: string; onboarding_token: string }>(
+        `INSERT INTO _plataforma.projetos (nome, slug, schema_prefix, responsavel, email, telefone, setor, ativo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+         RETURNING id, slug, onboarding_token`,
+        [nome, slug, slug, responsavel, email, telefone, setoresCsv]
+      );
+      projeto = projetoRes.rows[0];
+
+      for (const setor of setores as SetorEnum[]) {
+        await client.query(
+          `INSERT INTO _plataforma.numeros_projeto
+             (projeto_id, nome_identificador, setor, ativo, multi_agente)
+           VALUES ($1::uuid, $2, $3::_plataforma.setor_tipo, true, false)`,
+          [projeto.id, `${nome} - ${SETOR_LABEL[setor]}`, setor]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
     const portalUrl = process.env.PORTAL_URL ?? 'http://localhost:3000';
     const onboardingLink = `${portalUrl}/onboarding/${projeto.onboarding_token}`;
 

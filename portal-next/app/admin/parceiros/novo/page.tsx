@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-const SETORES = [
-  'Comercial/Vendas',
-  'Atendimento/Recepção',
-  'Operacional',
-  'Marketing',
-  'Estética/Saúde',
-  'Outro',
+const SETORES: { value: string; label: string }[] = [
+  { value: 'comercial', label: 'Comercial' },
+  { value: 'atendimento', label: 'Atendimento' },
+  { value: 'operacional', label: 'Operacional' },
+  { value: 'financeiro', label: 'Financeiro' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'pessoas', label: 'Pessoas' },
 ];
 
 export default function NovoParceiro() {
@@ -18,8 +18,8 @@ export default function NovoParceiro() {
     responsavel: '',
     email: '',
     telefone: '',
-    setor: '',
   });
+  const [setores, setSetores] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     slug: string;
@@ -36,17 +36,28 @@ export default function NovoParceiro() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const toggleSetor = (value: string) => {
+    setSetores((prev) =>
+      prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setResult(null);
 
+    if (setores.length === 0) {
+      setError('Selecione ao menos um setor');
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch('/api/admin/parceiros', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, setores }),
       });
 
       const data = await res.json();
@@ -199,18 +210,32 @@ export default function NovoParceiro() {
         </div>
 
         <div>
-          <label className="block text-slate-300 text-sm font-medium mb-1">Setor</label>
-          <select
-            name="setor"
-            value={form.setor}
-            onChange={handleChange}
-            className="w-full bg-[#0F0F1A] border border-[#2A2A3E] text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
-          >
-            <option value="">Selecionar setor...</option>
-            {SETORES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <label className="block text-slate-300 text-sm font-medium mb-2">
+            Setores * <span className="text-slate-500 font-normal">(selecione um ou mais)</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {SETORES.map((s) => {
+              const checked = setores.includes(s.value);
+              return (
+                <label
+                  key={s.value}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-colors ${
+                    checked
+                      ? 'bg-violet-600/20 border-violet-500 text-white'
+                      : 'bg-[#0F0F1A] border-[#2A2A3E] text-slate-300 hover:border-violet-500/50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleSetor(s.value)}
+                    className="accent-violet-500"
+                  />
+                  {s.label}
+                </label>
+              );
+            })}
+          </div>
         </div>
 
         {error && (
