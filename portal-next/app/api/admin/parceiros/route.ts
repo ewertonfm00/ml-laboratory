@@ -114,6 +114,48 @@ async function enviarWhatsApp(telefone: string, responsavel: string, link: strin
   }
 }
 
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const incluirInativos = searchParams.get('incluirInativos') === 'true';
+
+    const result = await pool.query<{
+      id: string;
+      nome: string;
+      slug: string;
+      responsavel: string | null;
+      email: string | null;
+      telefone: string | null;
+      setor: string | null;
+      ativo: boolean;
+      onboarding_status: string | null;
+      created_at: string;
+      total_setores: number;
+    }>(
+      `SELECT
+         p.id::text,
+         p.nome,
+         p.slug,
+         p.responsavel,
+         p.email,
+         p.telefone,
+         p.setor,
+         p.ativo,
+         p.onboarding_status,
+         p.created_at,
+         (SELECT COUNT(*)::int FROM _plataforma.numeros_projeto n WHERE n.projeto_id = p.id) AS total_setores
+       FROM _plataforma.projetos p
+       ${incluirInativos ? '' : 'WHERE p.ativo = true'}
+       ORDER BY p.created_at DESC`
+    );
+
+    return NextResponse.json({ parceiros: result.rows });
+  } catch (error) {
+    console.error('GET /api/admin/parceiros error:', error);
+    return NextResponse.json({ error: 'Erro ao listar parceiros' }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
