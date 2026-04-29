@@ -1,6 +1,125 @@
 # Session Log — AIOX Machine Learning Laboratory
 
 ---
+## Sessão 2026-04-29 (parte 9) — Falha silenciosa email/WhatsApp + investigação Opção B
+
+### 1. Implementações
+
+**Bug fix — falha silenciosa email/WhatsApp:**
+- `portal-next/app/api/admin/parceiros/route.ts`: `enviarEmail` e `enviarWhatsApp` agora retornam `{ ok, error? }`. Verifica `result.error` do Resend (caso onde SDK não lança exceção). Validação de envs ausentes virou parte do retorno. Texto do email atualizado para o novo fluxo (sem credenciais Evolution).
+- `portal-next/app/admin/parceiros/novo/page.tsx`: tipo do `result` estendido com `email_status`, `email_error`, `whatsapp_status`, `whatsapp_error`. Tela de sucesso renderiza ✅/⚠️ por canal e exibe mensagem de erro específica quando algo falha.
+- Build local: `npm run build` em `portal-next/` passou limpo.
+
+**Commit:** `55c2eb8 fix(onboarding): reporta status real de email/whatsapp na criação de parceiro` (push → `42504a2..55c2eb8 main`).
+
+**Arquivos não commitados (deliberadamente fora do escopo):** `scripts/clickup_send.py` (untracked, sem decisão), `tmp/` (transitório, adicionado ao `.gitignore`).
+
+### 2. Investigação Opção B — workflow `/webhook/ml/external/:slug`
+
+Decisão do usuário: ir direto para o teste E2E completo, o que exige criar o workflow externo no n8n.
+
+**Coletado para briefing do subagente:**
+- Tabela alvo: `ml_captura.mensagens_raw` (não `_plataforma.mensagens_raw`)
+- 19 colunas — `message_id` UNIQUE = dedupe nativo, `projeto_id` FK, `direction` e `respondent_type` com CHECK constraints
+- Padrão de upsert em `sessoes_conversa`: `ON CONFLICT (projeto_id, area, remote_jid) DO UPDATE`
+- Workflow ML-CAPTURA atual exportado em `tmp/ml-captura-current.json` (29KB, 19 nodes)
+- Credencial Postgres reusável no n8n: `FO9GgjXtERNuCglX` ("ML Postgres")
+- Parceiros existentes (3): Ewerton Locações (teste, slug `ewerton-locacoes`), Estética IA (`estetica-ia`), Machine Learning (`machine-learning`)
+
+### 3. Decisões
+
+- **fonte = 'external_partner'** ✅ APROVADO. Reasoning: empresa já é `projeto_id`, atendente é `agente_humano_id`/`respondent_type`, `fonte` é canal técnico de entrada. Distinguir do `'whatsapp'` direto facilita debug e não quebra queries existentes.
+- **Mapeamento completo payload → mensagens_raw definido** (documentado em `knowledge-base/negocio.md`).
+- **Validação Bearer**: igualdade exata vs `_plataforma.projetos.webhook_api_key` (sem hash, fase 1).
+- **Códigos de resposta**: 200 sucesso, 400 payload, 401 Bearer, 404 slug.
+- **Endpoint único por parceiro confirmado** (não compartilhado): permite validação cruzada slug↔key, isolamento, auditoria.
+
+### 4. Pendente para próxima sessão
+
+**3 decisões aguardando o usuário (interrompido por `/fechar-sessao`):**
+- Q2: `agente_humano_id` NULL no MVP (recomendado A) vs auto-criar entradas em `_plataforma.agentes_humanos` (B)
+- Q3: áudio salvar URL e transcrever em batch depois (recomendado A) vs replicar nodes Groq Whisper inline (B)
+- Q4: duplicata como 200 idempotente puro (A) vs 200 com `duplicate: true` flag (recomendado B)
+
+**Após confirmação:**
+- Disparar subagente com briefing para construir `ML-CAPTURA-EXTERNAL.json`
+- Importar via `POST /api/v1/workflows` na n8n API + ativar
+- Teste E2E com curl simulando parceiro (slug + Bearer válido + payload acordado)
+- Commit do workflow JSON em `docs/workflows/`
+
+---
+## Sessão 2026-04-29 — Onboarding reformulado + WhatsApp pelo número pessoal
+
+### 1. Implementações
+
+**Arquivos criados:**
+- `database/migrations/025_projetos_webhook_api_key.sql` — adiciona `webhook_api_key VARCHAR(255)` em `_plataforma.projetos` (aplicada no banco Railway)
+- `scripts/clickup_send.py` — script auxiliar para sync de onboarding com ClickUp
+
+**Arquivos modificados:**
+- `portal-next/app/api/onboarding/[token]/route.ts` — expõe `slug` no GET para construir endpoint na página
+- `portal-next/app/api/onboarding/conectar/route.ts` — reescrita: salva `api_key` em `projetos.webhook_api_key`, marca `onboarding_status = 'conectado'`, removidas chamadas Evolution
+- `portal-next/app/onboarding/[token]/page.tsx` — reescrita completa: layout 2 passos (mostra endpoint + campo api_key), botão "Ativar integração"
+- `portal-next/app/api/admin/parceiros/route.ts` — WhatsApp de onboarding sai por instância configurável via env (`ONBOARDING_EVOLUTION_URL/API_KEY/INSTANCE_NAME`)
+
+**Configurações Railway (portal-ml service):**
+- `ONBOARDING_EVOLUTION_URL` = `https://evolution-api-estetica-production.up.railway.app`
+- `ONBOARDING_EVOLUTION_API_KEY` = `estetica-evo-key-2026`
+- `ONBOARDING_INSTANCE_NAME` = `ewerton-estetica-oel6` (número pessoal `5516991280362`)
+
+**Commits:**
+- `1b4d054` — feat(onboarding): reformula fluxo para integração via webhook de saída do parceiro
+- `42504a2` — feat(onboarding): envia WhatsApp de onboarding pela Evolution do EsteticaIA
+
+### 2. Decisões
+
+- **Modelo de integração genérico (plataforma aberta)**: sistema do parceiro deve gerar credenciais (`webhook_url` + `api_key`) por integração — não específico para ML. Qualquer sistema externo se conecta usando essas credenciais. Modelo padrão de mercado (Stripe, HubSpot, RD Station). Motivo: parceiro vai usar o sistema dele com múltiplas empresas, e cada empresa pode integrar com sistemas diferentes.
+- **Granularidade dos eventos: por setor**: campo `setor_id` opcional na tabela de integrações do parceiro — `null = todos os setores`, UUID = setor específico. Motivo: ML quer todos, mas CRM de vendas pode querer só Comercial.
+- **Slug por setor (Opção A)**: parceiro confirmou multi-tenant — cada setor pode ter integração diferente. Variável global descartada.
+- **WhatsApp de onboarding sai pelo número pessoal**: instância `ewerton-estetica-oel6` da Evolution do EsteticaIA. Motivo: separar comunicação institucional (parceiros) do número operacional do ML.
+- **Página de onboarding em 2 passos**: passo 1 mostra endpoint para parceiro copiar, passo 2 recebe a API Key gerada pelo sistema deles. Sem credenciais Evolution (descartado).
+
+### 3. Todos ativos
+
+- [ ] Criar endpoint `/webhook/ml/external/{slug}` no n8n — parceiro está construindo o outbound webhook agora
+- [ ] Workflow provisório: pull periódico da API REST do parceiro — aguarda documentação/endpoint da API deles
+- [ ] Corrigir falha silenciosa no envio de e-mail (`portal-next/app/api/admin/parceiros/route.ts` — função `enviarEmail`, catch só loga, não retorna erro). Resend API Key disponível em credentials.md.
+- [ ] Testar nova página onboarding em produção (gerar link novo de cadastro de parceiro de teste)
+- [ ] Decisão pendente: Cenário B multi-agente (manual vs round-robin) — Stories 1.1 tasks 2.7-2.8 bloqueadas
+- [ ] Conectar número WhatsApp ao ML Laboratory via QR Code (PRIORIDADE 3)
+
+---
+## Sessão 2026-04-29 — Integração Parceiros / Discovery
+
+### 1. Implementações
+- Nenhum arquivo modificado nesta sessão — sessão de discovery e decisões técnicas.
+- Testado formulário `/admin/parceiros/novo` em produção: formulário carrega corretamente, WhatsApp enviado com sucesso, e-mail falhou silenciosamente.
+
+### 2. Decisões
+
+- **Onboarding reformulado**: fluxo de pedir credenciais da Evolution ao parceiro foi descartado. Evolution não expõe API Key na UI (fica no `.env`). Parceiro já tem webhook ativo apontando para `api.omegalaser.com.br` — trocar quebraria integração existente.
+- **Integração via Outbound Webhook (Opção 1)**: escolhida como mais efetiva. O sistema do parceiro envia POST para `/webhook/ml/external/{slug}` quando mensagens chegam. Real-time, independe do sistema do parceiro ter CRM específico.
+- **Opção 2 (forward) descartada**: colocar ML Laboratory no meio do fluxo do parceiro causa dependência — se nosso n8n cair, quebra a integração deles.
+- **Opção 3 (pull periódico) como provisório**: enquanto outbound webhook não está pronto, ML puxa via API REST. Payload normalizado para o mesmo formato final — migração futura é só trocar o gatilho.
+- **Payload acordado com parceiro**:
+  ```json
+  { "event": "nova_mensagem", "mensagem": { "id", "conversa_id", "origem", "tipo", "conteudo", "atendente_id", "enviada_em", "status" }, "conversa_id", "lead_id", "setor_id" }
+  ```
+  Campos obrigatórios: `origem`, `conteudo`, `conversa_id`, `enviada_em`. `atendente_id` essencial para análise por atendente.
+- **Slug: Opção A** — campo `slug_ml` na tabela Setor do sistema do parceiro. Sistema já vai ser multi-tenant (várias empresas), então variável de ambiente global (Opção B) não serve.
+- **Identificação de atendente**: `atendente_id` existe no banco do parceiro mas não estava no payload. Parceiro vai incluir no webhook. Sem ele, único indicador é `origem: "ATENDENTE"` + nome embutido no texto.
+- **E-mail onboarding**: falha silenciosa no `catch` de `enviarEmail()` em `portal-next/app/api/admin/parceiros/route.ts` — não corrigido ainda.
+
+### 3. Todos ativos
+
+- [ ] Criar endpoint `/webhook/ml/external/{slug}` no n8n — aguarda parceiro confirmar construção do webhook
+- [ ] Workflow provisório: pull periódico da API REST do parceiro — aguarda documentação/endpoint da API deles
+- [ ] Corrigir falha silenciosa no envio de e-mail (`portal-next/app/api/admin/parceiros/route.ts` — função `enviarEmail`)
+- [ ] Reformular página `/onboarding/[token]/page.tsx` — atualmente pede credenciais Evolution, fluxo correto agora é webhook de saída
+- [ ] Decisão pendente: Cenário B multi-agente (manual vs round-robin) — Stories 1.1 tasks 2.7-2.8 bloqueadas
+- [ ] Conectar número WhatsApp ao ML Laboratory via QR Code
+
+---
 ## Sessão 2026-04-28 (parte 6 — Railway build fix)
 
 ### 1. Implementações

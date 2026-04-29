@@ -39,3 +39,6 @@ fix_*.py
 
 # Backups de configuração
 *.bak
+
+# Diretório transitório (exports n8n, snapshots de debug)
+tmp/

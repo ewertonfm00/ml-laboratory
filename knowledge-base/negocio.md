@@ -68,13 +68,84 @@
 ## Onboarding de Parceiros Externos (Portal Next.js)
 
 - **Rota:** `POST /api/admin/parceiros` + página `/admin/parceiros/novo`
-- **Fluxo:** formulário (nome, responsável, e-mail, WhatsApp, setor) → INSERT em `_plataforma.projetos` → e-mail via Resend + WhatsApp via Evolution `ml-5516988456918` → retorna link `/onboarding/{onboarding_token}`
+- **Fluxo:** formulário (nome, responsável, e-mail, WhatsApp, setor) → INSERT em `_plataforma.projetos` → e-mail via Resend + WhatsApp via Evolution `ewerton-estetica-oel6` → retorna link `/onboarding/{onboarding_token}`
 - **`schema_prefix`:** campo NOT NULL em `_plataforma.projetos` — obrigatório no INSERT, usa o slug do parceiro
 - **`onboarding_token`:** UUID gerado automaticamente pelo banco (`DEFAULT uuid_generate_v4()`) — usado como token único no link de onboarding
-- **E-mail enviado via:** Resend (`RESEND_API_KEY`, `RESEND_FROM` env vars no Railway)
-- **WhatsApp enviado via:** Evolution API instância `ml-5516988456918`, apikey `ml-evo-key-2026`
-- **Migrations necessárias:** 024 (adiciona `onboarding_token`, `email`, `telefone`, `setor`, `responsavel`, `onboarding_status` à tabela)
+- **E-mail enviado via:** Resend (`RESEND_API_KEY`, `RESEND_FROM` env vars no Railway). Domínio `mlaboratory.com.br`.
+- **WhatsApp de onboarding enviado via:** Evolution API do EsteticaIA (instância `ewerton-estetica-oel6`, número pessoal) — separação institucional do número operacional do ML
+- **Status de envio:** após correção 2026-04-29 (commit 55c2eb8), tela de sucesso reporta status real por canal (✅/⚠️) com mensagem de erro específica quando algo falha. Antes: afirmava sucesso mesmo quando Resend/Evolution falhavam silenciosamente.
+- **Migrations necessárias:** 024 (`onboarding_token`, `email`, `telefone`, `setor`, `responsavel`, `onboarding_status`); 025 (`webhook_api_key VARCHAR(255)`)
 - **Observação técnica:** `new Resend()` não pode ser instanciado no nível do módulo em Next.js — deve ser criado dentro do handler (env var não existe em build time)
+
+### Modelo de Integração — Webhook Outbound (parceiro → ML)
+
+**Direção do fluxo:** parceiro envia POST para o ML (não o contrário). Real-time, independe do CRM específico do parceiro. Modelo padrão de mercado (Stripe, HubSpot, RD Station).
+
+**Endpoint exposto pelo ML para cada parceiro:**
+```
+https://n8n-production-47d0.up.railway.app/webhook/ml/external/{slug}
+```
+- `{slug}` é único por parceiro (gerado de `nome` na criação do cadastro)
+- Cada parceiro vê esse endpoint no Passo 1 da página de onboarding `/onboarding/{token}` e copia para o painel deles
+- Sentido único: parceiro → ML (o ML não envia nada de volta, exceto resposta HTTP)
+
+**Autenticação:**
+- Parceiro gera API Key no sistema dele (`sk_...`)
+- Cola no Passo 2 do link de onboarding → `POST /api/onboarding/conectar` salva em `_plataforma.projetos.webhook_api_key`
+- Cada POST do parceiro deve incluir header `Authorization: Bearer {webhook_api_key}`
+- ML valida Bearer contra valor salvo no banco (comparação exata, fase 1)
+
+**Payload acordado:**
+```json
+{
+  "event": "nova_mensagem",
+  "conversa_id": "...",
+  "lead_id": "...",
+  "setor_id": "...",
+  "mensagem": {
+    "id": "...",
+    "conversa_id": "...",
+    "origem": "LEAD | ATENDENTE | SISTEMA",
+    "tipo": "...",
+    "conteudo": "...",
+    "atendente_id": "...",
+    "enviada_em": "ISO8601",
+    "status": "..."
+  }
+}
+```
+Obrigatórios: `origem`, `conteudo`, `conversa_id`, `enviada_em`. `atendente_id` essencial para análise por atendente.
+
+**Mapeamento payload → `ml_captura.mensagens_raw` (definido 2026-04-29):**
+
+| Coluna | Origem | Observação |
+|--------|--------|------------|
+| `projeto_id` | lookup `_plataforma.projetos.slug = :slug` | resolvido na URL |
+| `area` | default `'comercial'` | `setor_id` mapeado depois |
+| `fonte` | constante `'external_partner'` | distingue do `'whatsapp'` direto da Evolution |
+| `session_id` | `conversa_id` | varchar (não UUID) |
+| `remote_jid` | `lead_id` (fallback `conversa_id`) | identifica o cliente |
+| `message_id` | `mensagem.id` | UNIQUE → dedupe via ON CONFLICT DO NOTHING |
+| `tipo`, `conteudo_raw` | `mensagem.tipo`, `mensagem.conteudo` | obrigatórios |
+| `direction` | LEAD→incoming, ATENDENTE→outgoing, SISTEMA→unknown | derivado de `mensagem.origem` |
+| `respondent_type` | LEAD→unknown, ATENDENTE→human, SISTEMA→ai | derivado de `mensagem.origem` |
+| `agente_humano_id` | NULL no MVP | `atendente_id` salvo em `metadados` para resolução posterior |
+| `created_at` | `mensagem.enviada_em` | parsed para timestamp |
+| `metadados` | payload completo + `atendente_externo_id` | jsonb |
+
+**Códigos de resposta esperados:**
+- 200 sucesso (idempotente em duplicata via ON CONFLICT)
+- 400 payload incompleto
+- 401 Bearer ausente ou inválido
+- 404 slug não cadastrado
+
+**Por que URL única por parceiro (não compartilhada):**
+1. Identificação no recebimento — n8n já sabe qual parceiro postou antes mesmo de validar a key
+2. Isolamento — bug em um parceiro não afeta os outros
+3. Auditoria — logs do n8n claros por origem
+4. Validação cruzada — n8n confere se slug da URL bate com o `projeto_id` dono da `webhook_api_key` recebida (impede uso cruzado de keys)
+
+**Workflow n8n responsável:** `ML-CAPTURA-EXTERNAL` (a construir — sessão 2026-04-29 deixou pendente após investigação completa). Template: ML-CAPTURA atual (`eM0qnKGXShlOuCsV`).
 
 ---
 
