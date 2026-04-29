@@ -9,8 +9,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { token } = await params;
 
-    const rows = await query<{ nome: string; responsavel: string; onboarding_status: string }>(
-      `SELECT nome, responsavel, onboarding_status
+    const rows = await query<{ nome: string; responsavel: string; onboarding_status: string; slug: string }>(
+      `SELECT nome, responsavel, onboarding_status, slug
        FROM _plataforma.projetos
        WHERE onboarding_token = $1`,
       [token]
