@@ -149,6 +149,19 @@ Obrigatórios: `origem`, `conteudo`, `conversa_id`, `enviada_em`. `atendente_id`
 
 ---
 
+## Operação Admin do Portal (a partir de 2026-04-29)
+
+- **URL admin protegida:** `/admin/*` requer login via `/admin/login`. Middleware Next.js redireciona qualquer `/admin/*` sem cookie para o login.
+- **Login:** form simples com 1 campo de senha. Senha definida em `ADMIN_PASSWORD` (env Railway). Cookie `admin_session` HttpOnly+Secure+SameSite=Strict, valor = `ADMIN_API_TOKEN` (env Railway), 7 dias.
+- **APIs admin protegidas:** todos os handlers em `/api/admin/*` validam o cookie via `requireAdminAuth` (timingSafeEqual contra `ADMIN_API_TOKEN`). 401 se ausente/inválido.
+- **Listagem de parceiros:** `/admin/parceiros` mostra todos os projetos com filtro "Mostrar inativos". Coluna de status (ativo/inativo) e onboarding (pendente/conectado).
+- **Soft delete (Desativar):** botão alterna `_plataforma.projetos.ativo = false`. Reversível. Parceiros inativos somem da lista por padrão.
+- **Hard delete (Excluir Definitivamente):** modal exige digitar nome exato do projeto. Backend valida no servidor. Transação varre 12 tabelas filhas sem `ON DELETE CASCADE` (mensagens_raw, sessoes_conversa, validações, skills_avaliacoes/analises, agentes_humanos, numeros_projeto, instancias_evolution) + seta `audit_log.projeto_id = NULL` (preserva histórico). Demais tabelas com cascade somem por FK.
+- **Senha duplicada / slug colidindo:** POST de novo parceiro retorna 409 com mensagem `"Já existe parceiro com nome similar (slug duplicado)"` (antes era 500 genérico).
+- **Constraint `numeros_projeto`:** migration 027 cria UNIQUE parcial em `(projeto_id, setor) WHERE ativo = true` — impede duplicação no cadastro multi-setor sob retentativas, preserva histórico de inativos.
+
+---
+
 ## Onboarding de Novos Clientes
 
 A plataforma suporta múltiplos clientes (projetos). Para conectar um novo cliente sem usar o terminal:
