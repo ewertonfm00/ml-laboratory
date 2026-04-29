@@ -2,8 +2,6 @@ import { query } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 function toSlug(nome: string): string {
   return nome
     .toLowerCase()
@@ -15,6 +13,7 @@ function toSlug(nome: string): string {
 
 async function enviarEmail(email: string, responsavel: string, link: string) {
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
       from: process.env.RESEND_FROM!,
       to: email,
