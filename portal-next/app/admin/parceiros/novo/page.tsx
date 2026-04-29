@@ -21,7 +21,14 @@ export default function NovoParceiro() {
     setor: '',
   });
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ slug: string; onboarding_link: string } | null>(null);
+  const [result, setResult] = useState<{
+    slug: string;
+    onboarding_link: string;
+    email_status: 'enviado' | 'falhou';
+    email_error: string | null;
+    whatsapp_status: 'enviado' | 'falhou';
+    whatsapp_error: string | null;
+  } | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -49,7 +56,14 @@ export default function NovoParceiro() {
         return;
       }
 
-      setResult({ slug: data.slug, onboarding_link: data.onboarding_link });
+      setResult({
+        slug: data.slug,
+        onboarding_link: data.onboarding_link,
+        email_status: data.email_status,
+        email_error: data.email_error,
+        whatsapp_status: data.whatsapp_status,
+        whatsapp_error: data.whatsapp_error,
+      });
     } catch {
       setError('Erro de conexão');
     } finally {
@@ -65,12 +79,37 @@ export default function NovoParceiro() {
   };
 
   if (result) {
+    const emailOk = result.email_status === 'enviado';
+    const whatsappOk = result.whatsapp_status === 'enviado';
+    const algumaFalha = !emailOk || !whatsappOk;
+
     return (
       <div className="p-6 md:p-8 max-w-lg mx-auto">
         <div className="bg-[#1A1A2E] border border-[#2A2A3E] rounded-xl p-8 text-center">
-          <p className="text-4xl mb-4">✅</p>
+          <p className="text-4xl mb-4">{algumaFalha ? '⚠️' : '✅'}</p>
           <h2 className="text-white text-xl font-bold mb-2">Parceiro criado com sucesso!</h2>
-          <p className="text-slate-400 text-sm mb-6">E-mail e WhatsApp enviados com o link de onboarding.</p>
+          <p className="text-slate-400 text-sm mb-6">
+            {algumaFalha
+              ? 'O parceiro foi criado, mas alguns avisos não foram entregues.'
+              : 'E-mail e WhatsApp enviados com o link de onboarding.'}
+          </p>
+
+          <div className="space-y-2 mb-4 text-left">
+            <div className={`flex items-center gap-2 text-sm ${emailOk ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span>{emailOk ? '✅' : '⚠️'}</span>
+              <span>E-mail: {emailOk ? 'enviado' : 'falhou'}</span>
+            </div>
+            {!emailOk && result.email_error && (
+              <p className="text-amber-300 text-xs ml-6 break-all">{result.email_error}</p>
+            )}
+            <div className={`flex items-center gap-2 text-sm ${whatsappOk ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span>{whatsappOk ? '✅' : '⚠️'}</span>
+              <span>WhatsApp: {whatsappOk ? 'enviado' : 'falhou'}</span>
+            </div>
+            {!whatsappOk && result.whatsapp_error && (
+              <p className="text-amber-300 text-xs ml-6 break-all">{result.whatsapp_error}</p>
+            )}
+          </div>
 
           <div className="bg-[#0F0F1A] border border-[#2A2A3E] rounded-lg p-3 text-left mb-4">
             <p className="text-slate-500 text-xs mb-1">Link de onboarding</p>

@@ -9,6 +9,7 @@ _Criado em 2026-04-21 — atualizado pelo agente a cada task_
 - [ ] Seed SQL tipo='multi': BLOQUEADO — aguarda clínica com serviço multi
 
 ## Concluído
+- [x] Falha silenciosa no envio de e-mail/WhatsApp corrigida em portal-next/app/api/admin/parceiros/route.ts: funções retornam status, handler reporta no response, UI mostra ✅/⚠️ com mensagem de erro. Texto do email atualizado para o novo fluxo (sem credenciais Evolution). Build OK. — 2026-04-29
 - [x] Story 1.1 task 2.6: mono-agente validado em produção — 1.175 msgs, agente_humano_id = Kátia em 100% das sessões — 2026-04-28
 - [x] Onboarding parceiros externos: migration 024 + 8 arquivos Portal (admin, onboarding público, aba perfil, Sidebar, types) — 2026-04-28
 - [x] GAP-006: 3 tasks do whatsapp-recovery-agent criadas + squad.yaml atualizado — commit da225cc

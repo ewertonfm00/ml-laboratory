@@ -11,37 +11,61 @@ function toSlug(nome: string): string {
     .replace(/^-|-$/g, '');
 }
 
-async function enviarEmail(email: string, responsavel: string, link: string) {
+type EnvioResultado = { ok: true } | { ok: false; error: string };
+
+async function enviarEmail(email: string, responsavel: string, link: string): Promise<EnvioResultado> {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      const error = 'RESEND_API_KEY ausente';
+      console.error('Erro ao enviar e-mail de onboarding:', error);
+      return { ok: false, error };
+    }
+    if (!process.env.RESEND_FROM) {
+      const error = 'RESEND_FROM ausente';
+      console.error('Erro ao enviar e-mail de onboarding:', error);
+      return { ok: false, error };
+    }
+
     const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: process.env.RESEND_FROM!,
+    const result = await resend.emails.send({
+      from: process.env.RESEND_FROM,
       to: email,
-      subject: 'Conecte seu WhatsApp ao ML Laboratory',
+      subject: 'Ative sua integração com o ML Laboratory',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Olá, ${responsavel}!</h2>
           <p>Você foi cadastrado como parceiro do <strong>ML Laboratory</strong>.</p>
-          <p>Clique no link abaixo e preencha as credenciais da sua Evolution API para ativar a integração:</p>
+          <p>Acesse o link abaixo para configurar a integração — você verá o endpoint do ML Laboratory e poderá colar a API Key gerada pelo seu sistema:</p>
           <p><a href="${link}" style="background: #7c3aed; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Configurar Integração</a></p>
           <p style="color: #666; font-size: 12px; margin-top: 24px;">Ou copie e cole este link no navegador: ${link}</p>
         </div>
       `,
     });
+
+    if (result.error) {
+      const error = `${result.error.name ?? 'ResendError'}: ${result.error.message ?? JSON.stringify(result.error)}`;
+      console.error('Erro ao enviar e-mail de onboarding:', error);
+      return { ok: false, error };
+    }
+
+    return { ok: true };
   } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
     console.error('Erro ao enviar e-mail de onboarding:', err);
+    return { ok: false, error };
   }
 }
 
-async function enviarWhatsApp(telefone: string, responsavel: string, link: string) {
+async function enviarWhatsApp(telefone: string, responsavel: string, link: string): Promise<EnvioResultado> {
   try {
     const evolutionUrl = process.env.ONBOARDING_EVOLUTION_URL;
     const apiKey = process.env.ONBOARDING_EVOLUTION_API_KEY;
     const instanceName = process.env.ONBOARDING_INSTANCE_NAME;
 
     if (!evolutionUrl || !apiKey || !instanceName) {
-      console.error('Variáveis de onboarding ausentes (ONBOARDING_EVOLUTION_URL/API_KEY/INSTANCE_NAME)');
-      return;
+      const error = 'Variáveis de onboarding ausentes (ONBOARDING_EVOLUTION_URL/API_KEY/INSTANCE_NAME)';
+      console.error(error);
+      return { ok: false, error };
     }
 
     const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
@@ -55,11 +79,19 @@ async function enviarWhatsApp(telefone: string, responsavel: string, link: strin
         text: `Olá ${responsavel}! Acesse o link para conectar seu WhatsApp ao ML Laboratory: ${link}`,
       }),
     });
+
     if (!response.ok) {
-      console.error('Erro ao enviar WhatsApp de onboarding:', await response.text());
+      const body = await response.text();
+      const error = `Evolution ${response.status}: ${body}`;
+      console.error('Erro ao enviar WhatsApp de onboarding:', error);
+      return { ok: false, error };
     }
+
+    return { ok: true };
   } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
     console.error('Erro ao enviar WhatsApp de onboarding:', err);
+    return { ok: false, error };
   }
 }
 
@@ -84,7 +116,7 @@ export async function POST(req: NextRequest) {
     const portalUrl = process.env.PORTAL_URL ?? 'http://localhost:3000';
     const onboardingLink = `${portalUrl}/onboarding/${projeto.onboarding_token}`;
 
-    await Promise.all([
+    const [emailResult, whatsappResult] = await Promise.all([
       enviarEmail(email, responsavel, onboardingLink),
       enviarWhatsApp(telefone, responsavel, onboardingLink),
     ]);
@@ -94,6 +126,10 @@ export async function POST(req: NextRequest) {
       projeto_id: projeto.id,
       slug: projeto.slug,
       onboarding_link: onboardingLink,
+      email_status: emailResult.ok ? 'enviado' : 'falhou',
+      email_error: emailResult.ok ? null : emailResult.error,
+      whatsapp_status: whatsappResult.ok ? 'enviado' : 'falhou',
+      whatsapp_error: whatsappResult.ok ? null : whatsappResult.error,
     });
   } catch (error) {
     console.error('POST /api/admin/parceiros error:', error);
