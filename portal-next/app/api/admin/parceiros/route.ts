@@ -1,6 +1,7 @@
 import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 const SETORES_VALIDOS = [
   'comercial',
@@ -115,6 +116,9 @@ async function enviarWhatsApp(telefone: string, responsavel: string, link: strin
 }
 
 export async function GET(req: NextRequest) {
+  const auth = requireAdminAuth(req);
+  if (auth) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const incluirInativos = searchParams.get('incluirInativos') === 'true';
@@ -157,6 +161,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requireAdminAuth(req);
+  if (auth) return auth;
+
   try {
     const body = await req.json();
     const { nome, responsavel, email, telefone } = body;

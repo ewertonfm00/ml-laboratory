@@ -1,5 +1,6 @@
 import pool from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -22,6 +23,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = requireAdminAuth(req);
+  if (auth) return auth;
+
   const { id } = await params;
   if (!UUID_REGEX.test(id)) {
     return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
@@ -56,6 +60,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = requireAdminAuth(req);
+  if (auth) return auth;
+
   const { id } = await params;
   if (!UUID_REGEX.test(id)) {
     return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
