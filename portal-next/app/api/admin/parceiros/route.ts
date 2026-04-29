@@ -66,10 +66,10 @@ export async function POST(req: NextRequest) {
     const slug = toSlug(nome);
 
     const rows = await query<{ id: string; slug: string; onboarding_token: string }>(
-      `INSERT INTO _plataforma.projetos (nome, slug, responsavel, email, telefone, setor, ativo)
-       VALUES ($1, $2, $3, $4, $5, $6, true)
+      `INSERT INTO _plataforma.projetos (nome, slug, schema_prefix, responsavel, email, telefone, setor, ativo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
        RETURNING id, slug, onboarding_token`,
-      [nome, slug, responsavel, email, telefone, setor ?? null]
+      [nome, slug, slug, responsavel, email, telefone, setor ?? null]
     );
 
     const projeto = rows[0];
